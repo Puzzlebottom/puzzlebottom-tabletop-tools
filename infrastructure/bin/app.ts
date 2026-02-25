@@ -7,6 +7,7 @@ import { DatabaseStack } from '../lib/stacks/database-stack';
 import { EventStack } from '../lib/stacks/event-stack';
 import { StepFunctionStack } from '../lib/stacks/step-function-stack';
 import { ApiStack } from '../lib/stacks/api-stack';
+import { FrontendStack } from '../lib/stacks/frontend-stack';
 
 const app = new cdk.App();
 const config = resolveEnvironment();
@@ -54,7 +55,15 @@ const apiStack = new ApiStack(app, `${prefix}-ApiStack`, {
   eventBus: eventStack.eventBus,
 });
 
+const frontendStack = new FrontendStack(app, `${prefix}-FrontendStack`, {
+  ...stackProps,
+  config,
+  graphqlApiUrl: apiStack.api.graphqlUrl,
+  userPoolId: authStack.userPool.userPoolId,
+  userPoolClientId: authStack.userPoolClient.userPoolClientId,
+});
+
 void stepFunctionStack;
-void apiStack;
+void frontendStack;
 
 app.synth();

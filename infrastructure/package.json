@@ -12,6 +12,7 @@
     "destroy": "cdk destroy"
   },
   "dependencies": {
+    "@aws-cdk/aws-amplify-alpha": "^2.240.0-alpha.0",
     "aws-cdk-lib": "^2.240.0",
     "constructs": "^10.5.1"
   },

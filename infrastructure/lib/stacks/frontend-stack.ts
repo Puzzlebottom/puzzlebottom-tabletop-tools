@@ -1,0 +1,90 @@
+import * as cdk from 'aws-cdk-lib';
+import * as amplify from '@aws-cdk/aws-amplify-alpha';
+import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+import { Construct } from 'constructs';
+import { EnvironmentConfig } from '../config/environments';
+
+interface FrontendStackProps extends cdk.StackProps {
+  config: EnvironmentConfig;
+  graphqlApiUrl: string;
+  userPoolId: string;
+  userPoolClientId: string;
+}
+
+export class FrontendStack extends cdk.Stack {
+  public readonly amplifyApp: amplify.App;
+
+  constructor(scope: Construct, id: string, props: FrontendStackProps) {
+    super(scope, id, props);
+
+    const { config, graphqlApiUrl, userPoolId, userPoolClientId } = props;
+
+    const githubToken = cdk.SecretValue.secretsManager('github-token');
+
+    this.amplifyApp = new amplify.App(this, 'AmplifyApp', {
+      appName: `${config.envName}-data-pipeline`,
+      sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
+        owner: this.node.tryGetContext('githubOwner') ?? 'OWNER',
+        repository: this.node.tryGetContext('githubRepo') ?? 'aws-step-function-test',
+        oauthToken: githubToken,
+      }),
+      buildSpec: codebuild.BuildSpec.fromObjectToYaml({
+        version: 1,
+        applications: [
+          {
+            appRoot: 'frontend',
+            frontend: {
+              phases: {
+                preBuild: {
+                  commands: ['npm ci'],
+                },
+                build: {
+                  commands: ['npm run build'],
+                },
+              },
+              artifacts: {
+                baseDirectory: 'dist',
+                files: ['**/*'],
+              },
+              cache: {
+                paths: ['node_modules/**/*'],
+              },
+            },
+          },
+        ],
+      }),
+      environmentVariables: {
+        VITE_USER_POOL_ID: userPoolId,
+        VITE_USER_POOL_CLIENT_ID: userPoolClientId,
+        VITE_GRAPHQL_ENDPOINT: graphqlApiUrl,
+      },
+      platform: amplify.Platform.WEB_COMPUTE,
+    });
+
+    if (!config.isSandbox) {
+      const branchMap: Record<string, string> = {
+        development: 'development',
+        staging: 'staging',
+        production: 'main',
+      };
+
+      const branchName = branchMap[config.envName];
+      if (branchName) {
+        this.amplifyApp.addBranch(branchName, {
+          autoBuild: true,
+          stage: config.envName === 'production' ? 'PRODUCTION' : 'DEVELOPMENT',
+        });
+      }
+    }
+
+    new cdk.CfnOutput(this, 'AmplifyAppId', {
+      value: this.amplifyApp.appId,
+      exportName: `${config.envName}-amplify-app-id`,
+    });
+
+    new cdk.CfnOutput(this, 'AmplifyDefaultDomain', {
+      value: `https://${config.envName === 'production' ? 'main' : config.envName}.${this.amplifyApp.defaultDomain}`,
+      exportName: `${config.envName}-amplify-url`,
+    });
+  }
+}
