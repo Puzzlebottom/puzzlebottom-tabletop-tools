@@ -94,7 +94,10 @@ jobs:
 
       - name: Destroy exact sandbox
         if: steps.resolve.outputs.mode == 'exact'
-        run: npx cdk destroy --all --force
+        run: >-
+          npx cdk destroy --all --force
+          -c githubOwner=${{ github.repository_owner }}
+          -c githubRepo=${{ github.event.repository.name }}
         working-directory: infrastructure
         env:
           SANDBOX_IDENTIFIER: ${{ steps.resolve.outputs.sandbox_identifier }}
@@ -134,9 +137,15 @@ jobs:
           echo "Found sandbox identifiers:"
           echo "${IDENTIFIERS}"
 
+          GITHUB_OWNER="${{ github.repository_owner }}"
+          GITHUB_REPO="${{ github.event.repository.name }}"
+
           for IDENTIFIER in ${IDENTIFIERS}; do
             echo "Destroying sandbox-${IDENTIFIER}..."
-            SANDBOX_IDENTIFIER="${IDENTIFIER}" npx cdk destroy --all --force --app "npx ts-node --prefer-ts-exts bin/app.ts"
+            SANDBOX_IDENTIFIER="${IDENTIFIER}" npx cdk destroy --all --force \
+              -c "githubOwner=${GITHUB_OWNER}" \
+              -c "githubRepo=${GITHUB_REPO}" \
+              --app "npx ts-node --prefer-ts-exts bin/app.ts"
           done
         working-directory: infrastructure
 
