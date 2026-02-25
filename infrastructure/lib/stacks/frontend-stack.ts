@@ -24,8 +24,8 @@ export class FrontendStack extends cdk.Stack {
     this.amplifyApp = new amplify.App(this, 'AmplifyApp', {
       appName: `${config.envName}-data-pipeline`,
       sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
-        owner: this.node.tryGetContext('githubOwner') ?? 'OWNER',
-        repository: this.node.tryGetContext('githubRepo') ?? 'aws-step-function-test',
+        owner: this.requireContext('githubOwner'),
+        repository: this.requireContext('githubRepo'),
         oauthToken: githubToken,
       }),
       buildSpec: codebuild.BuildSpec.fromObjectToYaml({
@@ -86,5 +86,16 @@ export class FrontendStack extends cdk.Stack {
       value: `https://${config.envName === 'production' ? 'main' : config.envName}.${this.amplifyApp.defaultDomain}`,
       exportName: `${config.envName}-amplify-url`,
     });
+  }
+
+  private requireContext(key: string): string {
+    const value = this.node.tryGetContext(key);
+    if (!value) {
+      throw new Error(
+        `CDK context variable "${key}" is required. ` +
+        `Pass it via: cdk deploy -c ${key}=<value>`
+      );
+    }
+    return value;
   }
 }

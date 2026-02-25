@@ -54,14 +54,20 @@ jobs:
         run: npm run build
 
       - name: CDK diff
-        run: npx cdk diff --all
+        run: >-
+          npx cdk diff --all
+          -c githubOwner=${{ github.repository_owner }}
+          -c githubRepo=${{ github.event.repository.name }}
         working-directory: infrastructure
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           SANDBOX_DEVELOPER: ${{ inputs.sandbox-developer }}
 
       - name: CDK deploy
-        run: npx cdk deploy --all --require-approval never
+        run: >-
+          npx cdk deploy --all --require-approval never
+          -c githubOwner=${{ github.repository_owner }}
+          -c githubRepo=${{ github.event.repository.name }}
         working-directory: infrastructure
         env:
           ENVIRONMENT: ${{ inputs.environment }}
