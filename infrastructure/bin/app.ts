@@ -5,6 +5,7 @@ import { resolveEnvironment } from '../lib/config/environments';
 import { AuthStack } from '../lib/stacks/auth-stack';
 import { DatabaseStack } from '../lib/stacks/database-stack';
 import { EventStack } from '../lib/stacks/event-stack';
+import { StepFunctionStack } from '../lib/stacks/step-function-stack';
 
 const app = new cdk.App();
 const config = resolveEnvironment();
@@ -38,8 +39,14 @@ const eventStack = new EventStack(app, `${prefix}-EventStack`, {
   config,
 });
 
+const stepFunctionStack = new StepFunctionStack(app, `${prefix}-StepFunctionStack`, {
+  ...stackProps,
+  config,
+  dataTable: databaseStack.dataTable,
+  pipelineQueue: eventStack.pipelineQueue,
+});
+
 void authStack;
-void databaseStack;
-void eventStack;
+void stepFunctionStack;
 
 app.synth();
