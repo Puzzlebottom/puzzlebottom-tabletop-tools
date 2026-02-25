@@ -35,3 +35,6 @@ cdk.context.json
 
 # Amplify
 amplify-backup/
+
+# Plan files
+*.plan.md

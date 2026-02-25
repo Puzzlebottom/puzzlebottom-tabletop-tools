@@ -31,6 +31,7 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 ├── frontend/          React + Vite app
 ├── backend/           Lambda handlers and shared types
 ├── infrastructure/    CDK stacks
+├── scripts/           Setup and utility scripts
 └── .github/workflows/ CI/CD pipelines
 ```
 
@@ -55,10 +56,20 @@ Run once per AWS account/region:
 
 ```bash
 cd infrastructure
-npx cdk bootstrap aws://ACCOUNT_ID/us-east-1
+ENVIRONMENT=development npx cdk bootstrap aws://ACCOUNT_ID/us-east-1
 ```
 
-### 3. Set up GitHub OIDC in AWS
+### 3. Automated setup (recommended)
+
+Steps 3-6 can be automated with the setup script:
+
+```bash
+./scripts/setup-aws-github.sh
+```
+
+The script creates the OIDC provider, IAM role, GitHub Actions secret, Secrets Manager token, and GitHub Environments. It is idempotent and safe to re-run.
+
+### 3 (manual). Set up GitHub OIDC in AWS
 
 Create an IAM OIDC identity provider for GitHub Actions:
 
@@ -86,7 +97,7 @@ Create an IAM role that trusts your GitHub repository:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:YOUR_ORG/aws-step-function-test:*"
+          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/aws-step-function-test:*"
         }
       }
     }
@@ -96,7 +107,7 @@ Create an IAM role that trusts your GitHub repository:
 
 The role needs permissions for CloudFormation, Lambda, DynamoDB, SQS, EventBridge, AppSync, Cognito, Amplify, IAM (for creating service roles), S3 (CDK assets), and CloudWatch Logs. For initial setup, `AdministratorAccess` works; scope it down later.
 
-### 4. Store the GitHub personal access token
+### 4 (manual). Store the GitHub personal access token
 
 Amplify needs a GitHub token to connect to the repository:
 
@@ -106,13 +117,15 @@ aws secretsmanager create-secret \
   --secret-string "ghp_YOUR_TOKEN_HERE"
 ```
 
-### 5. Configure GitHub repository secrets
+The token must have `repo` and `admin:repo_hook` scopes.
+
+### 5 (manual). Configure GitHub repository secrets
 
 Add the following secret in your repo's Settings > Secrets and variables > Actions:
 
 - `AWS_ROLE_ARN`: The ARN of the IAM role created in step 3
 
-### 6. Create GitHub Environments
+### 6 (manual). Create GitHub Environments
 
 In your repo's Settings > Environments, create:
 
@@ -146,10 +159,14 @@ feature/* ──PR──► development ──PR──► staging ──PR──
 cd infrastructure
 
 # Deploy to development
-ENVIRONMENT=development npx cdk deploy --all
+ENVIRONMENT=development npx cdk deploy --all \
+  -c githubOwner=<your-github-username> \
+  -c githubRepo=aws-step-function-test
 
 # Deploy a personal sandbox
-SANDBOX_DEVELOPER=yourname npx cdk deploy --all
+SANDBOX_DEVELOPER=yourname npx cdk deploy --all \
+  -c githubOwner=<your-github-username> \
+  -c githubRepo=aws-step-function-test
 
 # Tear down a sandbox
 SANDBOX_DEVELOPER=yourname npx cdk destroy --all --force
