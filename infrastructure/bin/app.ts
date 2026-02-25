@@ -6,6 +6,7 @@ import { AuthStack } from '../lib/stacks/auth-stack';
 import { DatabaseStack } from '../lib/stacks/database-stack';
 import { EventStack } from '../lib/stacks/event-stack';
 import { StepFunctionStack } from '../lib/stacks/step-function-stack';
+import { ApiStack } from '../lib/stacks/api-stack';
 
 const app = new cdk.App();
 const config = resolveEnvironment();
@@ -46,7 +47,14 @@ const stepFunctionStack = new StepFunctionStack(app, `${prefix}-StepFunctionStac
   pipelineQueue: eventStack.pipelineQueue,
 });
 
-void authStack;
+const apiStack = new ApiStack(app, `${prefix}-ApiStack`, {
+  ...stackProps,
+  config,
+  userPool: authStack.userPool,
+  eventBus: eventStack.eventBus,
+});
+
 void stepFunctionStack;
+void apiStack;
 
 app.synth();
