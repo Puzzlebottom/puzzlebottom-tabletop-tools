@@ -11,7 +11,10 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "sandbox:deploy": "./scripts/sandbox-deploy.sh",
+    "sandbox:teardown": "./scripts/sandbox-teardown.sh",
+    "setup:aws": "./scripts/setup-aws-github.sh"
   },
   "engines": {
     "node": ">=22"

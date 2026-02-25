@@ -3,13 +3,13 @@ name: Deploy Sandbox
 on:
   workflow_dispatch:
     inputs:
-      developer_name:
-        description: "Developer name (used as sandbox identifier, e.g. 'john')"
-        required: true
+      sandbox_identifier:
+        description: "Optional override for sandbox identifier (branch-slug-shortsha)"
+        required: false
         type: string
 
 concurrency:
-  group: sandbox-${{ github.event.inputs.developer_name }}
+  group: sandbox-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -17,10 +17,49 @@ permissions:
   contents: read
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      sandbox_identifier: ${{ steps.identify.outputs.sandbox_identifier }}
+      sandbox_environment: ${{ steps.identify.outputs.sandbox_environment }}
+    steps:
+      - name: Resolve sandbox identifier
+        id: identify
+        shell: bash
+        env:
+          INPUT_SANDBOX_IDENTIFIER: ${{ github.event.inputs.sandbox_identifier }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          slugify() {
+            printf "%s" "$1" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g'
+          }
+
+          if [ -n "${INPUT_SANDBOX_IDENTIFIER}" ]; then
+            SANDBOX_IDENTIFIER="$(slugify "${INPUT_SANDBOX_IDENTIFIER}")"
+          else
+            BRANCH_SLUG="$(slugify "${BRANCH_NAME}")"
+            SHORT_SHA="${COMMIT_SHA:0:7}"
+            SANDBOX_IDENTIFIER="${BRANCH_SLUG}-${SHORT_SHA}"
+          fi
+
+          if [ -z "${SANDBOX_IDENTIFIER}" ]; then
+            echo "Failed to compute sandbox identifier."
+            exit 1
+          fi
+
+          echo "sandbox_identifier=${SANDBOX_IDENTIFIER}" >> "$GITHUB_OUTPUT"
+          echo "sandbox_environment=sandbox-${SANDBOX_IDENTIFIER}" >> "$GITHUB_OUTPUT"
+
   deploy:
+    needs: prepare
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: sandbox-${{ github.event.inputs.developer_name }}
-      sandbox-developer: ${{ github.event.inputs.developer_name }}
+      environment: ${{ needs.prepare.outputs.sandbox_environment }}
+      sandbox-identifier: ${{ needs.prepare.outputs.sandbox_identifier }}
     secrets:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}

@@ -64,7 +64,7 @@ ENVIRONMENT=development npx cdk bootstrap aws://ACCOUNT_ID/us-east-1
 Steps 3-6 can be automated with the setup script:
 
 ```bash
-./scripts/setup-aws-github.sh
+npm run setup:aws
 ```
 
 The script creates the OIDC provider, IAM role, GitHub Actions secret, Secrets Manager token, and GitHub Environments. It is idempotent and safe to re-run.
@@ -163,32 +163,59 @@ ENVIRONMENT=development npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
   -c githubRepo=aws-step-function-test
 
-# Deploy a personal sandbox
-SANDBOX_DEVELOPER=yourname npx cdk deploy --all \
+# Deploy a sandbox (branch-hash identifier)
+SANDBOX_IDENTIFIER=feature-auth-a1b2c3d npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
   -c githubRepo=aws-step-function-test
 
 # Tear down a sandbox
-SANDBOX_DEVELOPER=yourname npx cdk destroy --all --force
+SANDBOX_IDENTIFIER=feature-auth-a1b2c3d npx cdk destroy --all --force
 ```
 
 ## Sandbox Environments
 
-Sandboxes are fully isolated, ephemeral environments for individual developers.
+Sandboxes are fully isolated, ephemeral environments tied to a branch and commit.
+
+Each sandbox is identified by `<branch-slug>-<short-sha>`, for example `feature-auth-a1b2c3d`. All AWS resources are prefixed with `sandbox-<identifier>-`.
+
+### Deploy via script (recommended)
+
+From any feature branch, run:
+
+```bash
+npm run sandbox:deploy
+```
+
+The script automatically derives the sandbox identifier from the current branch and commit, then dispatches the `Deploy Sandbox` workflow. It is blocked on protected branches (`development`, `staging`, `main`).
+
+### Tear down via script (recommended)
+
+From the same branch:
+
+```bash
+npm run sandbox:teardown
+```
+
+This triggers a branch-based teardown that removes all sandboxes associated with the current branch.
 
 ### Deploy via GitHub Actions
 
 1. Go to Actions > "Deploy Sandbox"
-2. Click "Run workflow"
-3. Enter your name (e.g., `john`)
-4. All resources are created with prefix `sandbox-john-`
+2. Click "Run workflow" from your feature branch
+3. Optionally provide a `sandbox_identifier` override (otherwise auto-computed)
+4. Resources are created with prefix `sandbox-<identifier>-`
 
 ### Tear down via GitHub Actions
 
 1. Go to Actions > "Teardown Sandbox"
 2. Click "Run workflow"
-3. Enter the same developer name
-4. All resources are destroyed and cleanup is verified
+3. Provide either:
+   - `sandbox_identifier` for exact teardown, or
+   - `branch_name` to tear down all sandboxes for a branch
+
+### Auto-cleanup
+
+When a branch is deleted from GitHub, the `Sandbox Auto Cleanup` workflow automatically triggers a branch-based teardown to remove any remaining sandbox resources.
 
 ### Sandbox characteristics
 

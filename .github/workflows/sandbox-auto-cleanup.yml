@@ -1,0 +1,16 @@
+name: Sandbox Auto Cleanup
+
+on:
+  delete:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  cleanup:
+    if: github.event.ref_type == 'branch'
+    uses: ./.github/workflows/sandbox-teardown.yml
+    with:
+      branch_name: ${{ github.event.ref }}
+    secrets: inherit

@@ -40,10 +40,10 @@ export const environments: Record<string, EnvironmentConfig> = {
   },
 };
 
-export function getSandboxConfig(developerName: string): EnvironmentConfig {
+export function getSandboxConfig(sandboxIdentifier: string): EnvironmentConfig {
   return {
     ...BASE_CONFIG,
-    envName: `sandbox-${developerName}`,
+    envName: `sandbox-${sandboxIdentifier}`,
     isSandbox: true,
     removalPolicy: RemovalPolicy.DESTROY,
     logRetention: RetentionDays.ONE_DAY,
@@ -52,17 +52,17 @@ export function getSandboxConfig(developerName: string): EnvironmentConfig {
 
 export function resolveEnvironment(): EnvironmentConfig {
   const envName = process.env.ENVIRONMENT;
-  const sandboxDev = process.env.SANDBOX_DEVELOPER;
+  const sandboxIdentifier = process.env.SANDBOX_IDENTIFIER ?? process.env.SANDBOX_DEVELOPER;
 
-  if (sandboxDev) {
-    return getSandboxConfig(sandboxDev);
+  if (sandboxIdentifier) {
+    return getSandboxConfig(sandboxIdentifier);
   }
 
   if (!envName) {
     throw new Error(
-      'ENVIRONMENT or SANDBOX_DEVELOPER env var must be set. ' +
+      'ENVIRONMENT or SANDBOX_IDENTIFIER env var must be set. ' +
       'Valid environments: development, staging, production. ' +
-      'For sandboxes, set SANDBOX_DEVELOPER=<your-name>.'
+      'For sandboxes, set SANDBOX_IDENTIFIER=<branch-slug-shortsha>.'
     );
   }
 

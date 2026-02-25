@@ -12,8 +12,8 @@ on:
         required: false
         type: string
         default: us-east-1
-      sandbox-developer:
-        description: Developer name for sandbox environments
+      sandbox-identifier:
+        description: Branch-hash identifier for sandbox environments
         required: false
         type: string
         default: ""
@@ -61,7 +61,7 @@ jobs:
         working-directory: infrastructure
         env:
           ENVIRONMENT: ${{ inputs.environment }}
-          SANDBOX_DEVELOPER: ${{ inputs.sandbox-developer }}
+          SANDBOX_IDENTIFIER: ${{ inputs.sandbox-identifier }}
 
       - name: CDK deploy
         run: >-
@@ -71,4 +71,4 @@ jobs:
         working-directory: infrastructure
         env:
           ENVIRONMENT: ${{ inputs.environment }}
-          SANDBOX_DEVELOPER: ${{ inputs.sandbox-developer }}
+          SANDBOX_IDENTIFIER: ${{ inputs.sandbox-identifier }}
