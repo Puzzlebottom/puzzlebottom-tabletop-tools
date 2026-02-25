@@ -2,9 +2,11 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { resolveEnvironment } from '../lib/config/environments';
+import { AuthStack } from '../lib/stacks/auth-stack';
 
 const app = new cdk.App();
 const config = resolveEnvironment();
+const prefix = config.envName;
 
 const stackProps: cdk.StackProps = {
   env: {
@@ -19,6 +21,11 @@ if (config.isSandbox) {
   cdk.Tags.of(app).add('sandbox', 'true');
 }
 
-void stackProps; // stacks will consume this in subsequent commits
+const authStack = new AuthStack(app, `${prefix}-AuthStack`, {
+  ...stackProps,
+  config,
+});
+
+void authStack;
 
 app.synth();
