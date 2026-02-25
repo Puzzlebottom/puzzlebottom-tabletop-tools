@@ -1,0 +1,17 @@
+name: Deploy Development
+
+on:
+  push:
+    branches: [development]
+
+concurrency:
+  group: deploy-development
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: development
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
