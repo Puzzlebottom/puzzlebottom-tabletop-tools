@@ -1,0 +1,68 @@
+name: Teardown Sandbox
+
+on:
+  workflow_dispatch:
+    inputs:
+      developer_name:
+        description: "Developer name of the sandbox to tear down"
+        required: true
+        type: string
+
+concurrency:
+  group: sandbox-${{ github.event.inputs.developer_name }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  teardown:
+    name: Teardown sandbox-${{ github.event.inputs.developer_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Destroy all sandbox stacks
+        run: npx cdk destroy --all --force
+        working-directory: infrastructure
+        env:
+          SANDBOX_DEVELOPER: ${{ github.event.inputs.developer_name }}
+
+      - name: Verify cleanup
+        run: |
+          PREFIX="sandbox-${{ github.event.inputs.developer_name }}"
+          STACKS=$(aws cloudformation list-stacks \
+            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE \
+            --query "StackSummaries[?starts_with(StackName, '${PREFIX}')].StackName" \
+            --output text)
+          if [ -n "$STACKS" ]; then
+            echo "::warning::Remaining stacks found: $STACKS"
+            echo "Attempting force delete of remaining stacks..."
+            for STACK in $STACKS; do
+              echo "Deleting $STACK..."
+              aws cloudformation delete-stack --stack-name "$STACK"
+            done
+            echo "Waiting for deletions to complete..."
+            for STACK in $STACKS; do
+              aws cloudformation wait stack-delete-complete --stack-name "$STACK" || true
+            done
+          else
+            echo "All sandbox stacks successfully removed."
+          fi

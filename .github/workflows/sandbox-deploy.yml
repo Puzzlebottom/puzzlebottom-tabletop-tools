@@ -1,0 +1,26 @@
+name: Deploy Sandbox
+
+on:
+  workflow_dispatch:
+    inputs:
+      developer_name:
+        description: "Developer name (used as sandbox identifier, e.g. 'john')"
+        required: true
+        type: string
+
+concurrency:
+  group: sandbox-${{ github.event.inputs.developer_name }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: sandbox-${{ github.event.inputs.developer_name }}
+      sandbox-developer: ${{ github.event.inputs.developer_name }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
