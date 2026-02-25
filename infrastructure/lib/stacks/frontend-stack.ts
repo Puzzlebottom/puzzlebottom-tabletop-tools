@@ -58,7 +58,7 @@ export class FrontendStack extends cdk.Stack {
         VITE_USER_POOL_CLIENT_ID: userPoolClientId,
         VITE_GRAPHQL_ENDPOINT: graphqlApiUrl,
       },
-      platform: amplify.Platform.WEB_COMPUTE,
+      platform: amplify.Platform.WEB,
     });
 
     if (!config.isSandbox) {
