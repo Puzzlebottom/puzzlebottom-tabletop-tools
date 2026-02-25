@@ -64,7 +64,7 @@ export class FrontendStack extends cdk.Stack {
     if (config.isSandbox) {
       if (config.sandboxBranch) {
         this.amplifyApp.addBranch(config.sandboxBranch, {
-          autoBuild: false,
+          autoBuild: true,
           stage: 'DEVELOPMENT',
         });
       }
