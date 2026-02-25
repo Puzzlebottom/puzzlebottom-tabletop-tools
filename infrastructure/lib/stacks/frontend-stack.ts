@@ -61,7 +61,14 @@ export class FrontendStack extends cdk.Stack {
       platform: amplify.Platform.WEB,
     });
 
-    if (!config.isSandbox) {
+    if (config.isSandbox) {
+      if (config.sandboxBranch) {
+        this.amplifyApp.addBranch(config.sandboxBranch, {
+          autoBuild: false,
+          stage: 'DEVELOPMENT',
+        });
+      }
+    } else {
       const branchMap: Record<string, string> = {
         development: 'development',
         staging: 'staging',
@@ -82,8 +89,12 @@ export class FrontendStack extends cdk.Stack {
       exportName: `${config.envName}-amplify-app-id`,
     });
 
+    const amplifySubdomain = config.isSandbox
+      ? (config.sandboxBranch ?? config.envName)
+      : (config.envName === 'production' ? 'main' : config.envName);
+
     new cdk.CfnOutput(this, 'AmplifyDefaultDomain', {
-      value: `https://${config.envName === 'production' ? 'main' : config.envName}.${this.amplifyApp.defaultDomain}`,
+      value: `https://${amplifySubdomain}.${this.amplifyApp.defaultDomain}`,
       exportName: `${config.envName}-amplify-url`,
     });
   }

@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: ""
+      sandbox-branch:
+        description: Git branch name for sandbox Amplify builds
+        required: false
+        type: string
+        default: ""
     secrets:
       AWS_ROLE_ARN:
         description: IAM role ARN for OIDC authentication
@@ -62,6 +67,7 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           SANDBOX_IDENTIFIER: ${{ inputs.sandbox-identifier }}
+          SANDBOX_BRANCH: ${{ inputs.sandbox-branch }}
 
       - name: CDK deploy
         run: >-
@@ -72,3 +78,4 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           SANDBOX_IDENTIFIER: ${{ inputs.sandbox-identifier }}
+          SANDBOX_BRANCH: ${{ inputs.sandbox-branch }}

@@ -6,6 +6,7 @@ export interface EnvironmentConfig {
   awsAccount: string;
   awsRegion: string;
   isSandbox: boolean;
+  sandboxBranch?: string;
   removalPolicy: RemovalPolicy;
   logRetention: RetentionDays;
 }
@@ -40,11 +41,12 @@ export const environments: Record<string, EnvironmentConfig> = {
   },
 };
 
-export function getSandboxConfig(sandboxIdentifier: string): EnvironmentConfig {
+export function getSandboxConfig(sandboxIdentifier: string, sandboxBranch?: string): EnvironmentConfig {
   return {
     ...BASE_CONFIG,
     envName: `sandbox-${sandboxIdentifier}`,
     isSandbox: true,
+    sandboxBranch,
     removalPolicy: RemovalPolicy.DESTROY,
     logRetention: RetentionDays.ONE_DAY,
   };
@@ -55,7 +57,8 @@ export function resolveEnvironment(): EnvironmentConfig {
   const sandboxIdentifier = process.env.SANDBOX_IDENTIFIER ?? process.env.SANDBOX_DEVELOPER;
 
   if (sandboxIdentifier) {
-    return getSandboxConfig(sandboxIdentifier);
+    const sandboxBranch = process.env.SANDBOX_BRANCH || undefined;
+    return getSandboxConfig(sandboxIdentifier, sandboxBranch);
   }
 
   if (!envName) {

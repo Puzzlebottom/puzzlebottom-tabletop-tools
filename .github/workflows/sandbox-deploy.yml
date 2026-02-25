@@ -61,5 +61,6 @@ jobs:
     with:
       environment: ${{ needs.prepare.outputs.sandbox_environment }}
       sandbox-identifier: ${{ needs.prepare.outputs.sandbox_identifier }}
+      sandbox-branch: ${{ github.ref_name }}
     secrets:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
