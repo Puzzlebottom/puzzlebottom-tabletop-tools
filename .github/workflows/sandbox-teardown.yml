@@ -95,7 +95,7 @@ jobs:
       - name: Destroy exact sandbox
         if: steps.resolve.outputs.mode == 'exact'
         run: >-
-          npx cdk destroy --all --force
+          bash ../scripts/parallel-cdk-destroy.sh
           -c githubOwner=${{ github.repository_owner }}
           -c githubRepo=${{ github.event.repository.name }}
         working-directory: infrastructure
@@ -142,10 +142,9 @@ jobs:
 
           for IDENTIFIER in ${IDENTIFIERS}; do
             echo "Destroying sandbox-${IDENTIFIER}..."
-            SANDBOX_IDENTIFIER="${IDENTIFIER}" npx cdk destroy --all --force \
+            SANDBOX_IDENTIFIER="${IDENTIFIER}" bash ../scripts/parallel-cdk-destroy.sh \
               -c "githubOwner=${GITHUB_OWNER}" \
-              -c "githubRepo=${GITHUB_REPO}" \
-              --app "npx ts-node --prefer-ts-exts bin/app.ts"
+              -c "githubRepo=${GITHUB_REPO}"
           done
         working-directory: infrastructure
 
