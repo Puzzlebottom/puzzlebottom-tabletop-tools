@@ -27,11 +27,6 @@ require_command() {
   fi
 }
 
-slugify() {
-  tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g'
-}
-
 stack_exists() {
   local stack="$1"
   aws cloudformation describe-stacks --stack-name "$stack" &>/dev/null
@@ -67,18 +62,14 @@ else
     exit 1
   fi
 
-  case "$branch_name" in
+    case "$branch_name" in
     development) env_prefix="development" ;;
     staging) env_prefix="staging" ;;
     main) env_prefix="production" ;;
     *)
-      branch_slug="$(printf "%s" "$branch_name" | slugify)"
-      short_sha="$(git rev-parse --short=7 HEAD 2>/dev/null || true)"
-      if [[ -z "$branch_slug" || -z "$short_sha" ]]; then
-        echo "Error: Could not derive branch slug and commit hash."
-        exit 1
-      fi
-      env_prefix="sandbox-${branch_slug}-${short_sha}"
+      scripts_dir="$(cd "$(dirname "$0")" && pwd)"
+      sandbox_id="$("$scripts_dir/sandbox-identifier.sh")"
+      env_prefix="sandbox-${sandbox_id}"
       echo "Feature branch detected: ${branch_name} -> ${env_prefix}"
       ;;
   esac

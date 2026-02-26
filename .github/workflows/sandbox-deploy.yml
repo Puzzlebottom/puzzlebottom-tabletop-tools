@@ -23,28 +23,21 @@ jobs:
       sandbox_identifier: ${{ steps.identify.outputs.sandbox_identifier }}
       sandbox_environment: ${{ steps.identify.outputs.sandbox_environment }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Resolve sandbox identifier
         id: identify
         shell: bash
         env:
           INPUT_SANDBOX_IDENTIFIER: ${{ github.event.inputs.sandbox_identifier }}
-          BRANCH_NAME: ${{ github.ref_name }}
-          COMMIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
-          slugify() {
-            printf "%s" "$1" \
-              | tr '[:upper:]' '[:lower:]' \
-              | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g'
-          }
-
           if [ -n "${INPUT_SANDBOX_IDENTIFIER}" ]; then
-            SANDBOX_IDENTIFIER="$(slugify "${INPUT_SANDBOX_IDENTIFIER}")"
+            SANDBOX_IDENTIFIER="$(./scripts/sandbox-identifier.sh --slugify "${INPUT_SANDBOX_IDENTIFIER}")"
           else
-            BRANCH_SLUG="$(slugify "${BRANCH_NAME}")"
-            SHORT_SHA="${COMMIT_SHA:0:7}"
-            SANDBOX_IDENTIFIER="${BRANCH_SLUG}-${SHORT_SHA}"
+            SANDBOX_IDENTIFIER="$(./scripts/sandbox-identifier.sh)"
           fi
 
           if [ -z "${SANDBOX_IDENTIFIER}" ]; then
