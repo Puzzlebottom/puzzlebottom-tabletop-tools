@@ -146,6 +146,7 @@ In your repo's Settings > Environments, create:
 
 ```
 feature/* ──PR──► development ──PR──► staging ──PR──► main
+                       ◄──auto PR──      ◄──auto PR──
 ```
 
 1. Create feature branches from `development`
@@ -153,6 +154,15 @@ feature/* ──PR──► development ──PR──► staging ──PR──
 3. Merge to `development` (triggers dev deploy)
 4. PR from `development` to `staging` (triggers staging deploy)
 5. PR from `staging` to `main` (triggers production deploy with approval)
+
+### Back-sync
+
+When a PR is merged to `main` or `staging`, the `Back-Sync Branches` workflow automatically opens a PR to propagate changes back down:
+
+- `main` → `staging`
+- `staging` → `development`
+
+These PRs use merge commits to preserve shared ancestry and keep future syncs clean. If there are merge conflicts, the PR is still created but flagged for manual resolution.
 
 ## Deploying Manually
 
