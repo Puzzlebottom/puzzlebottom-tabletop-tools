@@ -1,0 +1,41 @@
+---
+description: Use Conventional Commits format for all commit messages
+alwaysApply: true
+---
+
+# Conventional Commits
+
+All commit messages MUST follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
+
+## Format
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+## Types
+
+| Type | Use for |
+|------|---------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `chore` | Maintenance, config, tooling |
+| `style` | Formatting, no code change |
+| `refactor` | Code change that neither fixes nor adds a feature |
+| `perf` | Performance improvement |
+| `test` | Adding or updating tests |
+| `ci` | CI/CD changes |
+
+## Examples
+
+```
+feat(auth): add login form
+fix(api): handle empty response
+docs: update README setup instructions
+chore(cursor): add interaction guidelines rule
+```

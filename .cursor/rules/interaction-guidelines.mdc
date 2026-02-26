@@ -1,0 +1,12 @@
+---
+description: Guidelines for AI agent interactions
+alwaysApply: true
+---
+
+# Interaction Guidelines
+
+- When requirements are ambiguous, ask a clarifying question before proceeding
+- Present questions one at a time to avoid overwhelming the user
+- Do not assume technical preferences (libraries, patterns, architecture) without asking
+- For destructive or irreversible operations, confirm intent first
+- When uncertain about intent, ask rather than guess
