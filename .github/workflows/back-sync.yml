@@ -12,7 +12,7 @@ jobs:
   sync-main-to-staging:
     name: main → staging
     runs-on: ubuntu-latest
-    if: github.ref_name == 'main' && !startsWith(github.event.head_commit.message, 'sync: merge')
+    if: "github.ref_name == 'main' && !startsWith(github.event.head_commit.message, 'sync: merge')"
     steps:
       - name: Checkout staging
         uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
   sync-staging-to-dev:
     name: staging → development
     runs-on: ubuntu-latest
-    if: !startsWith(github.event.head_commit.message, 'sync: merge')
+    if: "!startsWith(github.event.head_commit.message, 'sync: merge')"
     steps:
       - name: Checkout development
         uses: actions/checkout@v4
