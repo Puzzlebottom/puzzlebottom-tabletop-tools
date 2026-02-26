@@ -60,7 +60,7 @@ export class FrontendStack extends cdk.Stack {
 
     const cfnApp = this.amplifyApp.node.defaultChild as cdk.CfnResource;
     cfnApp.addPropertyOverride('Repository', `https://github.com/${githubOwner}/${githubRepo}`);
-    cfnApp.addPropertyOverride('AccessToken', githubToken.unsafeUnwrap());
+    cfnApp.addPropertyOverride('AccessToken', githubToken);
 
     if (config.isSandbox) {
       if (config.sandboxBranch) {
