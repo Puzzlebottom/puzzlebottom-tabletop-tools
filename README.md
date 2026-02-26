@@ -37,7 +37,7 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 
 ## Prerequisites
 
-- Node.js 22+ (see `.nvmrc`)
+- Node.js 24+ (see `.nvmrc`)
 - AWS CLI configured with credentials
 - AWS CDK CLI (`npm install -g aws-cdk`)
 - GitHub CLI (`gh`) authenticated (`gh auth login`)

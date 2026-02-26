@@ -17,6 +17,6 @@
     "setup:aws": "./scripts/setup-aws-github.sh"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }
