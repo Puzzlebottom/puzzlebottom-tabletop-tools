@@ -37,9 +37,10 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 
 ## Prerequisites
 
-- Node.js 22+ (see `.nvmrc`)
+- Node.js 24+ (see `.nvmrc`)
 - AWS CLI configured with credentials
 - AWS CDK CLI (`npm install -g aws-cdk`)
+- GitHub CLI (`gh`) authenticated (`gh auth login`)
 - GitHub repository with Actions enabled
 
 ## Initial Setup
@@ -145,6 +146,7 @@ In your repo's Settings > Environments, create:
 
 ```
 feature/* ──PR──► development ──PR──► staging ──PR──► main
+                       ◄──auto PR──      ◄──auto PR──
 ```
 
 1. Create feature branches from `development`
@@ -152,6 +154,26 @@ feature/* ──PR──► development ──PR──► staging ──PR──
 3. Merge to `development` (triggers dev deploy)
 4. PR from `development` to `staging` (triggers staging deploy)
 5. PR from `staging` to `main` (triggers production deploy with approval)
+
+### Back-sync
+
+When a PR is merged to `main` or `staging`, the `Back-Sync Branches` workflow automatically opens a PR to propagate changes back down:
+
+- `main` → `staging`
+- `staging` → `development`
+
+These PRs use merge commits to preserve shared ancestry and keep future syncs clean. If there are merge conflicts, the PR is still created but flagged for manual resolution.
+
+### Releasing
+
+To release staging to production with version bumping and changelog:
+
+1. Go to **Actions** → **Create Release**
+2. Click **Run workflow**, choose the version bump type (patch/minor/major), and run
+3. The workflow bumps the version on `staging`, pushes it, and opens a PR from `staging` → `main`
+4. Review and merge the PR (triggers production deploy and creates the GitHub Release with tag and release notes)
+
+The **Complete Release** workflow runs automatically when the release PR is merged. It creates the version tag (e.g. `v1.2.3`) and a GitHub Release with auto-generated notes from conventional commits.
 
 ## Deploying Manually
 
@@ -164,12 +186,17 @@ ENVIRONMENT=development npx cdk deploy --all \
   -c githubRepo=aws-step-function-test
 
 # Deploy a sandbox (branch-hash identifier)
-SANDBOX_IDENTIFIER=feature-auth-a1b2c3d npx cdk deploy --all \
+SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
+  SANDBOX_BRANCH=feature/auth \
+  npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
   -c githubRepo=aws-step-function-test
 
-# Tear down a sandbox
-SANDBOX_IDENTIFIER=feature-auth-a1b2c3d npx cdk destroy --all --force
+# Tear down a sandbox (parallel, respects dependency graph)
+SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
+  bash scripts/parallel-cdk-destroy.sh \
+  -c githubOwner=<your-github-username> \
+  -c githubRepo=aws-step-function-test
 ```
 
 ## Sandbox Environments
@@ -222,7 +249,7 @@ When a branch is deleted from GitHub, the `Sandbox Auto Cleanup` workflow automa
 - All resources use `RemovalPolicy.DESTROY` for clean teardown
 - CloudWatch logs retain for 1 day only
 - Point-in-time recovery disabled on DynamoDB (cost savings)
-- No Amplify branch auto-build (frontend deployed as part of CDK)
+- Amplify branch auto-build enabled; CI also triggers an explicit Amplify build after CDK deploy
 
 ## Local Frontend Development
 
@@ -245,4 +272,4 @@ This project follows [Conventional Commits 1.0.0](https://www.conventionalcommit
 
 **Types:** `feat`, `fix`, `build`, `chore`, `ci`, `docs`, `refactor`, `test`
 
-**Scopes:** `infra`, `backend`, `frontend`
+**Scopes:** `infra`, `backend`, `frontend`, `ci`, `scripts`

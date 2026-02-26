@@ -19,15 +19,12 @@ export class FrontendStack extends cdk.Stack {
 
     const { config, graphqlApiUrl, userPoolId, userPoolClientId } = props;
 
+    const githubOwner = this.requireContext('githubOwner');
+    const githubRepo = this.requireContext('githubRepo');
     const githubToken = cdk.SecretValue.secretsManager('github-token');
 
     this.amplifyApp = new amplify.App(this, 'AmplifyApp', {
       appName: `${config.envName}-data-pipeline`,
-      sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
-        owner: this.requireContext('githubOwner'),
-        repository: this.requireContext('githubRepo'),
-        oauthToken: githubToken,
-      }),
       buildSpec: codebuild.BuildSpec.fromObjectToYaml({
         version: 1,
         applications: [
@@ -60,6 +57,10 @@ export class FrontendStack extends cdk.Stack {
       },
       platform: amplify.Platform.WEB,
     });
+
+    const cfnApp = this.amplifyApp.node.defaultChild as cdk.CfnResource;
+    cfnApp.addPropertyOverride('Repository', `https://github.com/${githubOwner}/${githubRepo}`);
+    cfnApp.addPropertyOverride('AccessToken', githubToken.unsafeUnwrap());
 
     if (config.isSandbox) {
       if (config.sandboxBranch) {

@@ -161,7 +161,7 @@ if [ -n "$EXISTING_SECRET" ]; then
     echo "Skipping."
   fi
 else
-  read -rsp "Paste your GitHub Personal Access Token (needs 'repo' scope): " GITHUB_PAT
+  read -rsp "Paste your GitHub Personal Access Token (needs 'repo, admin:repo_hook' scopes): " GITHUB_PAT
   echo ""
   aws secretsmanager create-secret \
     --name github-token \
