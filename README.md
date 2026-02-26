@@ -253,14 +253,97 @@ When a branch is deleted from GitHub, the `Sandbox Auto Cleanup` workflow automa
 
 ## Local Frontend Development
 
-```bash
-# Copy environment file and fill in values from CDK outputs
-cp frontend/.env.example frontend/.env
+To run the frontend locally against a deployed backend (development, staging, or a sandbox), you need to configure environment variables that point to Cognito and AppSync.
 
-# Start dev server
+### Quick start (recommended)
+
+From the repo root, run:
+
+```bash
+npm run frontend:dev
+```
+
+This script:
+
+1. Detects the current branch and maps it to an environment (`development` → development stack, `staging` → staging, `main` → production, feature branches → sandbox)
+2. Verifies the Auth and API stacks exist in AWS
+3. Fetches Cognito and AppSync config from CloudFormation outputs
+4. Writes `frontend/.env` and starts the dev server
+
+**Override environment:** Set `FRONTEND_ENV` to force a specific stack (e.g. `FRONTEND_ENV=staging npm run frontend:dev`).
+
+**Requirements:** AWS CLI configured, stacks deployed for the target environment. For feature branches, deploy a sandbox first (`npm run sandbox:deploy`).
+
+### Manual setup
+
+If you prefer to configure env vars yourself:
+
+### 1. Copy the example env file
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+### 2. Obtain values from a deployed environment
+
+The frontend requires three variables, which are injected automatically during CI/CD deployment. For local development, you must obtain them from a deployed stack.
+
+| Variable | Purpose | Source |
+|----------|---------|--------|
+| `VITE_USER_POOL_ID` | Cognito User Pool ID for authentication | Auth stack output |
+| `VITE_USER_POOL_CLIENT_ID` | Cognito app client ID for the web app | Auth stack output |
+| `VITE_GRAPHQL_ENDPOINT` | AppSync GraphQL API URL | API stack output |
+
+**Option A: From CDK deploy output**
+
+After deploying (e.g. `ENVIRONMENT=development npx cdk deploy --all`), CDK prints the outputs. Look for:
+
+- `development-AuthStack.UserPoolId`
+- `development-AuthStack.UserPoolClientId`
+- `development-ApiStack.GraphQLApiUrl`
+
+**Option B: From AWS CloudFormation**
+
+```bash
+# Replace development with staging, production, or sandbox-<id>- for sandboxes
+ENV=development
+
+aws cloudformation describe-stacks \
+  --stack-name ${ENV}-AuthStack \
+  --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text
+
+aws cloudformation describe-stacks \
+  --stack-name ${ENV}-AuthStack \
+  --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" --output text
+
+aws cloudformation describe-stacks \
+  --stack-name ${ENV}-ApiStack \
+  --query "Stacks[0].Outputs[?OutputKey=='GraphQLApiUrl'].OutputValue" --output text
+```
+
+**Option C: From AWS Console**
+
+- **Cognito:** AWS Console → Cognito → User Pools → select the pool (e.g. `development-user-pool`) → copy User pool ID and App client ID from App integration.
+- **AppSync:** AWS Console → AppSync → select the API (e.g. `development-data-pipeline-api`) → copy the GraphQL endpoint URL.
+
+### 3. Edit `frontend/.env`
+
+Fill in the values (no quotes needed):
+
+```
+VITE_USER_POOL_ID=us-east-1_XXXXXXXXX
+VITE_USER_POOL_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+VITE_GRAPHQL_ENDPOINT=https://xxxxxxxxxx.appsync-api.us-east-1.amazonaws.com/graphql
+```
+
+### 4. Start the dev server
+
+```bash
 cd frontend
 npm run dev
 ```
+
+> **Note:** `.env` is gitignored. Never commit real credentials. Use `.env.example` as a template only.
 
 ## Commit Convention
 
