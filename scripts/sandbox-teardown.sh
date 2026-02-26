@@ -22,11 +22,6 @@ require_command() {
   fi
 }
 
-slugify() {
-  tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g'
-}
-
 is_protected_branch() {
   local branch="$1"
   for protected in "${PROTECTED_BRANCHES[@]}"; do
@@ -70,14 +65,9 @@ if is_protected_branch "$branch_name"; then
   exit 1
 fi
 
-branch_slug="$(printf "%s" "$branch_name" | slugify)"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+sandbox_identifier="$("$script_dir/sandbox-identifier.sh")"
 short_sha="$(git rev-parse --short=7 HEAD 2>/dev/null || true)"
-if [[ -z "$branch_slug" || -z "$short_sha" ]]; then
-  echo "Error: Could not derive branch slug and commit hash."
-  exit 1
-fi
-
-sandbox_identifier="${branch_slug}-${short_sha}"
 
 echo "Dispatching workflow '${WORKFLOW_FILE}'..."
 echo "  branch:             ${branch_name}"

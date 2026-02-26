@@ -66,14 +66,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          slugify() {
-            printf "%s" "$1" \
-              | tr '[:upper:]' '[:lower:]' \
-              | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g'
-          }
-
-          SANDBOX_IDENTIFIER="$(slugify "${SANDBOX_IDENTIFIER_INPUT}")"
-          BRANCH_SLUG="$(slugify "${BRANCH_NAME_INPUT}")"
+          SANDBOX_IDENTIFIER="$(./scripts/sandbox-identifier.sh --slugify "${SANDBOX_IDENTIFIER_INPUT}")"
+          BRANCH_SLUG="$(./scripts/sandbox-identifier.sh --slugify "${BRANCH_NAME_INPUT}")"
 
           if [ -n "${SANDBOX_IDENTIFIER}" ]; then
             echo "mode=exact" >> "$GITHUB_OUTPUT"
