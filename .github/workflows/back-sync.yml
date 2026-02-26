@@ -1,0 +1,116 @@
+name: Back-Sync Branches
+
+on:
+  push:
+    branches: [main, staging]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  back-sync:
+    name: Create back-sync PR
+    runs-on: ubuntu-latest
+
+    # Skip if the merge commit came from a back-sync PR (prevents infinite loops)
+    if: "!startsWith(github.event.head_commit.message, 'sync: merge')"
+
+    steps:
+      - name: Determine sync direction
+        id: direction
+        run: |
+          case "${{ github.ref_name }}" in
+            main)
+              echo "source=main" >> "$GITHUB_OUTPUT"
+              echo "target=staging" >> "$GITHUB_OUTPUT"
+              ;;
+            staging)
+              echo "source=staging" >> "$GITHUB_OUTPUT"
+              echo "target=development" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.direction.outputs.target }}
+          fetch-depth: 0
+
+      - name: Check for existing PR
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SOURCE="${{ steps.direction.outputs.source }}"
+          TARGET="${{ steps.direction.outputs.target }}"
+
+          PR_URL=$(gh pr list \
+            --base "$TARGET" \
+            --head "$SOURCE" \
+            --state open \
+            --json url \
+            --jq '.[0].url // empty')
+
+          if [ -n "$PR_URL" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Back-sync PR already exists: $PR_URL"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for conflicts
+        if: steps.existing.outputs.exists == 'false'
+        id: conflicts
+        run: |
+          SOURCE="${{ steps.direction.outputs.source }}"
+          TARGET="${{ steps.direction.outputs.target }}"
+
+          git fetch origin "$SOURCE"
+
+          if git merge-tree "$(git merge-base HEAD "origin/$SOURCE")" HEAD "origin/$SOURCE" | grep -q '^<<<<<<<'; then
+            echo "has_conflicts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create back-sync PR
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SOURCE="${{ steps.direction.outputs.source }}"
+          TARGET="${{ steps.direction.outputs.target }}"
+          HAS_CONFLICTS="${{ steps.conflicts.outputs.has_conflicts }}"
+
+          BODY="Automated back-sync to keep \`${TARGET}\` aligned with \`${SOURCE}\`."
+          if [ "$HAS_CONFLICTS" = "true" ]; then
+            BODY="${BODY}
+
+          > **Warning**: This PR has merge conflicts that must be resolved manually."
+          fi
+
+          gh pr create \
+            --base "$TARGET" \
+            --head "$SOURCE" \
+            --title "sync: merge ${SOURCE} into ${TARGET}" \
+            --body "$BODY" \
+            --label "back-sync,automated"
+
+      - name: Comment on conflict
+        if: steps.existing.outputs.exists == 'false' && steps.conflicts.outputs.has_conflicts == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SOURCE="${{ steps.direction.outputs.source }}"
+          TARGET="${{ steps.direction.outputs.target }}"
+
+          PR_URL=$(gh pr list \
+            --base "$TARGET" \
+            --head "$SOURCE" \
+            --state open \
+            --json url \
+            --jq '.[0].url')
+
+          gh pr comment "$PR_URL" \
+            --body "This back-sync PR has merge conflicts. A developer needs to resolve them before merging."
