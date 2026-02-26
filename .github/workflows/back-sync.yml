@@ -42,9 +42,10 @@ jobs:
         run: |
           SOURCE="${{ steps.direction.outputs.source }}"
           git fetch origin "$SOURCE"
-          if git merge-base --is-ancestor "origin/$SOURCE" HEAD; then
+          # Skip if target already has the same tree as source (no file changes to propagate)
+          if git diff --quiet HEAD "origin/$SOURCE"; then
             echo "has_diff=false" >> "$GITHUB_OUTPUT"
-            echo "Target already contains all commits from $SOURCE, skipping back-sync"
+            echo "Target already has same content as $SOURCE, skipping back-sync"
           else
             echo "has_diff=true" >> "$GITHUB_OUTPUT"
           fi
