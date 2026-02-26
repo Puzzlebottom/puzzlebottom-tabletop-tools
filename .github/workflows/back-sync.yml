@@ -12,7 +12,7 @@ jobs:
   sync-main-to-staging:
     name: main → staging
     runs-on: ubuntu-latest
-    if: github.ref_name == 'main' && !startsWith(github.event.head_commit.message, 'sync: merge')
+    if: "github.ref_name == 'main' && !startsWith(github.event.head_commit.message, 'sync: merge')"
     steps:
       - name: Checkout staging
         uses: actions/checkout@v4
@@ -68,8 +68,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          HAS_CONFLICTS="${{ steps.conflicts.outputs.has_conflicts }}"
+          HAS_CONFLICTS="${HAS_CONFLICTS:-false}"
           BODY="Automated back-sync to keep \`staging\` aligned with \`main\`."
-          if [ "${{ steps.conflicts.outputs.has_conflicts }}" = "true" ]; then
+          if [ "$HAS_CONFLICTS" = "true" ]; then
             BODY="${BODY}
 
           > **Warning**: This PR has merge conflicts that must be resolved manually."
@@ -95,7 +97,7 @@ jobs:
   sync-staging-to-dev:
     name: staging → development
     runs-on: ubuntu-latest
-    if: !startsWith(github.event.head_commit.message, 'sync: merge')
+    if: "!startsWith(github.event.head_commit.message, 'sync: merge')"
     steps:
       - name: Checkout development
         uses: actions/checkout@v4
@@ -151,8 +153,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          HAS_CONFLICTS="${{ steps.conflicts.outputs.has_conflicts }}"
+          HAS_CONFLICTS="${HAS_CONFLICTS:-false}"
           BODY="Automated back-sync to keep \`development\` aligned with \`staging\`."
-          if [ "${{ steps.conflicts.outputs.has_conflicts }}" = "true" ]; then
+          if [ "$HAS_CONFLICTS" = "true" ]; then
             BODY="${BODY}
 
           > **Warning**: This PR has merge conflicts that must be resolved manually."
