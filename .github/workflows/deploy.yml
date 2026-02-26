@@ -80,18 +80,11 @@ jobs:
           SANDBOX_IDENTIFIER: ${{ inputs.sandbox-identifier }}
           SANDBOX_BRANCH: ${{ inputs.sandbox-branch }}
 
-      - name: Trigger Amplify build
+      - name: Trigger Amplify build (sandbox only)
+        if: inputs.sandbox-identifier != ''
         run: |
-          if [ -n "${{ inputs.sandbox-identifier }}" ]; then
-            STACK_NAME="sandbox-${{ inputs.sandbox-identifier }}-FrontendStack"
-            BRANCH_NAME="${{ inputs.sandbox-branch }}"
-          else
-            STACK_NAME="${{ inputs.environment }}-FrontendStack"
-            case "${{ inputs.environment }}" in
-              production) BRANCH_NAME="main" ;;
-              *) BRANCH_NAME="${{ inputs.environment }}" ;;
-            esac
-          fi
+          STACK_NAME="sandbox-${{ inputs.sandbox-identifier }}-FrontendStack"
+          BRANCH_NAME="${{ inputs.sandbox-branch }}"
 
           APP_ID=$(aws cloudformation describe-stacks \
             --stack-name "$STACK_NAME" \
