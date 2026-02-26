@@ -74,6 +74,14 @@ jobs:
             echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Ensure labels exist
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "back-sync" --color "1d76db" --description "Automated back-sync PR" --force
+          gh label create "automated" --color "ededed" --description "Created by automation" --force
+
       - name: Create back-sync PR
         if: steps.existing.outputs.exists == 'false'
         env:
