@@ -9,43 +9,24 @@ permissions:
   pull-requests: write
 
 jobs:
-  back-sync:
-    name: Create back-sync PR
+  sync-main-to-staging:
+    name: main → staging
     runs-on: ubuntu-latest
-
-    # Skip if the merge commit came from a back-sync PR (prevents infinite loops)
-    if: "!startsWith(github.event.head_commit.message, 'sync: merge')"
-
+    if: github.ref_name == 'main' && !startsWith(github.event.head_commit.message, 'sync: merge')
     steps:
-      - name: Determine sync direction
-        id: direction
-        run: |
-          case "${{ github.ref_name }}" in
-            main)
-              echo "source=main" >> "$GITHUB_OUTPUT"
-              echo "target=staging" >> "$GITHUB_OUTPUT"
-              ;;
-            staging)
-              echo "source=staging" >> "$GITHUB_OUTPUT"
-              echo "target=development" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
-
-      - name: Checkout target branch
+      - name: Checkout staging
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.direction.outputs.target }}
+          ref: staging
           fetch-depth: 0
 
       - name: Check if sync needed
         id: diff
         run: |
-          SOURCE="${{ steps.direction.outputs.source }}"
-          git fetch origin "$SOURCE"
-          # Skip if target already has the same tree as source (no file changes to propagate)
-          if git diff --quiet HEAD "origin/$SOURCE"; then
+          git fetch origin main
+          if git diff --quiet HEAD "origin/main"; then
             echo "has_diff=false" >> "$GITHUB_OUTPUT"
-            echo "Target already has same content as $SOURCE, skipping back-sync"
+            echo "Staging already has same content as main, skipping"
           else
             echo "has_diff=true" >> "$GITHUB_OUTPUT"
           fi
@@ -56,19 +37,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SOURCE="${{ steps.direction.outputs.source }}"
-          TARGET="${{ steps.direction.outputs.target }}"
-
-          PR_URL=$(gh pr list \
-            --base "$TARGET" \
-            --head "$SOURCE" \
-            --state open \
-            --json url \
-            --jq '.[0].url // empty')
-
+          PR_URL=$(gh pr list --base staging --head main --state open --json url --jq '.[0].url // empty')
           if [ -n "$PR_URL" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Back-sync PR already exists: $PR_URL"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -77,12 +48,8 @@ jobs:
         if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false'
         id: conflicts
         run: |
-          SOURCE="${{ steps.direction.outputs.source }}"
-          TARGET="${{ steps.direction.outputs.target }}"
-
-          git fetch origin "$SOURCE"
-
-          if git merge-tree "$(git merge-base HEAD "origin/$SOURCE")" HEAD "origin/$SOURCE" | grep -q '^<<<<<<<'; then
+          git fetch origin main
+          if git merge-tree "$(git merge-base HEAD "origin/main")" HEAD "origin/main" | grep -q '^<<<<<<<'; then
             echo "has_conflicts=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
@@ -101,32 +68,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SOURCE="${{ steps.direction.outputs.source }}"
-          TARGET="${{ steps.direction.outputs.target }}"
-          HAS_CONFLICTS="${{ steps.conflicts.outputs.has_conflicts }}"
-
-          BODY="Automated back-sync to keep \`${TARGET}\` aligned with \`${SOURCE}\`."
-          if [ "$HAS_CONFLICTS" = "true" ]; then
+          BODY="Automated back-sync to keep \`staging\` aligned with \`main\`."
+          if [ "${{ steps.conflicts.outputs.has_conflicts }}" = "true" ]; then
             BODY="${BODY}
 
           > **Warning**: This PR has merge conflicts that must be resolved manually."
           fi
-
-          gh pr create \
-            --base "$TARGET" \
-            --head "$SOURCE" \
-            --title "sync: merge ${SOURCE} into ${TARGET}" \
-            --body "$BODY" \
-            --label "back-sync,automated"
+          gh pr create --base staging --head main --title "sync: merge main into staging" --body "$BODY" --label "back-sync,automated"
 
       - name: Merge PR automatically
         if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false' && steps.conflicts.outputs.has_conflicts == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SOURCE="${{ steps.direction.outputs.source }}"
-          TARGET="${{ steps.direction.outputs.target }}"
-          PR_URL=$(gh pr list --base "$TARGET" --head "$SOURCE" --state open --json url --jq '.[0].url')
+          PR_URL=$(gh pr list --base staging --head main --state open --json url --jq '.[0].url')
           gh pr merge "$PR_URL" --merge
 
       - name: Comment on conflict
@@ -134,15 +89,88 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SOURCE="${{ steps.direction.outputs.source }}"
-          TARGET="${{ steps.direction.outputs.target }}"
+          PR_URL=$(gh pr list --base staging --head main --state open --json url --jq '.[0].url')
+          gh pr comment "$PR_URL" --body "This back-sync PR has merge conflicts. A developer needs to resolve them before merging."
 
-          PR_URL=$(gh pr list \
-            --base "$TARGET" \
-            --head "$SOURCE" \
-            --state open \
-            --json url \
-            --jq '.[0].url')
+  sync-staging-to-dev:
+    name: staging → development
+    runs-on: ubuntu-latest
+    if: !startsWith(github.event.head_commit.message, 'sync: merge')
+    steps:
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          ref: development
+          fetch-depth: 0
 
-          gh pr comment "$PR_URL" \
-            --body "This back-sync PR has merge conflicts. A developer needs to resolve them before merging."
+      - name: Check if sync needed
+        id: diff
+        run: |
+          git fetch origin staging
+          if git diff --quiet HEAD "origin/staging"; then
+            echo "has_diff=false" >> "$GITHUB_OUTPUT"
+            echo "Development already has same content as staging, skipping"
+          else
+            echo "has_diff=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for existing PR
+        if: steps.diff.outputs.has_diff == 'true'
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr list --base development --head staging --state open --json url --jq '.[0].url // empty')
+          if [ -n "$PR_URL" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for conflicts
+        if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false'
+        id: conflicts
+        run: |
+          git fetch origin staging
+          if git merge-tree "$(git merge-base HEAD "origin/staging")" HEAD "origin/staging" | grep -q '^<<<<<<<'; then
+            echo "has_conflicts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ensure labels exist
+        if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "back-sync" --color "1d76db" --description "Automated back-sync PR" --force
+          gh label create "automated" --color "ededed" --description "Created by automation" --force
+
+      - name: Create back-sync PR
+        if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY="Automated back-sync to keep \`development\` aligned with \`staging\`."
+          if [ "${{ steps.conflicts.outputs.has_conflicts }}" = "true" ]; then
+            BODY="${BODY}
+
+          > **Warning**: This PR has merge conflicts that must be resolved manually."
+          fi
+          gh pr create --base development --head staging --title "sync: merge staging into development" --body "$BODY" --label "back-sync,automated"
+
+      - name: Merge PR automatically
+        if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false' && steps.conflicts.outputs.has_conflicts == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr list --base development --head staging --state open --json url --jq '.[0].url')
+          gh pr merge "$PR_URL" --merge
+
+      - name: Comment on conflict
+        if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false' && steps.conflicts.outputs.has_conflicts == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr list --base development --head staging --state open --json url --jq '.[0].url')
+          gh pr comment "$PR_URL" --body "This back-sync PR has merge conflicts. A developer needs to resolve them before merging."
