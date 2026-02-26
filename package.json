@@ -14,7 +14,8 @@
     "build": "npm run build --workspaces --if-present",
     "sandbox:deploy": "./scripts/sandbox-deploy.sh",
     "sandbox:teardown": "./scripts/sandbox-teardown.sh",
-    "setup:aws": "./scripts/setup-aws-github.sh"
+    "setup:aws": "./scripts/setup-aws-github.sh",
+    "frontend:dev": "./scripts/frontend-dev.sh"
   },
   "engines": {
     "node": ">=24"
