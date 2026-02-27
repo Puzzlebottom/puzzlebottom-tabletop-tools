@@ -1,20 +1,21 @@
-import * as cdk from 'aws-cdk-lib';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
-import { Construct } from 'constructs';
-import { EnvironmentConfig } from '../config/environments';
+import * as cdk from 'aws-cdk-lib'
+import * as cognito from 'aws-cdk-lib/aws-cognito'
+import { type Construct } from 'constructs'
+
+import { type EnvironmentConfig } from '../config/environments'
 
 interface AuthStackProps extends cdk.StackProps {
-  config: EnvironmentConfig;
+  config: EnvironmentConfig
 }
 
 export class AuthStack extends cdk.Stack {
-  public readonly userPool: cognito.UserPool;
-  public readonly userPoolClient: cognito.UserPoolClient;
+  public readonly userPool: cognito.UserPool
+  public readonly userPoolClient: cognito.UserPoolClient
 
   constructor(scope: Construct, id: string, props: AuthStackProps) {
-    super(scope, id, props);
+    super(scope, id, props)
 
-    const { config } = props;
+    const { config } = props
 
     this.userPool = new cognito.UserPool(this, 'UserPool', {
       userPoolName: `${config.envName}-user-pool`,
@@ -33,7 +34,7 @@ export class AuthStack extends cdk.Stack {
       },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: config.removalPolicy,
-    });
+    })
 
     this.userPoolClient = this.userPool.addClient('WebClient', {
       userPoolClientName: `${config.envName}-web-client`,
@@ -43,19 +44,23 @@ export class AuthStack extends cdk.Stack {
       },
       oAuth: {
         flows: { authorizationCodeGrant: true },
-        scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
+        scopes: [
+          cognito.OAuthScope.OPENID,
+          cognito.OAuthScope.EMAIL,
+          cognito.OAuthScope.PROFILE,
+        ],
       },
       preventUserExistenceErrors: true,
-    });
+    })
 
     new cdk.CfnOutput(this, 'UserPoolId', {
       value: this.userPool.userPoolId,
       exportName: `${config.envName}-user-pool-id`,
-    });
+    })
 
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: this.userPoolClient.userPoolClientId,
       exportName: `${config.envName}-user-pool-client-id`,
-    });
+    })
   }
 }

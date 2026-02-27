@@ -16,12 +16,12 @@ on:
         description: Branch-hash identifier for sandbox environments
         required: false
         type: string
-        default: ""
+        default: ''
       sandbox-branch:
         description: Git branch name for sandbox Amplify builds
         required: false
         type: string
-        default: ""
+        default: ''
     secrets:
       AWS_ROLE_ARN:
         description: IAM role ARN for OIDC authentication

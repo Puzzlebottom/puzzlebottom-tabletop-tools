@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-AWS_ACCOUNT_ID="196283272028"
-AWS_REGION="us-east-1"
-GITHUB_OWNER="Puzzlebottom"
-GITHUB_REPO="aws-step-function-test"
-ROLE_NAME="github-actions-deploy-role"
+# Config: use env vars or derive from CLI. No secrets in repo.
+AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
+GITHUB_OWNER="${GITHUB_OWNER:-$(gh repo view --json owner -q .owner.login 2>/dev/null || true)}"
+GITHUB_REPO="${GITHUB_REPO:-$(gh repo view --json name -q .name 2>/dev/null || true)}"
+ROLE_NAME="${ROLE_NAME:-github-actions-deploy-role}"
 OIDC_PROVIDER_URL="token.actions.githubusercontent.com"
+
+# Validate required values
+if [[ -z "$AWS_ACCOUNT_ID" || -z "$GITHUB_OWNER" || -z "$GITHUB_REPO" ]]; then
+  echo "Error: Could not determine AWS_ACCOUNT_ID, GITHUB_OWNER, or GITHUB_REPO."
+  echo "  AWS_ACCOUNT_ID: set AWS_ACCOUNT_ID or run 'aws configure'"
+  echo "  GITHUB_OWNER:   set GITHUB_OWNER or run from a repo with 'gh' authenticated"
+  echo "  GITHUB_REPO:    set GITHUB_REPO or run from a repo with 'gh' authenticated"
+  exit 1
+fi
 
 echo "=== Step 1: Create GitHub OIDC Identity Provider in AWS ==="
 
@@ -174,10 +184,14 @@ fi
 echo ""
 echo "=== Step 5: Create GitHub Environments ==="
 
+EXISTING_ENVS=$(gh api "repos/${GITHUB_OWNER}/${GITHUB_REPO}/environments" --jq '.environments[].name' 2>/dev/null || echo "")
 for ENV_NAME in development staging production; do
-  gh api --method PUT "repos/${GITHUB_OWNER}/${GITHUB_REPO}/environments/${ENV_NAME}" \
-    --silent 2>/dev/null || true
-  echo "Created environment: ${ENV_NAME}"
+  if echo "$EXISTING_ENVS" | grep -q "^${ENV_NAME}$"; then
+    echo "Environment already exists: ${ENV_NAME}. Skipping create..."
+  else
+    gh api --method PUT "repos/${GITHUB_OWNER}/${GITHUB_REPO}/environments/${ENV_NAME}" --silent 2>/dev/null || true
+    echo "Created environment: ${ENV_NAME}"
+  fi
 done
 
 echo ""

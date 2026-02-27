@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       sandbox_identifier:
-        description: "Optional override for sandbox identifier (branch-slug-shortsha)"
+        description: 'Optional override for sandbox identifier (branch-slug-shortsha)'
         required: false
         type: string
 

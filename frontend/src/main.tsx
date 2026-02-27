@@ -1,12 +1,14 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { Amplify } from 'aws-amplify';
-import { ThemeProvider } from '@aws-amplify/ui-react';
-import '@aws-amplify/ui-react/styles.css';
-import amplifyConfig from './amplifyconfiguration';
-import App from './App';
+import '@aws-amplify/ui-react/styles.css'
 
-Amplify.configure(amplifyConfig);
+import { ThemeProvider } from '@aws-amplify/ui-react'
+import { Amplify } from 'aws-amplify'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+
+import amplifyConfig from './amplifyconfiguration'
+import App from './App'
+
+Amplify.configure(amplifyConfig)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -14,4 +16,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <App />
     </ThemeProvider>
   </React.StrictMode>
-);
+)

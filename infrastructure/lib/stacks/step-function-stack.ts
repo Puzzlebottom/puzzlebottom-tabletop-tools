@@ -1,29 +1,30 @@
-import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs';
-import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
-import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
-import * as logs from 'aws-cdk-lib/aws-logs';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources';
-import { Construct } from 'constructs';
-import * as path from 'path';
-import { EnvironmentConfig } from '../config/environments';
+import * as cdk from 'aws-cdk-lib'
+import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import * as lambda from 'aws-cdk-lib/aws-lambda'
+import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources'
+import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs'
+import * as logs from 'aws-cdk-lib/aws-logs'
+import type * as sqs from 'aws-cdk-lib/aws-sqs'
+import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
+import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks'
+import { type Construct } from 'constructs'
+import * as path from 'path'
+
+import { type EnvironmentConfig } from '../config/environments'
 
 interface StepFunctionStackProps extends cdk.StackProps {
-  config: EnvironmentConfig;
-  dataTable: dynamodb.Table;
-  pipelineQueue: sqs.Queue;
+  config: EnvironmentConfig
+  dataTable: dynamodb.Table
+  pipelineQueue: sqs.Queue
 }
 
 export class StepFunctionStack extends cdk.Stack {
-  public readonly stateMachine: sfn.StateMachine;
+  public readonly stateMachine: sfn.StateMachine
 
   constructor(scope: Construct, id: string, props: StepFunctionStackProps) {
-    super(scope, id, props);
+    super(scope, id, props)
 
-    const { config, dataTable, pipelineQueue } = props;
+    const { config, dataTable, pipelineQueue } = props
 
     const lambdaDefaults: lambdaNode.NodejsFunctionProps = {
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -34,25 +35,28 @@ export class StepFunctionStack extends cdk.Stack {
         minify: true,
         sourceMap: true,
       },
-    };
+    }
 
     const ingestFn = new lambdaNode.NodejsFunction(this, 'IngestFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-ingest`,
       entry: path.join(__dirname, '../../../backend/lambdas/steps/ingest.ts'),
-    });
+    })
 
     const transformFn = new lambdaNode.NodejsFunction(this, 'TransformFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-transform`,
-      entry: path.join(__dirname, '../../../backend/lambdas/steps/transform.ts'),
-    });
+      entry: path.join(
+        __dirname,
+        '../../../backend/lambdas/steps/transform.ts'
+      ),
+    })
 
     const validateFn = new lambdaNode.NodejsFunction(this, 'ValidateFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-validate`,
       entry: path.join(__dirname, '../../../backend/lambdas/steps/validate.ts'),
-    });
+    })
 
     const storeFn = new lambdaNode.NodejsFunction(this, 'StoreFn', {
       ...lambdaDefaults,
@@ -61,69 +65,69 @@ export class StepFunctionStack extends cdk.Stack {
       environment: {
         TABLE_NAME: dataTable.tableName,
       },
-    });
+    })
 
-    dataTable.grantWriteData(storeFn);
+    dataTable.grantWriteData(storeFn)
 
     const ingestStep = new tasks.LambdaInvoke(this, 'Ingest', {
       lambdaFunction: ingestFn,
       outputPath: '$.Payload',
       retryOnServiceExceptions: true,
-    });
+    })
 
     const transformStep = new tasks.LambdaInvoke(this, 'Transform', {
       lambdaFunction: transformFn,
       outputPath: '$.Payload',
       retryOnServiceExceptions: true,
-    });
+    })
 
     const validateStep = new tasks.LambdaInvoke(this, 'Validate', {
       lambdaFunction: validateFn,
       outputPath: '$.Payload',
       retryOnServiceExceptions: true,
-    });
+    })
 
     const storeStep = new tasks.LambdaInvoke(this, 'Store', {
       lambdaFunction: storeFn,
       outputPath: '$.Payload',
       retryOnServiceExceptions: true,
-    });
+    })
 
     const failState = new sfn.Fail(this, 'PipelineFailed', {
       cause: 'Pipeline step encountered an error',
       error: 'PipelineError',
-    });
+    })
 
-    const successState = new sfn.Succeed(this, 'PipelineSucceeded');
+    const successState = new sfn.Succeed(this, 'PipelineSucceeded')
 
     const retryConfig: sfn.RetryProps = {
       errors: ['States.TaskFailed'],
       interval: cdk.Duration.seconds(2),
       maxAttempts: 2,
       backoffRate: 2,
-    };
+    }
 
-    ingestStep.addRetry(retryConfig);
-    transformStep.addRetry(retryConfig);
-    validateStep.addRetry(retryConfig);
-    storeStep.addRetry(retryConfig);
+    ingestStep.addRetry(retryConfig)
+    transformStep.addRetry(retryConfig)
+    validateStep.addRetry(retryConfig)
+    storeStep.addRetry(retryConfig)
 
-    ingestStep.addCatch(failState, { resultPath: '$.error' });
-    transformStep.addCatch(failState, { resultPath: '$.error' });
-    validateStep.addCatch(failState, { resultPath: '$.error' });
-    storeStep.addCatch(failState, { resultPath: '$.error' });
+    ingestStep.addCatch(failState, { resultPath: '$.error' })
+    transformStep.addCatch(failState, { resultPath: '$.error' })
+    validateStep.addCatch(failState, { resultPath: '$.error' })
+    storeStep.addCatch(failState, { resultPath: '$.error' })
 
     const definition = ingestStep
       .next(transformStep)
       .next(validateStep)
       .next(storeStep)
-      .next(successState);
+      .next(successState)
 
     const logGroup = new logs.LogGroup(this, 'StateMachineLogGroup', {
       logGroupName: `/aws/stepfunctions/${config.envName}-data-pipeline`,
       retention: config.logRetention,
       removalPolicy: config.removalPolicy,
-    });
+    })
 
     this.stateMachine = new sfn.StateMachine(this, 'DataPipeline', {
       stateMachineName: `${config.envName}-data-pipeline`,
@@ -135,7 +139,7 @@ export class StepFunctionStack extends cdk.Stack {
         level: sfn.LogLevel.ALL,
         includeExecutionData: true,
       },
-    });
+    })
 
     const triggerFn = new lambdaNode.NodejsFunction(this, 'SqsTriggerFn', {
       ...lambdaDefaults,
@@ -144,19 +148,19 @@ export class StepFunctionStack extends cdk.Stack {
       environment: {
         STATE_MACHINE_ARN: this.stateMachine.stateMachineArn,
       },
-    });
+    })
 
-    this.stateMachine.grantStartExecution(triggerFn);
+    this.stateMachine.grantStartExecution(triggerFn)
 
     triggerFn.addEventSource(
       new eventsources.SqsEventSource(pipelineQueue, {
         batchSize: 1,
       })
-    );
+    )
 
     new cdk.CfnOutput(this, 'StateMachineArn', {
       value: this.stateMachine.stateMachineArn,
       exportName: `${config.envName}-state-machine-arn`,
-    });
+    })
   }
 }

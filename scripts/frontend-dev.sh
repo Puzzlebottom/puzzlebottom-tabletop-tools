@@ -80,21 +80,17 @@ api_stack="${env_prefix}-ApiStack"
 
 echo "Checking for deployed stacks..."
 
-if ! stack_exists "$auth_stack"; then
-  echo "Error: Stack '${auth_stack}' not found."
-  if [[ "$env_prefix" == sandbox-* ]]; then
-    echo "Deploy a sandbox first: npm run sandbox:deploy"
-  else
-    echo "Deploy the stack first (push to the ${env_prefix} branch or run CDK deploy manually)."
+for stack in "$auth_stack" "$api_stack"; do
+  if ! stack_exists "$stack"; then
+    echo "Error: Stack '${stack}' not found."
+    if [[ "$env_prefix" == sandbox-* ]]; then
+      echo "Deploy a sandbox first: npm run sandbox:deploy"
+    else
+      echo "Deploy the stack first (push to the ${env_prefix} branch or run CDK deploy manually)."
+    fi
+    exit 1
   fi
-  exit 1
-fi
-
-if ! stack_exists "$api_stack"; then
-  echo "Error: Stack '${api_stack}' not found."
-  echo "Deploy the stack first."
-  exit 1
-fi
+done
 
 echo "Fetching outputs from ${env_prefix}..."
 
