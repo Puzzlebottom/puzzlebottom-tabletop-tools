@@ -67,14 +67,10 @@ fi
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 sandbox_identifier="$("$script_dir/sandbox-identifier.sh")"
-short_sha="$(git rev-parse --short=7 HEAD 2>/dev/null || true)"
 
 echo "Dispatching workflow '${WORKFLOW_FILE}'..."
 echo "  branch:             ${branch_name}"
-echo "  short_sha:          ${short_sha}"
 echo "  sandbox_identifier: ${sandbox_identifier}"
-echo "  teardown_mode:      branch"
-echo "  ref:                ${branch_name}"
 
 gh workflow run "$WORKFLOW_FILE" \
   --ref "$branch_name" \

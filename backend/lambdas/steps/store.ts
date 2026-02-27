@@ -1,19 +1,23 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { ValidateOutput, StoreOutput } from '../../shared/types';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb'
 
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { type StoreOutput, type ValidateOutput } from '../../shared/types'
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const client = new DynamoDBClient({})
+const docClient = DynamoDBDocumentClient.from(client)
+
+const TABLE_NAME = process.env.TABLE_NAME!
 
 export const handler = async (event: ValidateOutput): Promise<StoreOutput> => {
-  console.log('Store step received:', JSON.stringify({ pipelineId: event.pipelineId }));
+  console.log(
+    'Store step received:',
+    JSON.stringify({ pipelineId: event.pipelineId })
+  )
 
   const itemKey = {
     PK: `RECORD#${event.record.id}`,
     SK: `PIPELINE#${event.pipelineId}`,
-  };
+  }
 
   await docClient.send(
     new PutCommand({
@@ -32,12 +36,12 @@ export const handler = async (event: ValidateOutput): Promise<StoreOutput> => {
         rawSize: event.rawSize,
       },
     })
-  );
+  )
 
   return {
     ...event,
     stored: true,
     tableName: TABLE_NAME,
     itemKey,
-  };
-};
+  }
+}

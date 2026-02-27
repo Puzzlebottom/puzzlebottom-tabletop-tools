@@ -4,6 +4,6 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["lambdas/**/*.ts", "shared/**/*.ts"],
+  "include": ["lambdas/**/*.ts", "shared/**/*.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

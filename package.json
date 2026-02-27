@@ -1,6 +1,6 @@
 {
   "name": "aws-step-function-test",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "workspaces": [
     "infrastructure",
@@ -9,6 +9,9 @@
   ],
   "scripts": {
     "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
@@ -19,5 +22,16 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.3",
+    "eslint": "^9.39.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "prettier": "^3.8.1",
+    "typescript-eslint": "^8.56.1"
   }
 }
