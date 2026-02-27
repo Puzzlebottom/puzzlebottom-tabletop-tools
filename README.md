@@ -28,6 +28,7 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 ## Project Structure
 
 ```
+├── amplify.yml        Amplify build config (single source of truth)
 ├── frontend/          React + Vite app
 ├── backend/           Lambda handlers and shared types
 ├── infrastructure/    CDK stacks (includes GraphQL schema)

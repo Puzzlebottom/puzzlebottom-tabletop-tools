@@ -1,6 +1,5 @@
 import * as amplify from '@aws-cdk/aws-amplify-alpha'
 import * as cdk from 'aws-cdk-lib'
-import * as codebuild from 'aws-cdk-lib/aws-codebuild'
 import { type Construct } from 'constructs'
 
 import { type EnvironmentConfig } from '../config/environments'
@@ -26,34 +25,7 @@ export class FrontendStack extends cdk.Stack {
 
     this.amplifyApp = new amplify.App(this, 'AmplifyApp', {
       appName: `${config.envName}-data-pipeline`,
-      buildSpec: codebuild.BuildSpec.fromObjectToYaml({
-        version: 1,
-        applications: [
-          {
-            appRoot: 'frontend',
-            frontend: {
-              phases: {
-                preBuild: {
-                  commands: [
-                    'export HUSKY=0', // Skip husky install in CI; hooks are for local dev only
-                    'npm ci',
-                  ],
-                },
-                build: {
-                  commands: ['npm run build'],
-                },
-              },
-              artifacts: {
-                baseDirectory: 'dist',
-                files: ['**/*'],
-              },
-              cache: {
-                paths: ['node_modules/**/*'],
-              },
-            },
-          },
-        ],
-      }),
+      // Build spec from amplify.yml in repo (single source of truth)
       environmentVariables: {
         VITE_USER_POOL_ID: userPoolId,
         VITE_USER_POOL_CLIENT_ID: userPoolClientId,
