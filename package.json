@@ -22,7 +22,7 @@
     "sandbox:teardown": "./scripts/sandbox-teardown.sh",
     "setup:aws": "./scripts/setup-aws-github.sh",
     "frontend:dev": "./scripts/frontend-dev.sh",
-    "prepare": "husky"
+    "prepare": "node -e \"if (process.env.HUSKY === '0' || process.env.CI) process.exit(0); require('child_process').execSync('husky', {stdio:'inherit'})\""
   },
   "engines": {
     "node": ">=24"
