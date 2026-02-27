@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "lint": "eslint .",
+    "lint": "eslint . --quiet",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
