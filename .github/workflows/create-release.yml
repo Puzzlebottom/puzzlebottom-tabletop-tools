@@ -59,7 +59,7 @@ jobs:
 
       - name: Create release PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           gh label create "release" --color "0E8A16" --description "Release PR - creates tag and GitHub Release when merged" 2>/dev/null || true
           gh pr create \
