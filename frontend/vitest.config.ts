@@ -10,6 +10,9 @@ export default mergeConfig(
       globals: true,
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      onConsoleLog(): boolean {
+        return process.env.HUSKY !== '1' // suppress only in pre-commit/pre-push
+      },
     },
   })
 )

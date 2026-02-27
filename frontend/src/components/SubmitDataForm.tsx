@@ -1,3 +1,4 @@
+import type { SubmitDataResponse } from '@aws-step-function-test/graphql-types'
 import { generateClient } from 'aws-amplify/api'
 import { type SubmitEvent, useState } from 'react'
 
@@ -13,17 +14,11 @@ const SUBMIT_DATA_MUTATION = `
   }
 `
 
-interface SubmissionResult {
-  id: string
-  status: string
-  submittedAt: string
-}
-
 export default function SubmitDataForm() {
   const [source, setSource] = useState('')
   const [payload, setPayload] = useState('{\n  "key": "value"\n}')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<SubmissionResult | null>(null)
+  const [result, setResult] = useState<SubmitDataResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: SubmitEvent) => {
@@ -48,7 +43,7 @@ export default function SubmitDataForm() {
 
       if ('data' in response && response.data) {
         setResult(
-          (response.data as { submitData: SubmissionResult }).submitData
+          (response.data as { submitData: SubmitDataResponse }).submitData
         )
       }
     } catch (err) {

@@ -2,6 +2,10 @@ import {
   EventBridgeClient,
   PutEventsCommand,
 } from '@aws-sdk/client-eventbridge'
+import type {
+  MutationSubmitDataArgs,
+  SubmitDataResponse,
+} from '@aws-step-function-test/graphql-types'
 import { type AppSyncResolverHandler } from 'aws-lambda'
 import { randomUUID } from 'crypto'
 
@@ -10,19 +14,8 @@ import { type DataRecord } from '../../shared/types'
 const eventBridgeClient = new EventBridgeClient({})
 const EVENT_BUS_NAME = process.env.EVENT_BUS_NAME!
 
-interface SubmitDataInput {
-  source: string
-  payload: string
-}
-
-interface SubmitDataResponse {
-  id: string
-  status: string
-  submittedAt: string
-}
-
 export const handler: AppSyncResolverHandler<
-  SubmitDataInput,
+  MutationSubmitDataArgs,
   SubmitDataResponse
 > = async (event) => {
   const { source, payload } = event.arguments

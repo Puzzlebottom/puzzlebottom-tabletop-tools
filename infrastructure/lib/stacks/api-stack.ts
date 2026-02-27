@@ -46,7 +46,7 @@ export class ApiStack extends cdk.Stack {
 
     const submitDataFn = new lambdaNode.NodejsFunction(this, 'SubmitDataFn', {
       functionName: `${config.envName}-submit-data`,
-      runtime: lambda.Runtime.NODEJS_22_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       entry: path.join(
         __dirname,
@@ -58,6 +58,7 @@ export class ApiStack extends cdk.Stack {
         EVENT_BUS_NAME: eventBus.eventBusName,
       },
       bundling: {
+        format: lambdaNode.OutputFormat.ESM,
         minify: true,
         sourceMap: true,
       },

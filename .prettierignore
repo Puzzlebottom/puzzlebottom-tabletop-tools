@@ -3,3 +3,4 @@ dist
 cdk.out
 *.min.js
 package-lock.json
+**/generated.ts

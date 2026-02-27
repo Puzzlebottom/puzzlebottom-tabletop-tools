@@ -66,8 +66,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          SANDBOX_IDENTIFIER="$(./scripts/sandbox-identifier.sh --slugify "${SANDBOX_IDENTIFIER_INPUT}")"
-          BRANCH_SLUG="$(./scripts/sandbox-identifier.sh --slugify "${BRANCH_NAME_INPUT}")"
+          SANDBOX_IDENTIFIER=""
+          if [ -n "${SANDBOX_IDENTIFIER_INPUT:-}" ]; then
+            SANDBOX_IDENTIFIER="$(./scripts/sandbox-identifier.sh --slugify "${SANDBOX_IDENTIFIER_INPUT}")"
+          fi
+
+          BRANCH_SLUG=""
+          if [ -n "${BRANCH_NAME_INPUT:-}" ]; then
+            BRANCH_SLUG="$(./scripts/sandbox-identifier.sh --slugify "${BRANCH_NAME_INPUT}")"
+          fi
 
           if [ -n "${SANDBOX_IDENTIFIER}" ]; then
             echo "mode=exact" >> "$GITHUB_OUTPUT"
