@@ -34,7 +34,10 @@ export class FrontendStack extends cdk.Stack {
             frontend: {
               phases: {
                 preBuild: {
-                  commands: ['npm ci'],
+                  commands: [
+                    'export HUSKY=0', // Skip husky install in CI; hooks are for local dev only
+                    'npm ci',
+                  ],
                 },
                 build: {
                   commands: ['npm run build'],
