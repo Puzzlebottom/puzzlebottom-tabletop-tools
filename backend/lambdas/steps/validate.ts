@@ -21,9 +21,7 @@ export const handler = (event: TransformOutput): Promise<ValidateOutput> => {
   }
 
   if (errors.length > 0) {
-    return Promise.reject(
-      new Error(`Validation failed: ${errors.join('; ')}`)
-    )
+    return Promise.reject(new Error(`Validation failed: ${errors.join('; ')}`))
   }
 
   return Promise.resolve({
