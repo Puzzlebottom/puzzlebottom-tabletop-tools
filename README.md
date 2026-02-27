@@ -138,9 +138,10 @@ The token must have `repo` and `admin:repo_hook` scopes.
 
 ### 5 (manual). Configure GitHub repository secrets
 
-Add the following secret in your repo's Settings > Secrets and variables > Actions:
+Add the following secrets in your repo's Settings > Secrets and variables > Actions:
 
 - `AWS_ROLE_ARN`: The ARN of the IAM role created in step 3
+- `GH_PAT`: A GitHub Personal Access Token with `repo` scope (used by Create Release to open PRs that trigger CI). If the PAT is already in AWS Secrets Manager as `github-token`, sync it: `aws secretsmanager get-secret-value --secret-id github-token --query SecretString --output text | gh secret set GH_PAT`
 
 ### 6 (manual). Create GitHub Environments
 
