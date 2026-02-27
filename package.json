@@ -5,9 +5,12 @@
   "workspaces": [
     "infrastructure",
     "backend",
-    "frontend"
+    "frontend",
+    "shared/graphql-types"
   ],
   "scripts": {
+    "codegen": "graphql-codegen",
+    "codegen:check": "npm run codegen && git diff --exit-code shared/graphql-types",
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -26,6 +29,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.3",
+    "@graphql-codegen/cli": "^5.0.0",
+    "@graphql-codegen/typescript": "^4.0.0",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",

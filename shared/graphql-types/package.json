@@ -1,0 +1,16 @@
+{
+  "name": "@aws-step-function-test/graphql-types",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/generated.ts",
+  "types": "./src/generated.ts",
+  "exports": {
+    ".": "./src/generated.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.0"
+  }
+}

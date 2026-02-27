@@ -14,6 +14,7 @@ module.exports = tseslint.config(
       '**/dist/**',
       '**/cdk.out/**',
       '**/*.min.js',
+      '**/generated.ts',
       'eslint.config.js',
     ],
   },
