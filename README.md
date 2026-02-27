@@ -70,6 +70,8 @@ npm run setup:aws
 
 The script creates the OIDC provider, IAM role, GitHub Actions secret, Secrets Manager token, and GitHub Environments. It is idempotent and safe to re-run.
 
+It auto-detects `AWS_ACCOUNT_ID` (from `aws sts`), `GITHUB_OWNER`, and `GITHUB_REPO` (from `gh repo view` when run in the repo). Override with env vars: `AWS_ACCOUNT_ID`, `AWS_REGION`, `GITHUB_OWNER`, `GITHUB_REPO`.
+
 ### 3 (manual). Set up GitHub OIDC in AWS
 
 Create an IAM OIDC identity provider for GitHub Actions:

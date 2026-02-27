@@ -64,15 +64,21 @@ if is_protected_branch "$branch_name"; then
   exit 1
 fi
 
+if ! git ls-remote --exit-code origin "refs/heads/${branch_name}" &>/dev/null; then
+  echo "Error: Branch '${branch_name}' does not exist on GitHub yet."
+  echo ""
+  echo "Push the branch first:"
+  echo ""
+  echo "  git push -u origin ${branch_name}"
+  exit 1
+fi
+
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 sandbox_identifier="$("$script_dir/sandbox-identifier.sh")"
-short_sha="$(git rev-parse --short=7 HEAD 2>/dev/null || true)"
 
 echo "Dispatching workflow '${WORKFLOW_FILE}'..."
 echo "  branch:             ${branch_name}"
-echo "  short_sha:          ${short_sha}"
 echo "  sandbox_identifier: ${sandbox_identifier}"
-echo "  ref:                ${branch_name}"
 
 gh workflow run "$WORKFLOW_FILE" \
   --ref "$branch_name" \
