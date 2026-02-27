@@ -18,7 +18,8 @@
     "sandbox:deploy": "./scripts/sandbox-deploy.sh",
     "sandbox:teardown": "./scripts/sandbox-teardown.sh",
     "setup:aws": "./scripts/setup-aws-github.sh",
-    "frontend:dev": "./scripts/frontend-dev.sh"
+    "frontend:dev": "./scripts/frontend-dev.sh",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=24"
@@ -31,6 +32,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
+    "husky": "^9.1.7",
     "prettier": "^3.8.1",
     "typescript-eslint": "^8.56.1"
   }
