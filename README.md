@@ -14,16 +14,16 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 
 ### AWS Services
 
-| Service | Purpose |
-|---------|---------|
-| **Amplify** | Frontend hosting with branch-based deploys |
-| **Cognito** | User authentication |
-| **AppSync** | GraphQL API with real-time subscriptions |
-| **EventBridge** | Event bus for decoupled communication |
-| **SQS** | Message queue with dead-letter queue |
-| **Step Functions** | Orchestrated data processing pipeline |
-| **Lambda** | Compute for resolvers and pipeline steps |
-| **DynamoDB** | NoSQL data storage |
+| Service            | Purpose                                    |
+| ------------------ | ------------------------------------------ |
+| **Amplify**        | Frontend hosting with branch-based deploys |
+| **Cognito**        | User authentication                        |
+| **AppSync**        | GraphQL API with real-time subscriptions   |
+| **EventBridge**    | Event bus for decoupled communication      |
+| **SQS**            | Message queue with dead-letter queue       |
+| **Step Functions** | Orchestrated data processing pipeline      |
+| **Lambda**         | Compute for resolvers and pipeline steps   |
+| **DynamoDB**       | NoSQL data storage                         |
 
 ## Project Structure
 
@@ -138,11 +138,11 @@ In your repo's Settings > Environments, create:
 
 ## Environments
 
-| Environment | Branch | Trigger | Notes |
-|-------------|--------|---------|-------|
-| development | `development` | Push | Auto-deploys |
-| staging | `staging` | Push | Auto-deploys |
-| production | `main` | Push | Requires approval via GitHub Environment |
+| Environment | Branch        | Trigger | Notes                                    |
+| ----------- | ------------- | ------- | ---------------------------------------- |
+| development | `development` | Push    | Auto-deploys                             |
+| staging     | `staging`     | Push    | Auto-deploys                             |
+| production  | `main`        | Push    | Requires approval via GitHub Environment |
 
 ## Branching Strategy
 
@@ -290,11 +290,11 @@ cp frontend/.env.example frontend/.env
 
 The frontend requires three variables, which are injected automatically during CI/CD deployment. For local development, you must obtain them from a deployed stack.
 
-| Variable | Purpose | Source |
-|----------|---------|--------|
-| `VITE_USER_POOL_ID` | Cognito User Pool ID for authentication | Auth stack output |
-| `VITE_USER_POOL_CLIENT_ID` | Cognito app client ID for the web app | Auth stack output |
-| `VITE_GRAPHQL_ENDPOINT` | AppSync GraphQL API URL | API stack output |
+| Variable                   | Purpose                                 | Source            |
+| -------------------------- | --------------------------------------- | ----------------- |
+| `VITE_USER_POOL_ID`        | Cognito User Pool ID for authentication | Auth stack output |
+| `VITE_USER_POOL_CLIENT_ID` | Cognito app client ID for the web app   | Auth stack output |
+| `VITE_GRAPHQL_ENDPOINT`    | AppSync GraphQL API URL                 | API stack output  |
 
 **Option A: From CDK deploy output**
 

@@ -1,17 +1,21 @@
-import { IngestOutput, TransformOutput } from '../../shared/types';
+import { type IngestOutput, type TransformOutput } from '../../shared/types'
 
-export const handler = async (event: IngestOutput): Promise<TransformOutput> => {
-  console.log('Transform step received:', JSON.stringify({ pipelineId: event.pipelineId }));
+export const handler = (event: IngestOutput): Promise<TransformOutput> => {
+  console.log(
+    'Transform step received:',
+    JSON.stringify({ pipelineId: event.pipelineId })
+  )
 
-  const normalizedPayload: Record<string, unknown> = {};
+  const normalizedPayload: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(event.record.payload)) {
-    const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, '_');
-    normalizedPayload[normalizedKey] = typeof value === 'string' ? value.trim() : value;
+    const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, '_')
+    normalizedPayload[normalizedKey] =
+      typeof value === 'string' ? value.trim() : value
   }
 
-  return {
+  return Promise.resolve({
     ...event,
     transformed: true,
     normalizedPayload,
-  };
-};
+  })
+}

@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { handler } from './validate';
-import type { TransformOutput } from '../../shared/types';
+import { describe, expect, it } from 'vitest'
 
-const createMockInput = (overrides: Partial<TransformOutput> = {}): TransformOutput => ({
+import type { TransformOutput } from '../../shared/types'
+import { handler } from './validate'
+
+const createMockInput = (
+  overrides: Partial<TransformOutput> = {}
+): TransformOutput => ({
   record: {
     id: 'test-id-123',
     source: 'test-source',
@@ -17,18 +20,18 @@ const createMockInput = (overrides: Partial<TransformOutput> = {}): TransformOut
   transformed: true,
   normalizedPayload: { normalized: 'data' },
   ...overrides,
-});
+})
 
 describe('validate handler', () => {
   it('returns validated output for valid input', async () => {
-    const input = createMockInput();
+    const input = createMockInput()
 
-    const result = await handler(input);
+    const result = await handler(input)
 
-    expect(result.validated).toBe(true);
-    expect(result.validationErrors).toEqual([]);
-    expect(result.pipelineId).toBe(input.pipelineId);
-  });
+    expect(result.validated).toBe(true)
+    expect(result.validationErrors).toEqual([])
+    expect(result.pipelineId).toBe(input.pipelineId)
+  })
 
   it('throws error when record.id is missing', async () => {
     const input = createMockInput({
@@ -39,10 +42,10 @@ describe('validate handler', () => {
         submittedAt: new Date().toISOString(),
         submittedBy: 'test-user',
       },
-    });
+    })
 
-    await expect(handler(input)).rejects.toThrow('Missing required field: id');
-  });
+    await expect(handler(input)).rejects.toThrow('Missing required field: id')
+  })
 
   it('throws error when record.source is missing', async () => {
     const input = createMockInput({
@@ -53,18 +56,20 @@ describe('validate handler', () => {
         submittedAt: new Date().toISOString(),
         submittedBy: 'test-user',
       },
-    });
+    })
 
-    await expect(handler(input)).rejects.toThrow('Missing required field: source');
-  });
+    await expect(handler(input)).rejects.toThrow(
+      'Missing required field: source'
+    )
+  })
 
   it('throws error when normalizedPayload is empty', async () => {
     const input = createMockInput({
       normalizedPayload: {},
-    });
+    })
 
-    await expect(handler(input)).rejects.toThrow('Normalized payload is empty');
-  });
+    await expect(handler(input)).rejects.toThrow('Normalized payload is empty')
+  })
 
   it('combines multiple validation errors', async () => {
     const input = createMockInput({
@@ -76,10 +81,10 @@ describe('validate handler', () => {
         submittedBy: 'test-user',
       },
       normalizedPayload: {},
-    });
+    })
 
     await expect(handler(input)).rejects.toThrow(
       'Validation failed: Missing required field: id; Missing required field: source; Normalized payload is empty'
-    );
-  });
-});
+    )
+  })
+})

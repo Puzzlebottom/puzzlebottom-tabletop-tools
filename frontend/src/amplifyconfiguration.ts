@@ -11,6 +11,6 @@ const amplifyConfig = {
       defaultAuthMode: 'userPool' as const,
     },
   },
-};
+}
 
-export default amplifyConfig;
+export default amplifyConfig
