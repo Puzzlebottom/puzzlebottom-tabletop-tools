@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.15.0",
-    "@aws-step-function-test/graphql-types": "workspace:*",
+    "@aws-step-function-test/graphql-types": "*",
     "aws-amplify": "^6.16.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
