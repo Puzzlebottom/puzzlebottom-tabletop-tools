@@ -1,0 +1,14 @@
+---
+description: Isolate variables when fixing failures; add only fixes that address the known root cause
+alwaysApply: true
+---
+
+# Isolate Variables When Fixing
+
+When there are multiple possible causes for a failure:
+
+1. **Isolate variables** – Change one thing at a time. Do not add multiple fixes hoping one works.
+2. **Be surgical** – Add only fixes you **know** address the root cause.
+3. **Verify before layering** – If uncertain which cause applies, investigate first (logs, repro, docs) or apply the single most likely fix and validate.
+
+**Avoid:** Applying several fixes at once when the root cause is unclear. This obscures what actually fixed the issue and can introduce unnecessary changes.

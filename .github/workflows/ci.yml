@@ -31,6 +31,9 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Verify GraphQL types are up to date
+        run: npm run codegen:check
+
       - name: Type-check all workspaces
         run: npm run typecheck
 

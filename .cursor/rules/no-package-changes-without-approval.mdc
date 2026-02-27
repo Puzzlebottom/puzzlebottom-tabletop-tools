@@ -1,0 +1,14 @@
+---
+description: Do not add or update packages without explicit user approval
+alwaysApply: true
+---
+
+# Package Changes Require Approval
+
+Never add, update, or remove npm packages without explicit user approval.
+
+- Do not run `npm install <package>`, `npm add`, `npm update`, or similar
+- Do not run `npm install` with the intent to add new dependencies
+- Do not modify `package.json` or `package-lock.json` to add/change dependencies without the user explicitly requesting it
+
+**Exception:** If the user explicitly asks to add or update a specific package, proceed with their approval.

@@ -5,5 +5,8 @@ export default defineConfig({
     globals: true,
     include: ['**/*.{test,spec}.ts'],
     exclude: ['node_modules', 'dist'],
+    onConsoleLog(): boolean {
+      return process.env.HUSKY !== '1' // suppress only in pre-commit/pre-push
+    },
   },
 })
