@@ -30,10 +30,23 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 ```
 ├── frontend/          React + Vite app
 ├── backend/           Lambda handlers and shared types
-├── infrastructure/    CDK stacks
+├── infrastructure/    CDK stacks (includes GraphQL schema)
+├── shared/            Shared packages
+│   └── graphql-types/ Generated GraphQL types (from schema)
 ├── scripts/           Setup and utility scripts
 └── .github/workflows/ CI/CD pipelines
 ```
+
+## GraphQL Schema & Types
+
+GraphQL types are generated from `infrastructure/lib/graphql/schema.graphql` and output to `shared/graphql-types`. Frontend and backend import from `@aws-step-function-test/graphql-types`.
+
+**When you change the schema:**
+
+1. Run `npm run codegen` to regenerate types
+2. Commit the updated `shared/graphql-types/src/generated.ts`
+
+Pre-push and CI run `codegen:check` to ensure generated types stay in sync with the schema.
 
 ## Prerequisites
 
