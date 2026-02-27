@@ -1,0 +1,19 @@
+---
+description: Update documentation when tasks are complete
+alwaysApply: true
+---
+
+# Documentation on Task Completion
+
+When a task is complete, check whether documentation should be updated.
+
+- **README**: New features, scripts, project structure, or workflows
+- **Code comments**: Non-obvious logic, public APIs, or configuration
+- **.env.example**: New environment variables
+- **Other docs**: Architecture diagrams, setup guides, or runbooks
+
+If documentation would help future developers (or you) understand the change, update it. Do not update docs for trivial or self-explanatory changes.
+
+**When no doc exists yet:** If the change warrants documentation but no suitable file or pattern exists (e.g. a new doc type), prompt the user for guidance before creating it. Do not create new documentation files without asking.
+
+**Style:** Follow existing documentation patterns in the project (structure, tone, format).
