@@ -27,11 +27,12 @@ export class StepFunctionStack extends cdk.Stack {
     const { config, dataTable, pipelineQueue } = props
 
     const lambdaDefaults: lambdaNode.NodejsFunctionProps = {
-      runtime: lambda.Runtime.NODEJS_22_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       bundling: {
+        format: lambdaNode.OutputFormat.ESM,
         minify: true,
         sourceMap: true,
       },
