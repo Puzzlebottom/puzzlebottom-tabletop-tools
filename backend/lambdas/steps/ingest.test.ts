@@ -1,5 +1,5 @@
 import type { StepInput } from '@aws-step-function-test/schemas'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { handler } from './ingest'
 
@@ -39,6 +39,9 @@ describe('ingest handler', () => {
   })
 
   it('throws error when payload exceeds 1MB', async () => {
+    // Suppress console.log to avoid dumping 1MB+ of payload to stdout
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
     const input = createMockInput({
       record: {
         id: 'test-id',
@@ -55,6 +58,8 @@ describe('ingest handler', () => {
     } catch (e) {
       expect(e).toBeInstanceOf(Error)
       expect((e as Error).message).toContain('Payload too large')
+    } finally {
+      vi.restoreAllMocks()
     }
   })
 })
