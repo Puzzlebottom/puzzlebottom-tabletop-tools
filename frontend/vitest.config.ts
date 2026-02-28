@@ -1,10 +1,11 @@
-import { defineConfig, mergeConfig } from 'vitest/config'
+import type { UserConfig } from 'vite'
+import { mergeConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 import viteConfig from './vite.config'
 
-export default mergeConfig(
-  viteConfig,
-  defineConfig({
+export default defineConfig(() =>
+  mergeConfig(viteConfig as UserConfig, {
     test: {
       environment: 'jsdom',
       globals: true,
@@ -16,7 +17,18 @@ export default mergeConfig(
       coverage: {
         provider: 'v8',
         reporter: ['text', 'text-summary', 'html'],
-        exclude: ['**/generated.ts', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'src/test/**'],
+        exclude: [
+          '**/generated.ts',
+          '**/*.test.{ts,tsx}',
+          '**/*.spec.{ts,tsx}',
+          'src/test/**',
+        ],
+        thresholds: {
+          lines: 90,
+          functions: 90,
+          branches: 85,
+          statements: 90,
+        },
       },
     },
   })
