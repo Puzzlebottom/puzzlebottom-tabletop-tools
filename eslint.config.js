@@ -40,13 +40,13 @@ module.exports = tseslint.config(
     settings: {
       'boundaries/root-path': path.join(__dirname),
       'boundaries/elements': [
-        { type: 'domain', pattern: 'shared/schemas/**/*.ts' },
-        { type: 'contracts', pattern: 'shared/graphql-types/**/*.ts' },
-        { type: 'steps', pattern: 'backend/lambdas/steps/**/*.ts' },
-        { type: 'resolvers', pattern: 'backend/lambdas/resolvers/**/*.ts' },
-        { type: 'frontend', pattern: 'frontend/src/**/*.ts' },
-        { type: 'frontend', pattern: 'frontend/src/**/*.tsx' },
-        { type: 'infrastructure', pattern: 'infrastructure/lib/**/*.ts' },
+        { type: 'domain', pattern: 'shared/schemas/**/*.ts', mode: 'full' },
+        { type: 'contracts', pattern: 'shared/graphql-types/**/*.ts', mode: 'full' },
+        { type: 'steps', pattern: 'backend/lambdas/steps/**/*.ts', mode: 'full' },
+        { type: 'resolvers', pattern: 'backend/lambdas/resolvers/**/*.ts', mode: 'full' },
+        { type: 'frontend', pattern: 'frontend/src/**/*.ts', mode: 'full' },
+        { type: 'frontend', pattern: 'frontend/src/**/*.tsx', mode: 'full' },
+        { type: 'infrastructure', pattern: 'infrastructure/lib/**/*.ts', mode: 'full' },
       ],
     },
     rules: {
