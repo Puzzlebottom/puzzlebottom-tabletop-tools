@@ -398,12 +398,12 @@ npm run dev
 
 ## Commit Convention
 
-This project follows [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
+This project follows [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Commitlint enforces this format via the `commit-msg` Husky hook.
 
 ```
-<type>(scope): <description>
+<type>[optional scope]: <description>
 ```
 
-**Types:** `feat`, `fix`, `build`, `chore`, `ci`, `docs`, `refactor`, `test`
+**Types:** `feat`, `fix`, `docs`, `chore`, `style`, `refactor`, `perf`, `test`, `ci`
 
-**Scopes:** `infra`, `backend`, `frontend`, `ci`, `scripts`
+**Scopes (optional):** `infra`, `backend`, `frontend`, `ci`, `scripts`
