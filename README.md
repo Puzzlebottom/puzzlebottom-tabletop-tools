@@ -2,6 +2,8 @@
 
 Event-driven data processing pipeline built with AWS Step Functions, AppSync, EventBridge, and React.
 
+**[Contributing](CONTRIBUTING.md)** — Setup, workflow, conventions, and getting help.
+
 ## Architecture
 
 ```
