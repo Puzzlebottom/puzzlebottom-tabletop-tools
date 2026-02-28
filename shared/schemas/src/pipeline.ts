@@ -49,7 +49,7 @@ export type StoreOutput = z.infer<typeof StoreOutputSchema>
 
 /** EventBridge event envelope (source, detailType, detail). */
 export const PipelineEventSchema = z.object({
-  source: z.literal('data-pipeline'),
+  source: z.literal('puzzlebottom-tabletop-tools'),
   detailType: z.literal('DataSubmitted'),
   detail: DataRecordSchema,
 })

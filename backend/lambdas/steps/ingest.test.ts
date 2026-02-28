@@ -1,4 +1,4 @@
-import type { StepInput } from '@aws-step-function-test/schemas'
+import type { StepInput } from '@puzzlebottom-tabletop-tools/schemas'
 import { describe, expect, it, vi } from 'vitest'
 
 import { handler } from './ingest'

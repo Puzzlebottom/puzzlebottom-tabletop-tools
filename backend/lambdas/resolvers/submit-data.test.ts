@@ -1,7 +1,7 @@
 import type {
   MutationSubmitDataArgs,
   SubmitDataResponse,
-} from '@aws-step-function-test/graphql-types'
+} from '@puzzlebottom-tabletop-tools/graphql-types'
 import type { AppSyncResolverEvent } from 'aws-lambda/trigger/appsync-resolver'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

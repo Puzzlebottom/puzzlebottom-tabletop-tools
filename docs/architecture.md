@@ -1,6 +1,6 @@
 # Architecture & Flow
 
-Visual documentation of the AWS Data Pipeline application flow.
+Visual documentation of the Puzzlebottom's Tabletop Tools Suite application flow.
 
 **Color scheme:** Gradient along the data flow (blue → indigo → purple → green). Error paths (Fail, DLQ) use red.
 
@@ -23,7 +23,7 @@ flowchart TB
 
     subgraph Eventing["Eventing"]
         EB[EventBridge]
-        Rule[Rule: source=data-pipeline<br/>detailType=DataSubmitted]
+        Rule[Rule: source=puzzlebottom-tabletop-tools<br/>detailType=DataSubmitted]
         SQS[SQS Pipeline Queue]
         DLQ[Dead Letter Queue]
         EB --> Rule

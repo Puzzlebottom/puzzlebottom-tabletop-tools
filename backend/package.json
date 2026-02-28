@@ -16,8 +16,8 @@
     "@aws-sdk/client-eventbridge": "^3.1000.0",
     "@aws-sdk/client-sfn": "^3.1000.0",
     "@aws-sdk/lib-dynamodb": "^3.1000.0",
-    "@aws-step-function-test/graphql-types": "*",
-    "@aws-step-function-test/schemas": "*"
+    "@puzzlebottom-tabletop-tools/graphql-types": "*",
+    "@puzzlebottom-tabletop-tools/schemas": "*"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",

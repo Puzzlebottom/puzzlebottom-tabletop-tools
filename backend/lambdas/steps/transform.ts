@@ -1,7 +1,7 @@
 import {
   IngestOutputSchema,
   type TransformOutput,
-} from '@aws-step-function-test/schemas'
+} from '@puzzlebottom-tabletop-tools/schemas'
 
 export const handler = (event: unknown): Promise<TransformOutput> => {
   const parseResult = IngestOutputSchema.safeParse(event)

@@ -31,7 +31,7 @@ describe('ApiStack', () => {
 
     template.resourceCountIs('AWS::AppSync::GraphQLApi', 1)
     template.hasResourceProperties('AWS::AppSync::GraphQLApi', {
-      Name: `${mockConfig.envName}-data-pipeline-api`,
+      Name: `${mockConfig.envName}-puzzlebottom-tabletop-tools-api`,
       AuthenticationType: 'AMAZON_COGNITO_USER_POOLS',
       XrayEnabled: true,
     })

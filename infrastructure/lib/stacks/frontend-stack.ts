@@ -24,7 +24,7 @@ export class FrontendStack extends cdk.Stack {
     const githubToken = cdk.SecretValue.secretsManager('github-token')
 
     this.amplifyApp = new amplify.App(this, 'AmplifyApp', {
-      appName: `${config.envName}-data-pipeline`,
+      appName: `${config.envName}-puzzlebottom-tabletop-tools`,
       // Build spec from amplify.yml in repo (single source of truth)
       environmentVariables: {
         VITE_USER_POOL_ID: userPoolId,

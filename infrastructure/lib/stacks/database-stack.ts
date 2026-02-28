@@ -17,7 +17,7 @@ export class DatabaseStack extends cdk.Stack {
     const { config } = props
 
     this.dataTable = new dynamodb.Table(this, 'DataTable', {
-      tableName: `${config.envName}-data-pipeline`,
+      tableName: `${config.envName}-puzzlebottom-tabletop-tools`,
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -35,12 +35,12 @@ export class DatabaseStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'DataTableName', {
       value: this.dataTable.tableName,
-      exportName: `${config.envName}-data-table-name`,
+      exportName: `${config.envName}-puzzlebottom-table-name`,
     })
 
     new cdk.CfnOutput(this, 'DataTableArn', {
       value: this.dataTable.tableArn,
-      exportName: `${config.envName}-data-table-arn`,
+      exportName: `${config.envName}-puzzlebottom-table-arn`,
     })
   }
 }

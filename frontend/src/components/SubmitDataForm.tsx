@@ -1,5 +1,5 @@
-import type { SubmitDataResponse } from '@aws-step-function-test/graphql-types'
-import { PayloadSchema } from '@aws-step-function-test/schemas'
+import type { SubmitDataResponse } from '@puzzlebottom-tabletop-tools/graphql-types'
+import { PayloadSchema } from '@puzzlebottom-tabletop-tools/schemas'
 import { generateClient } from 'aws-amplify/api'
 import { type SubmitEvent, useState } from 'react'
 

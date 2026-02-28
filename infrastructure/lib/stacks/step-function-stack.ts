@@ -134,13 +134,13 @@ export class StepFunctionStack extends cdk.Stack {
       .next(successState)
 
     const logGroup = new logs.LogGroup(this, 'StateMachineLogGroup', {
-      logGroupName: `/aws/stepfunctions/${config.envName}-data-pipeline`,
+      logGroupName: `/aws/stepfunctions/${config.envName}-puzzlebottom-tabletop-tools`,
       retention: config.logRetention,
       removalPolicy: config.removalPolicy,
     })
 
     this.stateMachine = new sfn.StateMachine(this, 'DataPipeline', {
-      stateMachineName: `${config.envName}-data-pipeline`,
+      stateMachineName: `${config.envName}-puzzlebottom-tabletop-tools`,
       definitionBody: sfn.DefinitionBody.fromChainable(definition),
       timeout: cdk.Duration.minutes(5),
       tracingEnabled: true,

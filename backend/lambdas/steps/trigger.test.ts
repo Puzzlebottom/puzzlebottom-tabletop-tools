@@ -1,5 +1,5 @@
-import type { DataRecord } from '@aws-step-function-test/schemas'
-import type { StepInput } from '@aws-step-function-test/schemas'
+import type { DataRecord } from '@puzzlebottom-tabletop-tools/schemas'
+import type { StepInput } from '@puzzlebottom-tabletop-tools/schemas'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MINIMAL_CONTEXT } from '../../test/lambda-context.js'

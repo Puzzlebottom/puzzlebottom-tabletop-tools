@@ -21,7 +21,7 @@ export class EventStack extends cdk.Stack {
     const { config } = props
 
     this.eventBus = new events.EventBus(this, 'EventBus', {
-      eventBusName: `${config.envName}-data-pipeline-bus`,
+      eventBusName: `${config.envName}-puzzlebottom-tabletop-tools-bus`,
     })
 
     this.deadLetterQueue = new sqs.Queue(this, 'DeadLetterQueue', {
@@ -45,7 +45,7 @@ export class EventStack extends cdk.Stack {
       ruleName: `${config.envName}-data-submitted`,
       eventBus: this.eventBus,
       eventPattern: {
-        source: ['data-pipeline'],
+        source: ['puzzlebottom-tabletop-tools'],
         detailType: ['DataSubmitted'],
       },
       targets: [new targets.SqsQueue(this.pipelineQueue)],

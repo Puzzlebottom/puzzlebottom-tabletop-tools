@@ -1,6 +1,6 @@
-# AWS Data Pipeline
+# Puzzlebottom's Tabletop Tools Suite
 
-Event-driven data processing pipeline built with AWS Step Functions, AppSync, EventBridge, and React.
+TTRPG tools suite built with AWS Step Functions, AppSync, EventBridge, and React. Event-driven data pipeline powers the first tool (dice roller) and future tools.
 
 **[Contributing](CONTRIBUTING.md)** — Setup, workflow, conventions, and getting help.
 
@@ -45,7 +45,7 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 
 ## GraphQL Schema & Types
 
-GraphQL types are generated from `infrastructure/lib/graphql/schema.graphql` and output to `shared/graphql-types`. Frontend and backend import from `@aws-step-function-test/graphql-types`.
+GraphQL types are generated from `infrastructure/lib/graphql/schema.graphql` and output to `shared/graphql-types`. Frontend and backend import from `@puzzlebottom-tabletop-tools/graphql-types`.
 
 **When you change the schema:**
 
@@ -152,7 +152,7 @@ Create an IAM role that trusts your GitHub repository:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/aws-step-function-test:*"
+          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/puzzlebottom-tabletop-tools:*"
         }
       }
     }
@@ -238,20 +238,20 @@ cd infrastructure
 # Deploy to development
 ENVIRONMENT=development npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
-  -c githubRepo=aws-step-function-test
+  -c githubRepo=puzzlebottom-tabletop-tools
 
 # Deploy a sandbox (branch-slug + dev-hash identifier)
 SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
   SANDBOX_BRANCH=feature/auth \
   npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
-  -c githubRepo=aws-step-function-test
+  -c githubRepo=puzzlebottom-tabletop-tools
 
 # Tear down a sandbox (parallel, respects dependency graph)
 SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
   bash scripts/parallel-cdk-destroy.sh \
   -c githubOwner=<your-github-username> \
-  -c githubRepo=aws-step-function-test
+  -c githubRepo=puzzlebottom-tabletop-tools
 ```
 
 ## Sandbox Environments
@@ -381,7 +381,7 @@ aws cloudformation describe-stacks \
 **Option C: From AWS Console**
 
 - **Cognito:** AWS Console → Cognito → User Pools → select the pool (e.g. `development-user-pool`) → copy User pool ID and App client ID from App integration.
-- **AppSync:** AWS Console → AppSync → select the API (e.g. `development-data-pipeline-api`) → copy the GraphQL endpoint URL.
+- **AppSync:** AWS Console → AppSync → select the API (e.g. `development-puzzlebottom-tabletop-tools-api`) → copy the GraphQL endpoint URL.
 
 ### 3. Edit `frontend/.env`
 

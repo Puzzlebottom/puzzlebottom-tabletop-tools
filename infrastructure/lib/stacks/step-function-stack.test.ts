@@ -31,7 +31,7 @@ describe('StepFunctionStack', () => {
 
     template.resourceCountIs('AWS::StepFunctions::StateMachine', 1)
     template.hasResourceProperties('AWS::StepFunctions::StateMachine', {
-      StateMachineName: `${mockConfig.envName}-data-pipeline`,
+      StateMachineName: `${mockConfig.envName}-puzzlebottom-tabletop-tools`,
       TracingConfiguration: { Enabled: true },
     })
   })
@@ -59,7 +59,7 @@ describe('StepFunctionStack', () => {
     const template = Template.fromStack(stack)
 
     template.hasResourceProperties('AWS::Logs::LogGroup', {
-      LogGroupName: `/aws/stepfunctions/${mockConfig.envName}-data-pipeline`,
+      LogGroupName: `/aws/stepfunctions/${mockConfig.envName}-puzzlebottom-tabletop-tools`,
     })
   })
 

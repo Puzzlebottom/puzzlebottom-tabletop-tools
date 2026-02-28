@@ -47,7 +47,7 @@ describe('FrontendStack', () => {
 
     template.resourceCountIs('AWS::Amplify::App', 1)
     template.hasResourceProperties('AWS::Amplify::App', {
-      Name: `${mockConfig.envName}-data-pipeline`,
+      Name: `${mockConfig.envName}-puzzlebottom-tabletop-tools`,
       EnvironmentVariables: Match.arrayWith([
         Match.objectLike({ Name: 'VITE_USER_POOL_ID' }),
         Match.objectLike({ Name: 'VITE_USER_POOL_CLIENT_ID' }),

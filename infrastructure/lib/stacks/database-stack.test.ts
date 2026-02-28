@@ -57,10 +57,10 @@ describe('DatabaseStack', () => {
     const template = Template.fromStack(stack)
 
     template.hasOutput('*', {
-      Export: { Name: `${mockConfig.envName}-data-table-name` },
+      Export: { Name: `${mockConfig.envName}-puzzlebottom-table-name` },
     })
     template.hasOutput('*', {
-      Export: { Name: `${mockConfig.envName}-data-table-arn` },
+      Export: { Name: `${mockConfig.envName}-puzzlebottom-table-arn` },
     })
   })
 })

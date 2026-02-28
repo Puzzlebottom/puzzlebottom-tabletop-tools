@@ -148,7 +148,7 @@ describe('PipelineEventSchema', () => {
   it('accepts valid pipeline event', () => {
     expect(
       PipelineEventSchema.safeParse({
-        source: 'data-pipeline',
+        source: 'puzzlebottom-tabletop-tools',
         detailType: 'DataSubmitted',
         detail: validRecord,
       }).success
@@ -168,7 +168,7 @@ describe('PipelineEventSchema', () => {
   it('rejects wrong detailType', () => {
     expect(
       PipelineEventSchema.safeParse({
-        source: 'data-pipeline',
+        source: 'puzzlebottom-tabletop-tools',
         detailType: 'WrongType',
         detail: validRecord,
       }).success

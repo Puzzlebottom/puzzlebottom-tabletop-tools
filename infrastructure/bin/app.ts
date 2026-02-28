@@ -22,7 +22,7 @@ const stackProps: cdk.StackProps = {
   },
 }
 
-cdk.Tags.of(app).add('project', 'aws-step-function-test')
+cdk.Tags.of(app).add('project', 'puzzlebottom-tabletop-tools')
 cdk.Tags.of(app).add('environment', config.envName)
 if (config.isSandbox) {
   cdk.Tags.of(app).add('sandbox', 'true')

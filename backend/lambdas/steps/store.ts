@@ -3,7 +3,7 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb'
 import {
   type StoreOutput,
   ValidateOutputSchema,
-} from '@aws-step-function-test/schemas'
+} from '@puzzlebottom-tabletop-tools/schemas'
 
 const client = new DynamoDBClient({})
 const docClient = DynamoDBDocumentClient.from(client)

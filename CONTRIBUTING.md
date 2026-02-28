@@ -1,6 +1,6 @@
 # Contributing
 
-This guide summarizes how to contribute to the AWS Data Pipeline project. For detailed setup, architecture, and deployment instructions, see the [README](README.md).
+This guide summarizes how to contribute to Puzzlebottom's Tabletop Tools Suite. For detailed setup, architecture, and deployment instructions, see the [README](README.md).
 
 ## Getting Started
 

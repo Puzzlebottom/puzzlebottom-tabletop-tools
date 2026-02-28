@@ -1,4 +1,4 @@
-import type { ValidateOutput } from '@aws-step-function-test/schemas'
+import type { ValidateOutput } from '@puzzlebottom-tabletop-tools/schemas'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { handler } from './store'

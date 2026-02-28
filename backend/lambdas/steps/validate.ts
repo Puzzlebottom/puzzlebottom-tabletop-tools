@@ -1,7 +1,7 @@
 import {
   TransformOutputSchema,
   type ValidateOutput,
-} from '@aws-step-function-test/schemas'
+} from '@puzzlebottom-tabletop-tools/schemas'
 
 export const handler = (event: unknown): Promise<ValidateOutput> => {
   const parseResult = TransformOutputSchema.safeParse(event)

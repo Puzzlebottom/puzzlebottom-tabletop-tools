@@ -2,7 +2,7 @@ import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
 import {
   EventBridgeEventBodySchema,
   type StepInput,
-} from '@aws-step-function-test/schemas'
+} from '@puzzlebottom-tabletop-tools/schemas'
 import { type SQSHandler } from 'aws-lambda'
 import { randomUUID } from 'crypto'
 

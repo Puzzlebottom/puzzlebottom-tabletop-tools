@@ -1,4 +1,4 @@
-import type { IngestOutput } from '@aws-step-function-test/schemas'
+import type { IngestOutput } from '@puzzlebottom-tabletop-tools/schemas'
 import { describe, expect, it } from 'vitest'
 
 import { handler } from './transform'

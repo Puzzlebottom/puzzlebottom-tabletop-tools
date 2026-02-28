@@ -24,7 +24,7 @@ export class ApiStack extends cdk.Stack {
     const { config, userPool, eventBus } = props
 
     this.api = new appsync.GraphqlApi(this, 'Api', {
-      name: `${config.envName}-data-pipeline-api`,
+      name: `${config.envName}-puzzlebottom-tabletop-tools-api`,
       definition: appsync.Definition.fromFile(
         path.join(import.meta.dirname, '../graphql/schema.graphql')
       ),

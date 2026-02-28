@@ -1,7 +1,7 @@
 import {
   type IngestOutput,
   StepInputSchema,
-} from '@aws-step-function-test/schemas'
+} from '@puzzlebottom-tabletop-tools/schemas'
 
 export const handler = (event: unknown): Promise<IngestOutput> => {
   const parseResult = StepInputSchema.safeParse(event)

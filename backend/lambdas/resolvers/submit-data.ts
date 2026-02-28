@@ -5,13 +5,13 @@ import {
 import type {
   MutationSubmitDataArgs,
   SubmitDataResponse,
-} from '@aws-step-function-test/graphql-types'
+} from '@puzzlebottom-tabletop-tools/graphql-types'
 import {
   type DataRecord,
   DETAIL_TYPE_DATA_SUBMITTED,
   EVENT_SOURCE,
   PayloadSchema,
-} from '@aws-step-function-test/schemas'
+} from '@puzzlebottom-tabletop-tools/schemas'
 import { type AppSyncResolverHandler } from 'aws-lambda'
 import { randomUUID } from 'crypto'
 

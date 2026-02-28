@@ -1,4 +1,4 @@
-import type { TransformOutput } from '@aws-step-function-test/schemas'
+import type { TransformOutput } from '@puzzlebottom-tabletop-tools/schemas'
 import { describe, expect, it } from 'vitest'
 
 import { handler } from './validate'

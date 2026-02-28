@@ -18,7 +18,7 @@ describe('EventStack', () => {
     template.resourceCountIs('AWS::SQS::Queue', 2)
 
     template.hasResourceProperties('AWS::Events::EventBus', {
-      Name: `${mockConfig.envName}-data-pipeline-bus`,
+      Name: `${mockConfig.envName}-puzzlebottom-tabletop-tools-bus`,
     })
 
     template.hasResourceProperties('AWS::SQS::Queue', {
@@ -42,7 +42,7 @@ describe('EventStack', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       Name: `${mockConfig.envName}-data-submitted`,
       EventPattern: Match.objectLike({
-        source: ['data-pipeline'],
+        source: ['puzzlebottom-tabletop-tools'],
         'detail-type': ['DataSubmitted'],
       }),
     })
