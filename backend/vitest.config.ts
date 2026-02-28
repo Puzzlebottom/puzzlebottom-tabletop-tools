@@ -8,5 +8,10 @@ export default defineConfig({
     onConsoleLog(): boolean {
       return process.env.HUSKY !== '1' // suppress only in pre-commit/pre-push
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'html'],
+      exclude: ['**/generated.ts', '**/*.test.ts', '**/*.spec.ts'],
+    },
   },
 })

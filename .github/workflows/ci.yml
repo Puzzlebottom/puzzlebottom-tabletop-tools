@@ -37,5 +37,5 @@ jobs:
       - name: Type-check all workspaces
         run: npm run typecheck
 
-      - name: Run tests
-        run: npm run test
+      - name: Run tests with coverage
+        run: npm run test:coverage

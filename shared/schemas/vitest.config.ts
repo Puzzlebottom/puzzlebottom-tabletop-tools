@@ -8,5 +8,10 @@ export default defineConfig({
     onConsoleLog(): boolean {
       return process.env.HUSKY !== '1'
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'html'],
+      exclude: ['**/*.test.ts', '**/*.spec.ts'],
+    },
   },
 })

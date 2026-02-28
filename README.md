@@ -81,7 +81,7 @@ External boundaries (submit-data, trigger, SubmitDataForm) validate untrusted in
 | **frontend** | `frontend/src` | domain, contracts |
 | **infrastructure** | `infrastructure/lib` | — |
 
-Tests live in the same element as the code under test (e.g. `validate.test.ts` in steps) and inherit its import rules.
+Tests live in the same element as the code under test (e.g. `validate.test.ts` in steps) and inherit its import rules. CI runs tests with coverage (`npm run test:coverage`); coverage reports are output as text summaries.
 
 ## Prerequisites
 
