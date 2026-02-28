@@ -1,5 +1,7 @@
+const path = require('path')
 const js = require('@eslint/js')
 const tseslint = require('typescript-eslint')
+const boundaries = require('eslint-plugin-boundaries')
 const react = require('eslint-plugin-react')
 const reactHooks = require('eslint-plugin-react-hooks')
 const prettier = require('eslint-plugin-prettier')
@@ -28,6 +30,40 @@ module.exports = tseslint.config(
       parserOptions: {
         projectService: true,
       },
+    },
+  },
+
+  // Boundaries: enforce clean architecture (tests inherit element of code under test)
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    plugins: { boundaries },
+    settings: {
+      'boundaries/root-path': path.join(__dirname),
+      'boundaries/elements': [
+        { type: 'domain', pattern: 'shared/schemas/**/*.ts' },
+        { type: 'contracts', pattern: 'shared/graphql-types/**/*.ts' },
+        { type: 'steps', pattern: 'backend/lambdas/steps/**/*.ts' },
+        { type: 'resolvers', pattern: 'backend/lambdas/resolvers/**/*.ts' },
+        { type: 'frontend', pattern: 'frontend/src/**/*.ts' },
+        { type: 'frontend', pattern: 'frontend/src/**/*.tsx' },
+        { type: 'infrastructure', pattern: 'infrastructure/lib/**/*.ts' },
+      ],
+    },
+    rules: {
+      'boundaries/element-types': [
+        'error',
+        {
+          default: 'disallow',
+          rules: [
+            { from: 'domain', disallow: ['*'] },
+            { from: 'contracts', disallow: ['*'] },
+            { from: 'steps', allow: ['domain'] },
+            { from: 'resolvers', allow: ['domain', 'contracts'] },
+            { from: 'frontend', allow: ['domain', 'contracts'] },
+            { from: 'infrastructure', allow: [] },
+          ],
+        },
+      ],
     },
   },
 

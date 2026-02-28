@@ -30,11 +30,11 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 ```
 ├── amplify.yml        Amplify build config (single source of truth)
 ├── frontend/          React + Vite app
-├── backend/           Lambda handlers and shared types
+├── backend/           Lambda handlers (resolvers, steps)
 ├── infrastructure/    CDK stacks (includes GraphQL schema)
 ├── shared/            Shared packages
 │   ├── graphql-types/ Generated GraphQL types (from schema)
-│   └── schemas/       Zod schemas for runtime validation (payload, events, pipeline)
+│   └── schemas/       Domain types, Zod schemas, event constants (payload, events, pipeline)
 ├── scripts/           Setup and utility scripts
 └── .github/workflows/ CI/CD pipelines
 ```
@@ -67,6 +67,21 @@ Payload and event shapes are validated at runtime using Zod schemas in `shared/s
 | `PipelineStatusSchema` | — | Pipeline status enum |
 
 External boundaries (submit-data, trigger, SubmitDataForm) validate untrusted input. Pipeline steps (ingest, transform, validate, store) validate Step Function input/output for defense-in-depth.
+
+## Architecture Boundaries
+
+`eslint-plugin-boundaries` enforces clean architecture by restricting which layers can import from others:
+
+| Layer | Path | May import from |
+|-------|------|-----------------|
+| **domain** | `shared/schemas` | — (only external deps) |
+| **contracts** | `shared/graphql-types` | — |
+| **steps** | `backend/lambdas/steps` | domain |
+| **resolvers** | `backend/lambdas/resolvers` | domain, contracts |
+| **frontend** | `frontend/src` | domain, contracts |
+| **infrastructure** | `infrastructure/lib` | — |
+
+Tests live in the same element as the code under test (e.g. `validate.test.ts` in steps) and inherit its import rules.
 
 ## Prerequisites
 

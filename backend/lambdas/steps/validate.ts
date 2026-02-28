@@ -1,6 +1,7 @@
-import { TransformOutputSchema } from '@aws-step-function-test/schemas'
-
-import { type ValidateOutput } from '../../shared/types'
+import {
+  TransformOutputSchema,
+  type ValidateOutput,
+} from '@aws-step-function-test/schemas'
 
 export const handler = (event: unknown): Promise<ValidateOutput> => {
   const parseResult = TransformOutputSchema.safeParse(event)

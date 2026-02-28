@@ -1,6 +1,6 @@
+import type { TransformOutput } from '@aws-step-function-test/schemas'
 import { describe, expect, it } from 'vitest'
 
-import type { TransformOutput } from '../../shared/types'
 import { handler } from './validate'
 
 const createMockInput = (

@@ -6,6 +6,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler"
   },
-  "include": ["lambdas/**/*.ts", "shared/**/*.ts", "vitest.config.ts"],
+  "include": ["lambdas/**/*.ts",  "vitest.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

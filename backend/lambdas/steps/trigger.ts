@@ -1,9 +1,10 @@
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
-import { EventBridgeEventBodySchema } from '@aws-step-function-test/schemas'
+import {
+  EventBridgeEventBodySchema,
+  type StepInput,
+} from '@aws-step-function-test/schemas'
 import { type SQSHandler } from 'aws-lambda'
 import { randomUUID } from 'crypto'
-
-import { type StepInput } from '../../shared/types'
 
 const sfnClient = new SFNClient({})
 const STATE_MACHINE_ARN = process.env.STATE_MACHINE_ARN!

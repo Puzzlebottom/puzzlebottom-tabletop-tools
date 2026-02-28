@@ -4,7 +4,14 @@ export {
   type Payload,
   PayloadSchema,
 } from './data-record'
-export { type EventBridgeEventBody, EventBridgeEventBodySchema } from './events'
+export {
+  DETAIL_TYPE_DATA_SUBMITTED,
+  EVENT_SOURCE,
+  type EventBridgeEventBody,
+  EventBridgeEventBodySchema,
+  type EventDetailType,
+  type EventSource,
+} from './events'
 export {
   type IngestOutput,
   IngestOutputSchema,

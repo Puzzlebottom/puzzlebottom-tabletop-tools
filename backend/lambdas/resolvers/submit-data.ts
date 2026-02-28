@@ -6,15 +6,14 @@ import type {
   MutationSubmitDataArgs,
   SubmitDataResponse,
 } from '@aws-step-function-test/graphql-types'
-import { PayloadSchema } from '@aws-step-function-test/schemas'
-import { type AppSyncResolverHandler } from 'aws-lambda'
-import { randomUUID } from 'crypto'
-
 import {
   type DataRecord,
   DETAIL_TYPE_DATA_SUBMITTED,
   EVENT_SOURCE,
-} from '../../shared/types'
+  PayloadSchema,
+} from '@aws-step-function-test/schemas'
+import { type AppSyncResolverHandler } from 'aws-lambda'
+import { randomUUID } from 'crypto'
 
 const eventBridgeClient = new EventBridgeClient({})
 const EVENT_BUS_NAME = process.env.EVENT_BUS_NAME!
