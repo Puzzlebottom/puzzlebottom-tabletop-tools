@@ -14,6 +14,8 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
                                                                          └── Store → DynamoDB
 ```
 
+**[Architecture & Flow](docs/architecture.md)** — Visual diagrams (flow, Step Function, data shapes).
+
 ### AWS Services
 
 | Service            | Purpose                                    |
