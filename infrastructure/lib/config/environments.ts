@@ -70,7 +70,7 @@ export function resolveEnvironment(): EnvironmentConfig {
     throw new Error(
       'ENVIRONMENT or SANDBOX_IDENTIFIER env var must be set. ' +
         'Valid environments: development, staging, production. ' +
-        'For sandboxes, set SANDBOX_IDENTIFIER=<branch-slug-shortsha>.'
+        'For sandboxes, set SANDBOX_IDENTIFIER=<branch-slug>-<dev-hash>.'
     )
   }
 

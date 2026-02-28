@@ -10,8 +10,7 @@ usage() {
   echo "Triggers the sandbox teardown workflow using GitHub CLI."
   echo
   echo "No arguments are accepted."
-  echo "The script derives branch + hash from the current checkout and triggers"
-  echo "branch-based teardown to remove any sandbox for this branch."
+  echo "The script tears down your sandbox for this branch (exact match by dev + branch)."
   echo "Protected branches are blocked: development, staging, main."
 }
 
@@ -74,7 +73,7 @@ echo "  sandbox_identifier: ${sandbox_identifier}"
 
 gh workflow run "$WORKFLOW_FILE" \
   --ref "$branch_name" \
-  -f branch_name="$branch_name"
+  -f sandbox_identifier="$sandbox_identifier"
 
 echo "Sandbox teardown workflow dispatched successfully."
 echo "Track runs with: gh run list --workflow \"Teardown Sandbox\" --limit 5"

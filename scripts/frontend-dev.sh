@@ -13,7 +13,7 @@ usage() {
   echo "  development -> development stack"
   echo "  staging     -> staging stack"
   echo "  main        -> production stack"
-  echo "  feature/*   -> sandbox-<branch-slug>-<short-sha> (must be deployed first)"
+  echo "  feature/*   -> sandbox-<branch-slug>-<dev-hash> (must be deployed first)"
   echo
   echo "Override: set FRONTEND_ENV to development, staging, production, or sandbox-<id>"
   echo

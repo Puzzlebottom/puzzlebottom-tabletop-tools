@@ -13,7 +13,7 @@ on:
         type: string
         default: us-east-1
       sandbox-identifier:
-        description: Branch-hash identifier for sandbox environments
+        description: Branch-slug identifier for sandbox environments
         required: false
         type: string
         default: ''

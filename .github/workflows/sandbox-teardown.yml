@@ -4,21 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       sandbox_identifier:
-        description: 'Sandbox identifier to tear down (branch-slug-shortsha)'
+        description: 'Sandbox identifier to tear down (branch-slug-dev-hash)'
         required: false
         type: string
       branch_name:
-        description: 'Branch name to tear down all matching sandboxes'
+        description: 'Branch name to tear down all sandboxes for that branch'
         required: false
         type: string
   workflow_call:
     inputs:
       sandbox_identifier:
-        description: 'Sandbox identifier to tear down (branch-slug-shortsha)'
+        description: 'Sandbox identifier to tear down (branch-slug-dev-hash)'
         required: false
         type: string
       branch_name:
-        description: 'Branch name to tear down all matching sandboxes'
+        description: 'Branch name to tear down all sandboxes for that branch'
         required: false
         type: string
     secrets:

@@ -238,7 +238,7 @@ ENVIRONMENT=development npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
   -c githubRepo=aws-step-function-test
 
-# Deploy a sandbox (branch-hash identifier)
+# Deploy a sandbox (branch-slug + dev-hash identifier)
 SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
   SANDBOX_BRANCH=feature/auth \
   npx cdk deploy --all \
@@ -254,9 +254,9 @@ SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
 
 ## Sandbox Environments
 
-Sandboxes are fully isolated, ephemeral environments tied to a branch and commit.
+Sandboxes are fully isolated, ephemeral environments tied to a dev and branch. One sandbox per (dev, branch); re-deploying updates the same stacks in-place. Different devs with the same branch name get different sandboxes.
 
-Each sandbox is identified by `<branch-slug>-<short-sha>`, for example `feature-auth-a1b2c3d`. All AWS resources are prefixed with `sandbox-<identifier>-`.
+Each sandbox is identified by `<branch-slug>-<dev-hash>`, for example `feature-auth-a1b2c3d`. The dev hash is derived from `SANDBOX_DEVELOPER` (in CI: `github.actor`), or `git config user.name`, or `whoami`. All AWS resources are prefixed with `sandbox-<identifier>-`.
 
 ### Deploy via script (recommended)
 
@@ -266,7 +266,7 @@ From any feature branch, run:
 npm run sandbox:deploy
 ```
 
-The script automatically derives the sandbox identifier from the current branch and commit, then dispatches the `Deploy Sandbox` workflow. It is blocked on protected branches (`development`, `staging`, `main`).
+The script automatically derives the sandbox identifier from the current branch and your dev name, then dispatches the `Deploy Sandbox` workflow. Re-deploying updates the existing sandbox in-place. It is blocked on protected branches (`development`, `staging`, `main`).
 
 ### Tear down via script (recommended)
 
@@ -276,13 +276,13 @@ From the same branch:
 npm run sandbox:teardown
 ```
 
-This triggers a branch-based teardown that removes all sandboxes associated with the current branch.
+This tears down your sandbox for the current branch (exact match by dev + branch).
 
 ### Deploy via GitHub Actions
 
 1. Go to Actions > "Deploy Sandbox"
 2. Click "Run workflow" from your feature branch
-3. Optionally provide a `sandbox_identifier` override (otherwise auto-computed)
+3. Optionally provide a `sandbox_identifier` override (otherwise derived from branch + dev)
 4. Resources are created with prefix `sandbox-<identifier>-`
 
 ### Tear down via GitHub Actions
@@ -290,12 +290,12 @@ This triggers a branch-based teardown that removes all sandboxes associated with
 1. Go to Actions > "Teardown Sandbox"
 2. Click "Run workflow"
 3. Provide either:
-   - `sandbox_identifier` for exact teardown, or
-   - `branch_name` to tear down all sandboxes for a branch
+   - `sandbox_identifier` for exact teardown (your sandbox), or
+   - `branch_name` to tear down all sandboxes for that branch (e.g. on branch delete)
 
 ### Auto-cleanup
 
-When a branch is deleted from GitHub, the `Sandbox Auto Cleanup` workflow automatically triggers a branch-based teardown to remove any remaining sandbox resources.
+When a branch is deleted from GitHub, the `Sandbox Auto Cleanup` workflow automatically triggers a branch-based teardown to remove all sandboxes for that branch.
 
 ### Sandbox characteristics
 
@@ -324,6 +324,8 @@ This script:
 4. Writes `frontend/.env` and starts the dev server
 
 **Override environment:** Set `FRONTEND_ENV` to force a specific stack (e.g. `FRONTEND_ENV=staging npm run frontend:dev`).
+
+**Local sandbox matching:** For feature branches, the script derives the sandbox identifier from your branch and dev name (`git config user.name` or `SANDBOX_DEVELOPER`). If your local dev name doesn't match your GitHub username (used in CI deploys), set `SANDBOX_DEVELOPER` to your GitHub username so the script finds your deployed sandbox.
 
 **Requirements:** AWS CLI configured, stacks deployed for the target environment. For feature branches, deploy a sandbox first (`npm run sandbox:deploy`).
 
@@ -358,7 +360,7 @@ After deploying (e.g. `ENVIRONMENT=development npx cdk deploy --all`), CDK print
 **Option B: From AWS CloudFormation**
 
 ```bash
-# Replace development with staging, production, or sandbox-<id>- for sandboxes
+# Replace development with staging, production, or sandbox-<branch-slug>-<dev-hash> for sandboxes
 ENV=development
 
 aws cloudformation describe-stacks \

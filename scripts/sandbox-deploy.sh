@@ -10,7 +10,7 @@ usage() {
   echo "Triggers the sandbox deploy workflow using GitHub CLI."
   echo
   echo "No arguments are accepted."
-  echo "The script derives sandbox identifier as <branch-slug>-<short-sha>."
+  echo "The script derives sandbox identifier as <branch-slug>-<dev-hash> (one per dev+branch)."
   echo "Protected branches are blocked: development, staging, main."
 }
 

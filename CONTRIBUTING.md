@@ -56,7 +56,7 @@ Sandboxes are ephemeral environments for feature branches. Use them to test chan
 | Deploy   | `npm run sandbox:deploy`   |
 | Teardown | `npm run sandbox:teardown` |
 
-The deploy script derives the sandbox identifier from your branch and commit. Teardown removes all sandboxes for the current branch. Sandboxes are also auto-cleaned when a branch is deleted.
+The deploy script derives the sandbox identifier from your branch and dev name (one sandbox per dev+branch). Re-deploying updates the existing sandbox in-place. Teardown removes your sandbox for the current branch. Sandboxes are also auto-cleaned when a branch is deleted. For local frontend dev, set `SANDBOX_DEVELOPER` to your GitHub username if `git config user.name` doesn't match.
 
 For manual deployment, GitHub Actions workflows, and sandbox characteristics, see [README – Sandbox Environments](README.md#sandbox-environments).
 
