@@ -43,7 +43,7 @@ For promotion to staging and production, see [README – Branching Strategy](REA
 
 - **pre-commit:** lint-staged (ESLint + Prettier on staged files), then tests
 - **commit-msg:** commitlint enforces Conventional Commits
-- **pre-push:** codegen check, full lint, typecheck, and tests
+- **pre-push:** format check, codegen check, full lint, typecheck, and tests
 
 See [README – Git Hooks](README.md#git-hooks) for details.
 

@@ -410,9 +410,9 @@ Husky runs the following hooks:
 | -------------- | ---------------------------------------------------------------------- |
 | **pre-commit** | `lint-staged` (ESLint + Prettier on staged files), then `npm run test` |
 | **commit-msg** | Commitlint enforces Conventional Commits format                        |
-| **pre-push**   | `codegen:check`, `lint`, `typecheck`, `test`                           |
+| **pre-push**   | `format:check`, `codegen:check`, `lint`, `typecheck`, `test`           |
 
-Pre-commit formats and lints only staged files for faster feedback; pre-push runs full lint and typecheck across the repo.
+Pre-commit formats and lints only staged files for faster feedback; pre-push runs full format check, lint, and typecheck across the repo.
 
 ## Commit Convention
 
