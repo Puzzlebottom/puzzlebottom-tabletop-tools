@@ -40,7 +40,7 @@ describe('ingest handler', () => {
 
   it('throws error when payload exceeds 1MB', async () => {
     // Suppress console.log to avoid dumping 1MB+ of payload to stdout
-    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(vi.fn())
 
     const input = createMockInput({
       record: {

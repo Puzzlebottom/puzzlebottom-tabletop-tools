@@ -1,6 +1,9 @@
 import type { DataRecord } from '@aws-step-function-test/schemas'
+import type { StepInput } from '@aws-step-function-test/schemas'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MINIMAL_CONTEXT } from '../../test/lambda-context.js'
+import { createSqsEvent } from '../../test/sqs-event.js'
 import { handler } from './trigger'
 
 const { mockSend } = vi.hoisted(() => ({
@@ -39,23 +42,9 @@ describe('trigger handler', () => {
 
   it('starts Step Function execution for valid SQS record', async () => {
     const record = createDataRecord()
-    const event = {
-      Records: [
-        {
-          body: JSON.stringify({ detail: record }),
-          messageId: 'msg-1',
-          receiptHandle: 'receipt-1',
-          attributes: {},
-          messageAttributes: {},
-          md5OfBody: '',
-          eventSource: 'aws:sqs',
-          eventSourceARN: '',
-          awsRegion: 'us-east-1',
-        },
-      ],
-    }
+    const event = createSqsEvent([JSON.stringify({ detail: record })])
 
-    await handler(event, {} as never, vi.fn())
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockSend).toHaveBeenCalledTimes(1)
     const [command] = mockSend.mock.calls[0] as [unknown]
@@ -67,52 +56,24 @@ describe('trigger handler', () => {
     expect(params.stateMachineArn ?? params.input).toBeDefined()
     const stepInputStr =
       typeof params.input === 'string' ? params.input : JSON.stringify(params)
-    const stepInput = JSON.parse(stepInputStr) as { record: DataRecord }
+    const stepInput = JSON.parse(stepInputStr) as StepInput
     expect(stepInput.record).toEqual(record)
     expect(stepInput.pipelineId).toBeDefined()
     expect(stepInput.timestamp).toBeDefined()
   })
 
   it('skips record with invalid JSON in body', async () => {
-    const event = {
-      Records: [
-        {
-          body: 'not valid json',
-          messageId: 'msg-1',
-          receiptHandle: 'receipt-1',
-          attributes: {},
-          messageAttributes: {},
-          md5OfBody: '',
-          eventSource: 'aws:sqs',
-          eventSourceARN: '',
-          awsRegion: 'us-east-1',
-        },
-      ],
-    }
+    const event = createSqsEvent(['not valid json'])
 
-    await handler(event, {} as never, vi.fn())
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockSend).not.toHaveBeenCalled()
   })
 
   it('skips record with invalid EventBridge event body', async () => {
-    const event = {
-      Records: [
-        {
-          body: JSON.stringify({ detail: null }),
-          messageId: 'msg-1',
-          receiptHandle: 'receipt-1',
-          attributes: {},
-          messageAttributes: {},
-          md5OfBody: '',
-          eventSource: 'aws:sqs',
-          eventSourceARN: '',
-          awsRegion: 'us-east-1',
-        },
-      ],
-    }
+    const event = createSqsEvent([JSON.stringify({ detail: null })])
 
-    await handler(event, {} as never, vi.fn())
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockSend).not.toHaveBeenCalled()
   })

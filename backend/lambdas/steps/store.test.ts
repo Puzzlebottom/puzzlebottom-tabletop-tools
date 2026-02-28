@@ -62,7 +62,9 @@ describe('store handler', () => {
       SK: 'PIPELINE#pipeline-123',
     })
     expect(mockSend).toHaveBeenCalledTimes(1)
-    const putCall = mockSend.mock.calls[0][0]
+    const putCall = mockSend.mock.calls[0][0] as {
+      input: { TableName: string; Item: Record<string, unknown> }
+    }
     expect(putCall.input.TableName).toBe('test-table')
     expect(putCall.input.Item.PK).toBe('RECORD#test-id-123')
     expect(putCall.input.Item.GSI1PK).toBe('SOURCE#test-source')
