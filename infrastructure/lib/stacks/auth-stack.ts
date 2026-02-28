@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib'
 import * as cognito from 'aws-cdk-lib/aws-cognito'
 import { type Construct } from 'constructs'
 
-import { type EnvironmentConfig } from '../config/environments'
+import { type EnvironmentConfig } from '../config/environments.js'
 
 interface AuthStackProps extends cdk.StackProps {
   config: EnvironmentConfig

@@ -3,13 +3,13 @@ import 'source-map-support/register'
 
 import * as cdk from 'aws-cdk-lib'
 
-import { resolveEnvironment } from '../lib/config/environments'
-import { ApiStack } from '../lib/stacks/api-stack'
-import { AuthStack } from '../lib/stacks/auth-stack'
-import { DatabaseStack } from '../lib/stacks/database-stack'
-import { EventStack } from '../lib/stacks/event-stack'
-import { FrontendStack } from '../lib/stacks/frontend-stack'
-import { StepFunctionStack } from '../lib/stacks/step-function-stack'
+import { resolveEnvironment } from '../lib/config/environments.js'
+import { ApiStack } from '../lib/stacks/api-stack.js'
+import { AuthStack } from '../lib/stacks/auth-stack.js'
+import { DatabaseStack } from '../lib/stacks/database-stack.js'
+import { EventStack } from '../lib/stacks/event-stack.js'
+import { FrontendStack } from '../lib/stacks/frontend-stack.js'
+import { StepFunctionStack } from '../lib/stacks/step-function-stack.js'
 
 const app = new cdk.App()
 const config = resolveEnvironment()

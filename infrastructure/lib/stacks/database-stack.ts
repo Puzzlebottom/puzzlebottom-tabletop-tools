@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import { type Construct } from 'constructs'
 
-import { type EnvironmentConfig } from '../config/environments'
+import { type EnvironmentConfig } from '../config/environments.js'
 
 interface DatabaseStackProps extends cdk.StackProps {
   config: EnvironmentConfig

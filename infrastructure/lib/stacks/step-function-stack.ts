@@ -10,7 +10,7 @@ import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import { type Construct } from 'constructs'
 import * as path from 'path'
 
-import { type EnvironmentConfig } from '../config/environments'
+import { type EnvironmentConfig } from '../config/environments.js'
 
 interface StepFunctionStackProps extends cdk.StackProps {
   config: EnvironmentConfig
@@ -41,14 +41,17 @@ export class StepFunctionStack extends cdk.Stack {
     const ingestFn = new lambdaNode.NodejsFunction(this, 'IngestFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-ingest`,
-      entry: path.join(__dirname, '../../../backend/lambdas/steps/ingest.ts'),
+      entry: path.join(
+        import.meta.dirname,
+        '../../../backend/lambdas/steps/ingest.ts'
+      ),
     })
 
     const transformFn = new lambdaNode.NodejsFunction(this, 'TransformFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-transform`,
       entry: path.join(
-        __dirname,
+        import.meta.dirname,
         '../../../backend/lambdas/steps/transform.ts'
       ),
     })
@@ -56,13 +59,19 @@ export class StepFunctionStack extends cdk.Stack {
     const validateFn = new lambdaNode.NodejsFunction(this, 'ValidateFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-validate`,
-      entry: path.join(__dirname, '../../../backend/lambdas/steps/validate.ts'),
+      entry: path.join(
+        import.meta.dirname,
+        '../../../backend/lambdas/steps/validate.ts'
+      ),
     })
 
     const storeFn = new lambdaNode.NodejsFunction(this, 'StoreFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-store`,
-      entry: path.join(__dirname, '../../../backend/lambdas/steps/store.ts'),
+      entry: path.join(
+        import.meta.dirname,
+        '../../../backend/lambdas/steps/store.ts'
+      ),
       environment: {
         TABLE_NAME: dataTable.tableName,
       },
@@ -145,7 +154,10 @@ export class StepFunctionStack extends cdk.Stack {
     const triggerFn = new lambdaNode.NodejsFunction(this, 'SqsTriggerFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-trigger`,
-      entry: path.join(__dirname, '../../../backend/lambdas/steps/trigger.ts'),
+      entry: path.join(
+        import.meta.dirname,
+        '../../../backend/lambdas/steps/trigger.ts'
+      ),
       environment: {
         STATE_MACHINE_ARN: this.stateMachine.stateMachineArn,
       },

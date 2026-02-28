@@ -32,7 +32,8 @@ const createDataRecord = (overrides: Partial<DataRecord> = {}): DataRecord => ({
 describe('trigger handler', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    process.env.STATE_MACHINE_ARN = 'arn:aws:states:us-east-1:123:stateMachine:test'
+    process.env.STATE_MACHINE_ARN =
+      'arn:aws:states:us-east-1:123:stateMachine:test'
     mockSend.mockResolvedValue({ executionArn: 'arn:aws:...' })
   })
 
@@ -54,10 +55,10 @@ describe('trigger handler', () => {
       ],
     }
 
-    await handler(event, {} as never, () => {})
+    await handler(event, {} as never, vi.fn())
 
     expect(mockSend).toHaveBeenCalledTimes(1)
-    const [command] = mockSend.mock.calls[0]
+    const [command] = mockSend.mock.calls[0] as [unknown]
     expect(command).toBeDefined()
     // AWS SDK v3 Command stores params in input
     const params =
@@ -89,7 +90,7 @@ describe('trigger handler', () => {
       ],
     }
 
-    await handler(event, {} as never, () => {})
+    await handler(event, {} as never, vi.fn())
 
     expect(mockSend).not.toHaveBeenCalled()
   })
@@ -111,7 +112,7 @@ describe('trigger handler', () => {
       ],
     }
 
-    await handler(event, {} as never, () => {})
+    await handler(event, {} as never, vi.fn())
 
     expect(mockSend).not.toHaveBeenCalled()
   })

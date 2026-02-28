@@ -2,7 +2,7 @@ import * as amplify from '@aws-cdk/aws-amplify-alpha'
 import * as cdk from 'aws-cdk-lib'
 import { type Construct } from 'constructs'
 
-import { type EnvironmentConfig } from '../config/environments'
+import { type EnvironmentConfig } from '../config/environments.js'
 
 interface FrontendStackProps extends cdk.StackProps {
   config: EnvironmentConfig

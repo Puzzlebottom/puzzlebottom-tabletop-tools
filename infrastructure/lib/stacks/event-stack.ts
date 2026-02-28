@@ -4,7 +4,7 @@ import * as targets from 'aws-cdk-lib/aws-events-targets'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
 import { type Construct } from 'constructs'
 
-import { type EnvironmentConfig } from '../config/environments'
+import { type EnvironmentConfig } from '../config/environments.js'
 
 interface EventStackProps extends cdk.StackProps {
   config: EnvironmentConfig
