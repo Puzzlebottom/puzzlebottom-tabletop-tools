@@ -2,4 +2,4 @@
 npm run codegen:check
 npm run lint
 npm run typecheck
-npm run test
+HUSKY=1 npm run test

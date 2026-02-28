@@ -54,17 +54,17 @@ Pre-push and CI run `codegen:check` to ensure generated types stay in sync with 
 
 Payload and event shapes are validated at runtime using Zod schemas in `shared/schemas`.
 
-| Schema | Used in | Purpose |
-|--------|---------|---------|
-| `PayloadSchema` | submit-data, SubmitDataForm | Validates JSON payload is an object |
-| `DataRecordSchema` | submit-data, trigger | Validates record structure |
-| `EventBridgeEventBodySchema` | trigger | Validates SQS/EventBridge message body |
-| `StepInputSchema` | ingest | Validates Step Function input from trigger |
-| `IngestOutputSchema` | transform | Validates output from ingest step |
-| `TransformOutputSchema` | validate | Validates output from transform step |
-| `ValidateOutputSchema` | store | Validates output from validate step |
-| `PipelineEventSchema` | — | EventBridge envelope (source, detailType, detail) |
-| `PipelineStatusSchema` | — | Pipeline status enum |
+| Schema                       | Used in                     | Purpose                                           |
+| ---------------------------- | --------------------------- | ------------------------------------------------- |
+| `PayloadSchema`              | submit-data, SubmitDataForm | Validates JSON payload is an object               |
+| `DataRecordSchema`           | submit-data, trigger        | Validates record structure                        |
+| `EventBridgeEventBodySchema` | trigger                     | Validates SQS/EventBridge message body            |
+| `StepInputSchema`            | ingest                      | Validates Step Function input from trigger        |
+| `IngestOutputSchema`         | transform                   | Validates output from ingest step                 |
+| `TransformOutputSchema`      | validate                    | Validates output from transform step              |
+| `ValidateOutputSchema`       | store                       | Validates output from validate step               |
+| `PipelineEventSchema`        | —                           | EventBridge envelope (source, detailType, detail) |
+| `PipelineStatusSchema`       | —                           | Pipeline status enum                              |
 
 External boundaries (submit-data, trigger, SubmitDataForm) validate untrusted input. Pipeline steps (ingest, transform, validate, store) validate Step Function input/output for defense-in-depth.
 
@@ -72,14 +72,14 @@ External boundaries (submit-data, trigger, SubmitDataForm) validate untrusted in
 
 `eslint-plugin-boundaries` enforces clean architecture by restricting which layers can import from others:
 
-| Layer | Path | May import from |
-|-------|------|-----------------|
-| **domain** | `shared/schemas` | — (only external deps) |
-| **contracts** | `shared/graphql-types` | — |
-| **steps** | `backend/lambdas/steps` | domain |
-| **resolvers** | `backend/lambdas/resolvers` | domain, contracts |
-| **frontend** | `frontend/src` | domain, contracts |
-| **infrastructure** | `infrastructure/lib` | — |
+| Layer              | Path                        | May import from        |
+| ------------------ | --------------------------- | ---------------------- |
+| **domain**         | `shared/schemas`            | — (only external deps) |
+| **contracts**      | `shared/graphql-types`      | —                      |
+| **steps**          | `backend/lambdas/steps`     | domain                 |
+| **resolvers**      | `backend/lambdas/resolvers` | domain, contracts      |
+| **frontend**       | `frontend/src`              | domain, contracts      |
+| **infrastructure** | `infrastructure/lib`        | —                      |
 
 Tests live in the same element as the code under test (e.g. `validate.test.ts` in steps) and inherit its import rules. CI runs tests with coverage (`npm run test:coverage`); coverage reports are output as text summaries.
 
@@ -395,6 +395,18 @@ npm run dev
 ```
 
 > **Note:** `.env` is gitignored. Never commit real credentials. Use `.env.example` as a template only.
+
+## Git Hooks
+
+Husky runs the following hooks:
+
+| Hook           | Actions                                                                |
+| -------------- | ---------------------------------------------------------------------- |
+| **pre-commit** | `lint-staged` (ESLint + Prettier on staged files), then `npm run test` |
+| **commit-msg** | Commitlint enforces Conventional Commits format                        |
+| **pre-push**   | `codegen:check`, `lint`, `typecheck`, `test`                           |
+
+Pre-commit formats and lints only staged files for faster feedback; pre-push runs full lint and typecheck across the repo.
 
 ## Commit Convention
 

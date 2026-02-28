@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    ...(process.env.HUSKY === '1' && { reporters: ['dot'] }),
     globals: true,
     include: ['**/*.{test,spec}.ts'],
     exclude: ['node_modules', 'dist'],

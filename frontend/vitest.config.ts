@@ -7,6 +7,7 @@ import viteConfig from './vite.config'
 export default defineConfig(() =>
   mergeConfig(viteConfig as UserConfig, {
     test: {
+      ...(process.env.HUSKY === '1' && { reporters: ['dot'] }),
       environment: 'jsdom',
       globals: true,
       setupFiles: ['./src/test/setup.ts'],
