@@ -33,7 +33,8 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 ├── backend/           Lambda handlers and shared types
 ├── infrastructure/    CDK stacks (includes GraphQL schema)
 ├── shared/            Shared packages
-│   └── graphql-types/ Generated GraphQL types (from schema)
+│   ├── graphql-types/ Generated GraphQL types (from schema)
+│   └── schemas/       Zod schemas for runtime validation (payload, events, pipeline)
 ├── scripts/           Setup and utility scripts
 └── .github/workflows/ CI/CD pipelines
 ```
@@ -48,6 +49,24 @@ GraphQL types are generated from `infrastructure/lib/graphql/schema.graphql` and
 2. Commit the updated `shared/graphql-types/src/generated.ts`
 
 Pre-push and CI run `codegen:check` to ensure generated types stay in sync with the schema.
+
+## Runtime Validation (Zod)
+
+Payload and event shapes are validated at runtime using Zod schemas in `shared/schemas`.
+
+| Schema | Used in | Purpose |
+|--------|---------|---------|
+| `PayloadSchema` | submit-data, SubmitDataForm | Validates JSON payload is an object |
+| `DataRecordSchema` | submit-data, trigger | Validates record structure |
+| `EventBridgeEventBodySchema` | trigger | Validates SQS/EventBridge message body |
+| `StepInputSchema` | ingest | Validates Step Function input from trigger |
+| `IngestOutputSchema` | transform | Validates output from ingest step |
+| `TransformOutputSchema` | validate | Validates output from transform step |
+| `ValidateOutputSchema` | store | Validates output from validate step |
+| `PipelineEventSchema` | — | EventBridge envelope (source, detailType, detail) |
+| `PipelineStatusSchema` | — | Pipeline status enum |
+
+External boundaries (submit-data, trigger, SubmitDataForm) validate untrusted input. Pipeline steps (ingest, transform, validate, store) validate Step Function input/output for defense-in-depth.
 
 ## Prerequisites
 

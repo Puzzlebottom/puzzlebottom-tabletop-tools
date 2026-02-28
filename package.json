@@ -6,7 +6,8 @@
     "infrastructure",
     "backend",
     "frontend",
-    "shared/graphql-types"
+    "shared/graphql-types",
+    "shared/schemas"
   ],
   "scripts": {
     "codegen": "graphql-codegen",

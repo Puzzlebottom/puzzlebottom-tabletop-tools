@@ -6,9 +6,17 @@ export interface DataRecord {
   submittedBy: string
 }
 
+/** EventBridge source for pipeline events. Add new sources here when extending. */
+export const EVENT_SOURCE = 'data-pipeline' as const
+export type EventSource = typeof EVENT_SOURCE
+
+/** EventBridge detail types for pipeline events. Add new types here when extending. */
+export const DETAIL_TYPE_DATA_SUBMITTED = 'DataSubmitted' as const
+export type EventDetailType = typeof DETAIL_TYPE_DATA_SUBMITTED
+
 export interface PipelineEvent {
-  source: 'data-pipeline'
-  detailType: 'DataSubmitted'
+  source: EventSource
+  detailType: EventDetailType
   detail: DataRecord
 }
 

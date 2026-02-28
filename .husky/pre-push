@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
 npm run codegen:check
 npm run lint
+npm run typecheck
 npm run test

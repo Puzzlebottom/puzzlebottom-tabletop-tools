@@ -1,22 +1,32 @@
-import { type TransformOutput, type ValidateOutput } from '../../shared/types'
+import { TransformOutputSchema } from '@aws-step-function-test/schemas'
 
-export const handler = (event: TransformOutput): Promise<ValidateOutput> => {
+import { type ValidateOutput } from '../../shared/types'
+
+export const handler = (event: unknown): Promise<ValidateOutput> => {
+  const parseResult = TransformOutputSchema.safeParse(event)
+  if (!parseResult.success) {
+    throw new Error(
+      `Invalid transform output: ${parseResult.error.flatten().formErrors.join(', ')}`
+    )
+  }
+  const input = parseResult.data
+
   console.log(
     'Validate step received:',
-    JSON.stringify({ pipelineId: event.pipelineId })
+    JSON.stringify({ pipelineId: input.pipelineId })
   )
 
   const errors: string[] = []
 
-  if (!event.record.id) {
+  if (!input.record.id) {
     errors.push('Missing required field: id')
   }
 
-  if (!event.record.source) {
+  if (!input.record.source) {
     errors.push('Missing required field: source')
   }
 
-  if (Object.keys(event.normalizedPayload).length === 0) {
+  if (Object.keys(input.normalizedPayload).length === 0) {
     errors.push('Normalized payload is empty')
   }
 
@@ -25,7 +35,7 @@ export const handler = (event: TransformOutput): Promise<ValidateOutput> => {
   }
 
   return Promise.resolve({
-    ...event,
+    ...input,
     validated: true,
     validationErrors: errors,
   })

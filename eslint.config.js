@@ -16,6 +16,7 @@ module.exports = tseslint.config(
       '**/*.min.js',
       '**/generated.ts',
       'eslint.config.js',
+      '**/vitest.config.ts',
     ],
   },
   // Base: ESLint recommended + TypeScript recommended (type-checked)
