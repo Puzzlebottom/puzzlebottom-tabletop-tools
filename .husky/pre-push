@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+npm run format:check
 npm run codegen:check
 npm run lint
-npm run test
+npm run typecheck
+HUSKY=1 npm run test

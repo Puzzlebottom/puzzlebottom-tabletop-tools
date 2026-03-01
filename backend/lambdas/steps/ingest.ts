@@ -1,9 +1,18 @@
-import { type IngestOutput, type StepInput } from '../../shared/types'
+import {
+  type IngestOutput,
+  StepInputSchema,
+} from '@puzzlebottom-tabletop-tools/schemas'
 
-export const handler = (event: StepInput): Promise<IngestOutput> => {
-  console.log('Ingest step received:', JSON.stringify(event))
+export const handler = (event: unknown): Promise<IngestOutput> => {
+  const parseResult = StepInputSchema.safeParse(event)
+  if (!parseResult.success) {
+    throw new Error(
+      `Invalid step input: ${parseResult.error.flatten().formErrors.join(', ')}`
+    )
+  }
+  const { record } = parseResult.data
 
-  const { record } = event
+  console.log('Ingest step received:', JSON.stringify(parseResult.data))
 
   const rawSize = JSON.stringify(record.payload).length
   if (rawSize > 1_000_000) {
@@ -11,7 +20,7 @@ export const handler = (event: StepInput): Promise<IngestOutput> => {
   }
 
   return Promise.resolve({
-    ...event,
+    ...parseResult.data,
     ingested: true,
     rawSize,
   })

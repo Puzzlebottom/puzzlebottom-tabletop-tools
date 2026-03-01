@@ -1,21 +1,35 @@
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
+import {
+  EventBridgeEventBodySchema,
+  type StepInput,
+} from '@puzzlebottom-tabletop-tools/schemas'
 import { type SQSHandler } from 'aws-lambda'
 import { randomUUID } from 'crypto'
-
-import { type StepInput } from '../../shared/types'
 
 const sfnClient = new SFNClient({})
 const STATE_MACHINE_ARN = process.env.STATE_MACHINE_ARN!
 
-interface EventBridgeEventBody {
-  detail: StepInput['record']
-}
-
 export const handler: SQSHandler = async (event) => {
   for (const sqsRecord of event.Records) {
-    const eventBridgeEvent = JSON.parse(sqsRecord.body) as EventBridgeEventBody
-    const { detail } = eventBridgeEvent
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(sqsRecord.body)
+    } catch {
+      console.error('Invalid JSON in SQS message body, skipping record')
+      continue
+    }
 
+    const parseResult = EventBridgeEventBodySchema.safeParse(parsed)
+    if (!parseResult.success) {
+      console.error(
+        'Invalid EventBridge event body:',
+        parseResult.error.flatten().formErrors.join(', '),
+        'Skipping record'
+      )
+      continue
+    }
+
+    const { detail } = parseResult.data
     const pipelineId = randomUUID()
 
     const stepInput: StepInput = {

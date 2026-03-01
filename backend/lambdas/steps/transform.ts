@@ -1,20 +1,31 @@
-import { type IngestOutput, type TransformOutput } from '../../shared/types'
+import {
+  IngestOutputSchema,
+  type TransformOutput,
+} from '@puzzlebottom-tabletop-tools/schemas'
 
-export const handler = (event: IngestOutput): Promise<TransformOutput> => {
+export const handler = (event: unknown): Promise<TransformOutput> => {
+  const parseResult = IngestOutputSchema.safeParse(event)
+  if (!parseResult.success) {
+    throw new Error(
+      `Invalid ingest output: ${parseResult.error.flatten().formErrors.join(', ')}`
+    )
+  }
+  const input = parseResult.data
+
   console.log(
     'Transform step received:',
-    JSON.stringify({ pipelineId: event.pipelineId })
+    JSON.stringify({ pipelineId: input.pipelineId })
   )
 
   const normalizedPayload: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(event.record.payload)) {
+  for (const [key, value] of Object.entries(input.record.payload)) {
     const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, '_')
     normalizedPayload[normalizedKey] =
       typeof value === 'string' ? value.trim() : value
   }
 
   return Promise.resolve({
-    ...event,
+    ...input,
     transformed: true,
     normalizedPayload,
   })

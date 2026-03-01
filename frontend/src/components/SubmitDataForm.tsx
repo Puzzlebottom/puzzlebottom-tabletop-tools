@@ -1,4 +1,5 @@
-import type { SubmitDataResponse } from '@aws-step-function-test/graphql-types'
+import type { SubmitDataResponse } from '@puzzlebottom-tabletop-tools/graphql-types'
+import { PayloadSchema } from '@puzzlebottom-tabletop-tools/schemas'
 import { generateClient } from 'aws-amplify/api'
 import { type SubmitEvent, useState } from 'react'
 
@@ -27,10 +28,19 @@ export default function SubmitDataForm() {
     setError(null)
     setResult(null)
 
+    let parsed: unknown
     try {
-      JSON.parse(payload)
+      parsed = JSON.parse(payload)
     } catch {
       setError('Payload must be valid JSON')
+      setLoading(false)
+      return
+    }
+
+    const payloadResult = PayloadSchema.safeParse(parsed)
+    if (!payloadResult.success) {
+      const errors = payloadResult.error.flatten().formErrors.join(', ')
+      setError(`Invalid payload: ${errors || 'Payload must be a JSON object'}`)
       setLoading(false)
       return
     }

@@ -1,12 +1,13 @@
 {
-  "name": "aws-step-function-test",
+  "name": "puzzlebottom-tabletop-tools",
   "version": "1.1.1",
   "private": true,
   "workspaces": [
     "infrastructure",
     "backend",
     "frontend",
-    "shared/graphql-types"
+    "shared/graphql-types",
+    "shared/schemas"
   ],
   "scripts": {
     "codegen": "graphql-codegen",
@@ -17,6 +18,7 @@
     "format:check": "prettier --check .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "sandbox:deploy": "./scripts/sandbox-deploy.sh",
     "sandbox:teardown": "./scripts/sandbox-teardown.sh",
@@ -28,17 +30,29 @@
     "node": ">=24"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@vitest/coverage-v8": "^4.0.0",
     "@eslint/js": "^9.39.3",
     "@graphql-codegen/cli": "6.1.2",
     "@graphql-codegen/typescript": "^4.0.0",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^5.4.0",
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "husky": "^9.1.7",
+    "lint-staged": "^15.4.0",
     "prettier": "^3.8.1",
     "typescript-eslint": "^8.56.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,jsx,json,md,yml,yaml,graphql}": "prettier --write"
   }
 }
