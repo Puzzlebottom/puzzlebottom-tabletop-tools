@@ -1,6 +1,6 @@
+import type { TransformOutput } from '@puzzlebottom-tabletop-tools/schemas'
 import { describe, expect, it } from 'vitest'
 
-import type { TransformOutput } from '../../shared/types'
 import { handler } from './validate'
 
 const createMockInput = (
@@ -86,5 +86,15 @@ describe('validate handler', () => {
     await expect(handler(input)).rejects.toThrow(
       'Validation failed: Missing required field: id; Missing required field: source; Normalized payload is empty'
     )
+  })
+
+  it('throws error when input does not match TransformOutputSchema', async () => {
+    try {
+      await handler({})
+      expect.fail('Expected handler to throw')
+    } catch (e) {
+      expect(e).toBeInstanceOf(Error)
+      expect((e as Error).message).toContain('Invalid transform output')
+    }
   })
 })

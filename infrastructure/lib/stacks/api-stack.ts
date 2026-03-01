@@ -7,7 +7,7 @@ import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs'
 import { type Construct } from 'constructs'
 import * as path from 'path'
 
-import { type EnvironmentConfig } from '../config/environments'
+import { type EnvironmentConfig } from '../config/environments.js'
 
 interface ApiStackProps extends cdk.StackProps {
   config: EnvironmentConfig
@@ -24,9 +24,9 @@ export class ApiStack extends cdk.Stack {
     const { config, userPool, eventBus } = props
 
     this.api = new appsync.GraphqlApi(this, 'Api', {
-      name: `${config.envName}-data-pipeline-api`,
+      name: `${config.envName}-puzzlebottom-tabletop-tools-api`,
       definition: appsync.Definition.fromFile(
-        path.join(__dirname, '../graphql/schema.graphql')
+        path.join(import.meta.dirname, '../graphql/schema.graphql')
       ),
       authorizationConfig: {
         defaultAuthorization: {
@@ -49,7 +49,7 @@ export class ApiStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       entry: path.join(
-        __dirname,
+        import.meta.dirname,
         '../../../backend/lambdas/resolvers/submit-data.ts'
       ),
       timeout: cdk.Duration.seconds(10),

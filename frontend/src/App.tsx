@@ -15,7 +15,9 @@ function App() {
               marginBottom: '2rem',
             }}
           >
-            <h1 style={{ margin: 0 }}>Data Pipeline</h1>
+            <h1 style={{ margin: 0 }}>
+              Puzzlebottom&apos;s Tabletop Tools Suite
+            </h1>
             <div>
               <span style={{ marginRight: '1rem' }}>
                 {user?.signInDetails?.loginId}

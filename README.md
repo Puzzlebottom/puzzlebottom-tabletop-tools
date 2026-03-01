@@ -1,6 +1,8 @@
-# AWS Data Pipeline
+# Puzzlebottom's Tabletop Tools Suite
 
-Event-driven data processing pipeline built with AWS Step Functions, AppSync, EventBridge, and React.
+TTRPG tools suite built with AWS Step Functions, AppSync, EventBridge, and React. Event-driven data pipeline powers the first tool (dice roller) and future tools.
+
+**[Contributing](CONTRIBUTING.md)** — Setup, workflow, conventions, and getting help.
 
 ## Architecture
 
@@ -11,6 +13,8 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
                                                                          ├── Validate
                                                                          └── Store → DynamoDB
 ```
+
+**[Architecture & Flow](docs/architecture.md)** — Visual diagrams (flow, Step Function, data shapes).
 
 ### AWS Services
 
@@ -30,17 +34,18 @@ React App → AppSync (GraphQL) → Lambda Resolver → EventBridge → SQS → 
 ```
 ├── amplify.yml        Amplify build config (single source of truth)
 ├── frontend/          React + Vite app
-├── backend/           Lambda handlers and shared types
+├── backend/           Lambda handlers (resolvers, steps)
 ├── infrastructure/    CDK stacks (includes GraphQL schema)
 ├── shared/            Shared packages
-│   └── graphql-types/ Generated GraphQL types (from schema)
+│   ├── graphql-types/ Generated GraphQL types (from schema)
+│   └── schemas/       Domain types, Zod schemas, event constants (payload, events, pipeline)
 ├── scripts/           Setup and utility scripts
 └── .github/workflows/ CI/CD pipelines
 ```
 
 ## GraphQL Schema & Types
 
-GraphQL types are generated from `infrastructure/lib/graphql/schema.graphql` and output to `shared/graphql-types`. Frontend and backend import from `@aws-step-function-test/graphql-types`.
+GraphQL types are generated from `infrastructure/lib/graphql/schema.graphql` and output to `shared/graphql-types`. Frontend and backend import from `@puzzlebottom-tabletop-tools/graphql-types`.
 
 **When you change the schema:**
 
@@ -48,6 +53,39 @@ GraphQL types are generated from `infrastructure/lib/graphql/schema.graphql` and
 2. Commit the updated `shared/graphql-types/src/generated.ts`
 
 Pre-push and CI run `codegen:check` to ensure generated types stay in sync with the schema.
+
+## Runtime Validation (Zod)
+
+Payload and event shapes are validated at runtime using Zod schemas in `shared/schemas`.
+
+| Schema                       | Used in                     | Purpose                                           |
+| ---------------------------- | --------------------------- | ------------------------------------------------- |
+| `PayloadSchema`              | submit-data, SubmitDataForm | Validates JSON payload is an object               |
+| `DataRecordSchema`           | submit-data, trigger        | Validates record structure                        |
+| `EventBridgeEventBodySchema` | trigger                     | Validates SQS/EventBridge message body            |
+| `StepInputSchema`            | ingest                      | Validates Step Function input from trigger        |
+| `IngestOutputSchema`         | transform                   | Validates output from ingest step                 |
+| `TransformOutputSchema`      | validate                    | Validates output from transform step              |
+| `ValidateOutputSchema`       | store                       | Validates output from validate step               |
+| `PipelineEventSchema`        | —                           | EventBridge envelope (source, detailType, detail) |
+| `PipelineStatusSchema`       | —                           | Pipeline status enum                              |
+
+External boundaries (submit-data, trigger, SubmitDataForm) validate untrusted input. Pipeline steps (ingest, transform, validate, store) validate Step Function input/output for defense-in-depth.
+
+## Architecture Boundaries
+
+`eslint-plugin-boundaries` enforces clean architecture by restricting which layers can import from others:
+
+| Layer              | Path                        | May import from        |
+| ------------------ | --------------------------- | ---------------------- |
+| **domain**         | `shared/schemas`            | — (only external deps) |
+| **contracts**      | `shared/graphql-types`      | —                      |
+| **steps**          | `backend/lambdas/steps`     | domain                 |
+| **resolvers**      | `backend/lambdas/resolvers` | domain, contracts      |
+| **frontend**       | `frontend/src`              | domain, contracts      |
+| **infrastructure** | `infrastructure/lib`        | —                      |
+
+Tests live in the same element as the code under test (e.g. `validate.test.ts` in steps) and inherit its import rules. CI runs tests with coverage (`npm run test:coverage`); coverage reports are output as text summaries.
 
 ## Prerequisites
 
@@ -114,7 +152,7 @@ Create an IAM role that trusts your GitHub repository:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/aws-step-function-test:*"
+          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/puzzlebottom-tabletop-tools:*"
         }
       }
     }
@@ -153,11 +191,12 @@ In your repo's Settings > Environments, create:
 
 ## Environments
 
-| Environment | Branch        | Trigger | Notes                                    |
-| ----------- | ------------- | ------- | ---------------------------------------- |
-| development | `development` | Push    | Auto-deploys                             |
-| staging     | `staging`     | Push    | Auto-deploys                             |
-| production  | `main`        | Push    | Requires approval via GitHub Environment |
+| Environment    | Branch        | Trigger | Notes                                                           |
+| -------------- | ------------- | ------- | --------------------------------------------------------------- |
+| development    | `development` | Push    | Auto-deploys                                                    |
+| staging        | `staging`     | Push    | Auto-deploys                                                    |
+| Release-vX-Y-Z | `release/**`  | Push    | One deployment per release; torn down when release PR is merged |
+| production     | `main`        | Push    | Requires approval via GitHub Environment                        |
 
 ## Branching Strategy
 
@@ -170,7 +209,7 @@ feature/* ──PR──► development ──PR──► staging ──PR──
 2. Open PR to `development` (triggers CI validation)
 3. Merge to `development` (triggers dev deploy)
 4. PR from `development` to `staging` (triggers staging deploy)
-5. PR from `staging` to `main` (triggers production deploy with approval)
+5. To release: run **Create Release** workflow → creates `release/vX.Y.Z` branch and PR to `main`, deploys Release-vX.Y.Z for testing; subsequent pushes to the release branch redeploy; merge fixes into release branch (not staging); merging the release PR deploys to production, creates GitHub Release, and tears down the release deployment
 
 ### Back-sync
 
@@ -187,10 +226,12 @@ To release staging to production with version bumping and changelog:
 
 1. Go to **Actions** → **Create Release**
 2. Click **Run workflow**, choose the version bump type (patch/minor/major), and run
-3. The workflow bumps the version on `staging`, pushes it, and opens a PR from `staging` → `main`
-4. Review and merge the PR (triggers production deploy and creates the GitHub Release with tag and release notes)
+3. The workflow creates a `release/vX.Y.Z` branch from `staging`, bumps the version, pushes it, opens a PR from `release/vX.Y.Z` → `main`, and deploys **Release-vX.Y.Z** for testing
+4. Subsequent pushes to the release branch redeploy Release-vX.Y.Z
+5. Merge any fixes into the release branch (not staging)
+6. Review and approve the release PR, then merge (triggers production deploy, creates GitHub Release, and tears down the release deployment)
 
-The **Complete Release** workflow runs automatically when the release PR is merged. It creates the version tag (e.g. `v1.2.3`) and a GitHub Release with auto-generated notes from conventional commits.
+The **Complete Release** workflow runs automatically when the release PR is merged. It creates the version tag (e.g. `v1.2.3`), a GitHub Release with auto-generated notes from conventional commits, and tears down the release deployment.
 
 ## Deploying Manually
 
@@ -200,27 +241,27 @@ cd infrastructure
 # Deploy to development
 ENVIRONMENT=development npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
-  -c githubRepo=aws-step-function-test
+  -c githubRepo=puzzlebottom-tabletop-tools
 
-# Deploy a sandbox (branch-hash identifier)
+# Deploy a sandbox (branch-slug + dev-hash identifier)
 SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
   SANDBOX_BRANCH=feature/auth \
   npx cdk deploy --all \
   -c githubOwner=<your-github-username> \
-  -c githubRepo=aws-step-function-test
+  -c githubRepo=puzzlebottom-tabletop-tools
 
 # Tear down a sandbox (parallel, respects dependency graph)
 SANDBOX_IDENTIFIER=feature-auth-a1b2c3d \
   bash scripts/parallel-cdk-destroy.sh \
   -c githubOwner=<your-github-username> \
-  -c githubRepo=aws-step-function-test
+  -c githubRepo=puzzlebottom-tabletop-tools
 ```
 
 ## Sandbox Environments
 
-Sandboxes are fully isolated, ephemeral environments tied to a branch and commit.
+Sandboxes are fully isolated, ephemeral environments tied to a dev and branch. One sandbox per (dev, branch); re-deploying updates the same stacks in-place. Different devs with the same branch name get different sandboxes.
 
-Each sandbox is identified by `<branch-slug>-<short-sha>`, for example `feature-auth-a1b2c3d`. All AWS resources are prefixed with `sandbox-<identifier>-`.
+Each sandbox is identified by `<branch-slug>-<dev-hash>`, for example `feature-auth-a1b2c3d`. The dev hash is derived from `SANDBOX_DEVELOPER` (in CI: `github.actor`), or `git config user.name`, or `whoami`. All AWS resources are prefixed with `sandbox-<identifier>-`.
 
 ### Deploy via script (recommended)
 
@@ -230,7 +271,7 @@ From any feature branch, run:
 npm run sandbox:deploy
 ```
 
-The script automatically derives the sandbox identifier from the current branch and commit, then dispatches the `Deploy Sandbox` workflow. It is blocked on protected branches (`development`, `staging`, `main`).
+The script automatically derives the sandbox identifier from the current branch and your dev name, then dispatches the `Deploy Sandbox` workflow. Re-deploying updates the existing sandbox in-place. It is blocked on protected branches (`development`, `staging`, `main`).
 
 ### Tear down via script (recommended)
 
@@ -240,13 +281,13 @@ From the same branch:
 npm run sandbox:teardown
 ```
 
-This triggers a branch-based teardown that removes all sandboxes associated with the current branch.
+This tears down your sandbox for the current branch (exact match by dev + branch).
 
 ### Deploy via GitHub Actions
 
 1. Go to Actions > "Deploy Sandbox"
 2. Click "Run workflow" from your feature branch
-3. Optionally provide a `sandbox_identifier` override (otherwise auto-computed)
+3. Optionally provide a `sandbox_identifier` override (otherwise derived from branch + dev)
 4. Resources are created with prefix `sandbox-<identifier>-`
 
 ### Tear down via GitHub Actions
@@ -254,12 +295,12 @@ This triggers a branch-based teardown that removes all sandboxes associated with
 1. Go to Actions > "Teardown Sandbox"
 2. Click "Run workflow"
 3. Provide either:
-   - `sandbox_identifier` for exact teardown, or
-   - `branch_name` to tear down all sandboxes for a branch
+   - `sandbox_identifier` for exact teardown (your sandbox), or
+   - `branch_name` to tear down all sandboxes for that branch (e.g. on branch delete)
 
 ### Auto-cleanup
 
-When a branch is deleted from GitHub, the `Sandbox Auto Cleanup` workflow automatically triggers a branch-based teardown to remove any remaining sandbox resources.
+When a branch is deleted from GitHub, the `Sandbox Auto Cleanup` workflow automatically triggers a branch-based teardown to remove all sandboxes for that branch.
 
 ### Sandbox characteristics
 
@@ -288,6 +329,8 @@ This script:
 4. Writes `frontend/.env` and starts the dev server
 
 **Override environment:** Set `FRONTEND_ENV` to force a specific stack (e.g. `FRONTEND_ENV=staging npm run frontend:dev`).
+
+**Local sandbox matching:** For feature branches, the script derives the sandbox identifier from your branch and dev name (`git config user.name` or `SANDBOX_DEVELOPER`). If your local dev name doesn't match your GitHub username (used in CI deploys), set `SANDBOX_DEVELOPER` to your GitHub username so the script finds your deployed sandbox.
 
 **Requirements:** AWS CLI configured, stacks deployed for the target environment. For feature branches, deploy a sandbox first (`npm run sandbox:deploy`).
 
@@ -322,7 +365,7 @@ After deploying (e.g. `ENVIRONMENT=development npx cdk deploy --all`), CDK print
 **Option B: From AWS CloudFormation**
 
 ```bash
-# Replace development with staging, production, or sandbox-<id>- for sandboxes
+# Replace development with staging, production, or sandbox-<branch-slug>-<dev-hash> for sandboxes
 ENV=development
 
 aws cloudformation describe-stacks \
@@ -341,7 +384,7 @@ aws cloudformation describe-stacks \
 **Option C: From AWS Console**
 
 - **Cognito:** AWS Console → Cognito → User Pools → select the pool (e.g. `development-user-pool`) → copy User pool ID and App client ID from App integration.
-- **AppSync:** AWS Console → AppSync → select the API (e.g. `development-data-pipeline-api`) → copy the GraphQL endpoint URL.
+- **AppSync:** AWS Console → AppSync → select the API (e.g. `development-puzzlebottom-tabletop-tools-api`) → copy the GraphQL endpoint URL.
 
 ### 3. Edit `frontend/.env`
 
@@ -362,14 +405,26 @@ npm run dev
 
 > **Note:** `.env` is gitignored. Never commit real credentials. Use `.env.example` as a template only.
 
+## Git Hooks
+
+Husky runs the following hooks:
+
+| Hook           | Actions                                                                |
+| -------------- | ---------------------------------------------------------------------- |
+| **pre-commit** | `lint-staged` (ESLint + Prettier on staged files), then `npm run test` |
+| **commit-msg** | Commitlint enforces Conventional Commits format                        |
+| **pre-push**   | `format:check`, `codegen:check`, `lint`, `typecheck`, `test`           |
+
+Pre-commit formats and lints only staged files for faster feedback; pre-push runs full format check, lint, and typecheck across the repo.
+
 ## Commit Convention
 
-This project follows [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
+This project follows [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Commitlint enforces this format via the `commit-msg` Husky hook.
 
 ```
-<type>(scope): <description>
+<type>[optional scope]: <description>
 ```
 
-**Types:** `feat`, `fix`, `build`, `chore`, `ci`, `docs`, `refactor`, `test`
+**Types:** `feat`, `fix`, `docs`, `chore`, `style`, `refactor`, `perf`, `test`, `ci`
 
-**Scopes:** `infra`, `backend`, `frontend`, `ci`, `scripts`
+**Scopes (optional):** `infra`, `backend`, `frontend`, `ci`, `scripts`

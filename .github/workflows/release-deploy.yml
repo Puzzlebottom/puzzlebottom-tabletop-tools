@@ -1,0 +1,41 @@
+name: Deploy Release
+
+on:
+  push:
+    branches:
+      - 'release/**'
+
+concurrency:
+  group: release-deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract and sanitize version from branch
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#release/v}"
+          SANITIZED=$(echo "${VERSION}" | tr '.' '-')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sanitized=${SANITIZED}" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sanitized: ${{ steps.version.outputs.sanitized }}
+
+  deploy-infra:
+    needs: deploy
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: Release-v${{ needs.deploy.outputs.sanitized }}
+      ref: ${{ github.ref_name }}
+      sandbox-branch: ${{ github.ref_name }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}

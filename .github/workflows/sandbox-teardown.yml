@@ -4,21 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       sandbox_identifier:
-        description: 'Sandbox identifier to tear down (branch-slug-shortsha)'
+        description: 'Sandbox identifier to tear down (branch-slug-dev-hash)'
         required: false
         type: string
       branch_name:
-        description: 'Branch name to tear down all matching sandboxes'
+        description: 'Branch name to tear down all sandboxes for that branch'
+        required: false
+        type: string
+      release_environment:
+        description: 'Release environment to tear down (e.g. Release-v1-2-3)'
         required: false
         type: string
   workflow_call:
     inputs:
       sandbox_identifier:
-        description: 'Sandbox identifier to tear down (branch-slug-shortsha)'
+        description: 'Sandbox identifier to tear down (branch-slug-dev-hash)'
         required: false
         type: string
       branch_name:
-        description: 'Branch name to tear down all matching sandboxes'
+        description: 'Branch name to tear down all sandboxes for that branch'
+        required: false
+        type: string
+      release_environment:
+        description: 'Release environment to tear down (e.g. Release-v1-2-3)'
         required: false
         type: string
     secrets:
@@ -27,7 +35,7 @@ on:
         required: true
 
 concurrency:
-  group: sandbox-teardown-${{ inputs.sandbox_identifier || inputs.branch_name || github.event.inputs.sandbox_identifier || github.event.inputs.branch_name || github.ref_name }}
+  group: sandbox-teardown-${{ inputs.sandbox_identifier || inputs.branch_name || inputs.release_environment || github.event.inputs.sandbox_identifier || github.event.inputs.branch_name || github.event.inputs.release_environment || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -41,6 +49,7 @@ jobs:
     env:
       SANDBOX_IDENTIFIER_INPUT: ${{ inputs.sandbox_identifier || github.event.inputs.sandbox_identifier || '' }}
       BRANCH_NAME_INPUT: ${{ inputs.branch_name || github.event.inputs.branch_name || '' }}
+      RELEASE_ENV_INPUT: ${{ inputs.release_environment || github.event.inputs.release_environment || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,6 +75,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [ -n "${RELEASE_ENV_INPUT:-}" ]; then
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+            echo "prefix=${RELEASE_ENV_INPUT}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           SANDBOX_IDENTIFIER=""
           if [ -n "${SANDBOX_IDENTIFIER_INPUT:-}" ]; then
             SANDBOX_IDENTIFIER="$(./scripts/sandbox-identifier.sh --slugify "${SANDBOX_IDENTIFIER_INPUT}")"
@@ -90,8 +105,18 @@ jobs:
             exit 0
           fi
 
-          echo "Either sandbox_identifier or branch_name is required."
+          echo "Either sandbox_identifier, branch_name, or release_environment is required."
           exit 1
+
+      - name: Destroy release environment
+        if: steps.resolve.outputs.mode == 'release'
+        run: >-
+          bash ../scripts/parallel-cdk-destroy.sh
+          -c githubOwner=${{ github.repository_owner }}
+          -c githubRepo=${{ github.event.repository.name }}
+        working-directory: infrastructure
+        env:
+          ENVIRONMENT: ${{ steps.resolve.outputs.prefix }}
 
       - name: Destroy exact sandbox
         if: steps.resolve.outputs.mode == 'exact'

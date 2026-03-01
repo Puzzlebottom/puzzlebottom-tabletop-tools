@@ -1,0 +1,24 @@
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    ...(process.env.HUSKY === '1' && { reporters: ['dot'] }),
+    globals: true,
+    include: ['src/**/*.{test,spec}.ts'],
+    exclude: ['node_modules'],
+    onConsoleLog(): boolean {
+      return process.env.HUSKY !== '1'
+    },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'html'],
+      exclude: ['**/*.test.ts', '**/*.spec.ts'],
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        branches: 85,
+        statements: 90,
+      },
+    },
+  },
+})

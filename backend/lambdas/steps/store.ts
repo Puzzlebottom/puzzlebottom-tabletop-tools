@@ -1,22 +1,32 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb'
-
-import { type StoreOutput, type ValidateOutput } from '../../shared/types'
+import {
+  type StoreOutput,
+  ValidateOutputSchema,
+} from '@puzzlebottom-tabletop-tools/schemas'
 
 const client = new DynamoDBClient({})
 const docClient = DynamoDBDocumentClient.from(client)
 
 const TABLE_NAME = process.env.TABLE_NAME!
 
-export const handler = async (event: ValidateOutput): Promise<StoreOutput> => {
+export const handler = async (event: unknown): Promise<StoreOutput> => {
+  const parseResult = ValidateOutputSchema.safeParse(event)
+  if (!parseResult.success) {
+    throw new Error(
+      `Invalid validate output: ${parseResult.error.flatten().formErrors.join(', ')}`
+    )
+  }
+  const input = parseResult.data
+
   console.log(
     'Store step received:',
-    JSON.stringify({ pipelineId: event.pipelineId })
+    JSON.stringify({ pipelineId: input.pipelineId })
   )
 
   const itemKey = {
-    PK: `RECORD#${event.record.id}`,
-    SK: `PIPELINE#${event.pipelineId}`,
+    PK: `RECORD#${input.record.id}`,
+    SK: `PIPELINE#${input.pipelineId}`,
   }
 
   await docClient.send(
@@ -24,22 +34,22 @@ export const handler = async (event: ValidateOutput): Promise<StoreOutput> => {
       TableName: TABLE_NAME,
       Item: {
         ...itemKey,
-        GSI1PK: `SOURCE#${event.record.source}`,
-        GSI1SK: event.record.submittedAt,
-        recordId: event.record.id,
-        pipelineId: event.pipelineId,
-        source: event.record.source,
-        payload: event.normalizedPayload,
-        submittedBy: event.record.submittedBy,
-        submittedAt: event.record.submittedAt,
+        GSI1PK: `SOURCE#${input.record.source}`,
+        GSI1SK: input.record.submittedAt,
+        recordId: input.record.id,
+        pipelineId: input.pipelineId,
+        source: input.record.source,
+        payload: input.normalizedPayload,
+        submittedBy: input.record.submittedBy,
+        submittedAt: input.record.submittedAt,
         processedAt: new Date().toISOString(),
-        rawSize: event.rawSize,
+        rawSize: input.rawSize,
       },
     })
   )
 
   return {
-    ...event,
+    ...input,
     stored: true,
     tableName: TABLE_NAME,
     itemKey,

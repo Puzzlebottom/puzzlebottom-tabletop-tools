@@ -8,19 +8,21 @@
     "lint": "eslint . --quiet",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.700.0",
-    "@aws-sdk/client-eventbridge": "^3.700.0",
-    "@aws-sdk/client-sfn": "^3.997.0",
-    "@aws-sdk/lib-dynamodb": "^3.700.0",
-    "@aws-step-function-test/graphql-types": "*"
+    "@aws-sdk/client-dynamodb": "^3.1000.0",
+    "@aws-sdk/client-eventbridge": "^3.1000.0",
+    "@aws-sdk/client-sfn": "^3.1000.0",
+    "@aws-sdk/lib-dynamodb": "^3.1000.0",
+    "@puzzlebottom-tabletop-tools/graphql-types": "*",
+    "@puzzlebottom-tabletop-tools/schemas": "*"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
     "@types/node": "^22.0.0",
     "typescript": "~5.7.0",
-    "vitest": "^2.1.0"
+    "vitest": "^4.0.0"
   }
 }

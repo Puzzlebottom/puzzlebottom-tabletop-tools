@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       sandbox_identifier:
-        description: 'Optional override for sandbox identifier (branch-slug-shortsha)'
+        description: 'Optional override for full sandbox identifier (branch-slug-hash)'
         required: false
         type: string
 
@@ -31,6 +31,7 @@ jobs:
         shell: bash
         env:
           INPUT_SANDBOX_IDENTIFIER: ${{ github.event.inputs.sandbox_identifier }}
+          SANDBOX_DEVELOPER: ${{ github.actor }}
         run: |
           set -euo pipefail
 

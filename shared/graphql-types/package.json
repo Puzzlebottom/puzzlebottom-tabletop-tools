@@ -1,5 +1,5 @@
 {
-  "name": "@aws-step-function-test/graphql-types",
+  "name": "@puzzlebottom-tabletop-tools/graphql-types",
   "version": "1.0.0",
   "private": true,
   "main": "./src/generated.ts",

@@ -13,9 +13,10 @@ usage() {
   echo "  development -> development stack"
   echo "  staging     -> staging stack"
   echo "  main        -> production stack"
-  echo "  feature/*   -> sandbox-<branch-slug>-<short-sha> (must be deployed first)"
+  echo "  release/v*  -> Release-vX.Y.Z stack"
+  echo "  feature/*   -> sandbox-<branch-slug>-<dev-hash> (must be deployed first)"
   echo
-  echo "Override: set FRONTEND_ENV to development, staging, production, or sandbox-<id>"
+  echo "Override: set FRONTEND_ENV to development, staging, production, Release-vX-Y-Z, or sandbox-<id>"
   echo
   echo "Requires: git, aws CLI, npm"
 }
@@ -66,6 +67,12 @@ else
     development) env_prefix="development" ;;
     staging) env_prefix="staging" ;;
     main) env_prefix="production" ;;
+    release/v*)
+      version="${branch_name#release/v}"
+      version_sanitized="${version//./-}"
+      env_prefix="Release-v${version_sanitized}"
+      echo "Release branch detected: ${branch_name} -> ${env_prefix}"
+      ;;
     *)
       scripts_dir="$(cd "$(dirname "$0")" && pwd)"
       sandbox_id="$("$scripts_dir/sandbox-identifier.sh")"

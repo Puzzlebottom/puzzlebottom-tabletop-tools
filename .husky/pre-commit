@@ -1,2 +1,3 @@
 #!/usr/bin/env sh
-npm run test
+npx lint-staged
+HUSKY=1 npm run test
