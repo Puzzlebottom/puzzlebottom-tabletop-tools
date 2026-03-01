@@ -88,7 +88,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_URL=$(gh pr list --base staging --head main --state open --json url --jq '.[0].url')
-          gh pr merge "$PR_URL" --merge
+          gh pr merge "$PR_URL" --merge --auto
 
       - name: Comment on conflict
         if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false' && steps.conflicts.outputs.has_conflicts == 'true'
@@ -173,7 +173,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_URL=$(gh pr list --base development --head staging --state open --json url --jq '.[0].url')
-          gh pr merge "$PR_URL" --merge
+          gh pr merge "$PR_URL" --merge --auto
 
       - name: Comment on conflict
         if: steps.diff.outputs.has_diff == 'true' && steps.existing.outputs.exists == 'false' && steps.conflicts.outputs.has_conflicts == 'true'
