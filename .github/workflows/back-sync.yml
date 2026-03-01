@@ -19,7 +19,7 @@ jobs:
     if: github.ref_name == 'main'
     steps:
       - name: Checkout staging
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: staging
           fetch-depth: 0
@@ -104,7 +104,7 @@ jobs:
     if: github.ref_name == 'main' || (github.ref_name == 'staging' && !startsWith(github.event.head_commit.message, 'chore(release):'))
     steps:
       - name: Checkout development
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: development
           fetch-depth: 0

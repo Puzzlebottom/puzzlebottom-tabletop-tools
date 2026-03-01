@@ -20,9 +20,9 @@
     "@puzzlebottom-tabletop-tools/schemas": "*"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.145",
+    "@types/aws-lambda": "^8.10.161",
     "@types/node": "^22.0.0",
-    "typescript": "~5.7.0",
+    "typescript": "~5.9.3",
     "vitest": "^4.0.0"
   }
 }
