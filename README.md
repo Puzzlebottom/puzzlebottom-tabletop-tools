@@ -195,7 +195,7 @@ In your repo's Settings > Environments, create:
 | -------------- | ------------- | ------- | --------------------------------------------------------------- |
 | development    | `development` | Push    | Auto-deploys                                                    |
 | staging        | `staging`     | Push    | Auto-deploys                                                    |
-| Release-vX.Y.Z | `release/**`  | Push    | One deployment per release; torn down when release PR is merged |
+| Release-vX-Y-Z | `release/**`  | Push    | One deployment per release; torn down when release PR is merged |
 | production     | `main`        | Push    | Requires approval via GitHub Environment                        |
 
 ## Branching Strategy

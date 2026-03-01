@@ -41,11 +41,24 @@ jobs:
           generate_release_notes: true
           name: Release v${{ steps.version.outputs.version }}
 
+  prepare-teardown:
+    name: Sanitize version for teardown
+    needs: release
+    runs-on: ubuntu-latest
+    outputs:
+      release_environment: ${{ steps.sanitize.outputs.sanitized }}
+    steps:
+      - name: Sanitize version
+        id: sanitize
+        run: |
+          SANITIZED=$(echo "${{ needs.release.outputs.version }}" | tr '.' '-')
+          echo "sanitized=Release-v${SANITIZED}" >> "$GITHUB_OUTPUT"
+
   teardown:
     name: Teardown release deployment
-    needs: release
+    needs: prepare-teardown
     uses: ./.github/workflows/sandbox-teardown.yml
     with:
-      release_environment: Release-v${{ needs.release.outputs.version }}
+      release_environment: ${{ needs.prepare-teardown.outputs.release_environment }}
     secrets:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
