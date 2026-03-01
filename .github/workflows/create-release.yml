@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.bump.outputs.version }}
+      version_sanitized: ${{ steps.sanitize.outputs.sanitized }}
     steps:
       - name: Checkout staging
         uses: actions/checkout@v4
@@ -54,6 +55,12 @@ jobs:
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Sanitize version for stack names
+        id: sanitize
+        run: |
+          SANITIZED=$(echo "${{ steps.bump.outputs.version }}" | tr '.' '-')
+          echo "sanitized=${SANITIZED}" >> "$GITHUB_OUTPUT"
+
       - name: Create release branch and push
         run: |
           git checkout -b release/v${{ steps.bump.outputs.version }}
@@ -70,15 +77,15 @@ jobs:
             --base main \
             --head release/v${{ steps.bump.outputs.version }} \
             --title "Release v${{ steps.bump.outputs.version }}" \
-            --body "Release v${{ steps.bump.outputs.version }} to production. A Release-v${{ steps.bump.outputs.version }} deployment is created for testing. Subsequent pushes to this branch redeploy. Merging will deploy to production, create GitHub Release v${{ steps.bump.outputs.version }}, and tear down the release deployment." \
+            --body "Release v${{ steps.bump.outputs.version }} to production. A Release-v${{ steps.sanitize.outputs.sanitized }} deployment is created for testing. Subsequent pushes to this branch redeploy. Merging will deploy to production, create GitHub Release v${{ steps.bump.outputs.version }}, and tear down the release deployment." \
             --label "release"
 
   deploy:
-    name: Deploy Release-v${{ needs.release.outputs.version }}
+    name: Deploy Release-v${{ needs.release.outputs.version_sanitized }}
     needs: release
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: Release-v${{ needs.release.outputs.version }}
+      environment: Release-v${{ needs.release.outputs.version_sanitized }}
       ref: release/v${{ needs.release.outputs.version }}
       sandbox-branch: release/v${{ needs.release.outputs.version }}
     secrets:
