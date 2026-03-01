@@ -12,6 +12,7 @@ usage() {
   echo "No arguments are accepted."
   echo "The script derives sandbox identifier as <branch-slug>-<dev-hash> (one per dev+branch)."
   echo "Protected branches are blocked: development, staging, main."
+  echo "Release branches (release/*) are deployed by the Create Release workflow."
 }
 
 require_command() {
@@ -28,6 +29,9 @@ is_protected_branch() {
       return 0
     fi
   done
+  if [[ "$branch" == release/* ]]; then
+    return 0
+  fi
   return 1
 }
 
@@ -60,7 +64,11 @@ fi
 
 if is_protected_branch "$branch_name"; then
   echo "Error: Sandbox deploy is blocked on protected branch '${branch_name}'."
-  echo "Switch to a feature branch and try again."
+  if [[ "$branch_name" == release/* ]]; then
+    echo "Release branches are deployed by the Create Release workflow."
+  else
+    echo "Switch to a feature branch and try again."
+  fi
   exit 1
 fi
 

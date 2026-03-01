@@ -20,11 +20,14 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   release:
     name: Bump version and create PR
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
     steps:
       - name: Checkout staging
         uses: actions/checkout@v4
@@ -51,11 +54,12 @@ jobs:
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Commit and push version bump to staging
+      - name: Create release branch and push
         run: |
+          git checkout -b release/v${{ steps.bump.outputs.version }}
           git add package.json
           git commit -m "chore(release): v${{ steps.bump.outputs.version }}"
-          git push origin staging
+          git push -u origin release/v${{ steps.bump.outputs.version }}
 
       - name: Create release PR
         env:
@@ -64,7 +68,18 @@ jobs:
           gh label create "release" --color "0E8A16" --description "Release PR - creates tag and GitHub Release when merged" 2>/dev/null || true
           gh pr create \
             --base main \
-            --head staging \
+            --head release/v${{ steps.bump.outputs.version }} \
             --title "Release v${{ steps.bump.outputs.version }}" \
-            --body "Release staging to production. Merging will deploy to production and create GitHub Release v${{ steps.bump.outputs.version }}." \
+            --body "Release v${{ steps.bump.outputs.version }} to production. A Release-v${{ steps.bump.outputs.version }} deployment is created for testing. Subsequent pushes to this branch redeploy. Merging will deploy to production, create GitHub Release v${{ steps.bump.outputs.version }}, and tear down the release deployment." \
             --label "release"
+
+  deploy:
+    name: Deploy Release-v${{ needs.release.outputs.version }}
+    needs: release
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: Release-v${{ needs.release.outputs.version }}
+      ref: release/v${{ needs.release.outputs.version }}
+      sandbox-branch: release/v${{ needs.release.outputs.version }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}

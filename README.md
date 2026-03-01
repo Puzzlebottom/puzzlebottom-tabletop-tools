@@ -191,11 +191,12 @@ In your repo's Settings > Environments, create:
 
 ## Environments
 
-| Environment | Branch        | Trigger | Notes                                    |
-| ----------- | ------------- | ------- | ---------------------------------------- |
-| development | `development` | Push    | Auto-deploys                             |
-| staging     | `staging`     | Push    | Auto-deploys                             |
-| production  | `main`        | Push    | Requires approval via GitHub Environment |
+| Environment    | Branch        | Trigger | Notes                                                           |
+| -------------- | ------------- | ------- | --------------------------------------------------------------- |
+| development    | `development` | Push    | Auto-deploys                                                    |
+| staging        | `staging`     | Push    | Auto-deploys                                                    |
+| Release-vX.Y.Z | `release/**`  | Push    | One deployment per release; torn down when release PR is merged |
+| production     | `main`        | Push    | Requires approval via GitHub Environment                        |
 
 ## Branching Strategy
 
@@ -208,7 +209,7 @@ feature/* ──PR──► development ──PR──► staging ──PR──
 2. Open PR to `development` (triggers CI validation)
 3. Merge to `development` (triggers dev deploy)
 4. PR from `development` to `staging` (triggers staging deploy)
-5. PR from `staging` to `main` (triggers production deploy with approval)
+5. To release: run **Create Release** workflow → creates `release/vX.Y.Z` branch and PR to `main`, deploys Release-vX.Y.Z for testing; subsequent pushes to the release branch redeploy; merge fixes into release branch (not staging); merging the release PR deploys to production, creates GitHub Release, and tears down the release deployment
 
 ### Back-sync
 
@@ -225,10 +226,12 @@ To release staging to production with version bumping and changelog:
 
 1. Go to **Actions** → **Create Release**
 2. Click **Run workflow**, choose the version bump type (patch/minor/major), and run
-3. The workflow bumps the version on `staging`, pushes it, and opens a PR from `staging` → `main`
-4. Review and merge the PR (triggers production deploy and creates the GitHub Release with tag and release notes)
+3. The workflow creates a `release/vX.Y.Z` branch from `staging`, bumps the version, pushes it, opens a PR from `release/vX.Y.Z` → `main`, and deploys **Release-vX.Y.Z** for testing
+4. Subsequent pushes to the release branch redeploy Release-vX.Y.Z
+5. Merge any fixes into the release branch (not staging)
+6. Review and approve the release PR, then merge (triggers production deploy, creates GitHub Release, and tears down the release deployment)
 
-The **Complete Release** workflow runs automatically when the release PR is merged. It creates the version tag (e.g. `v1.2.3`) and a GitHub Release with auto-generated notes from conventional commits.
+The **Complete Release** workflow runs automatically when the release PR is merged. It creates the version tag (e.g. `v1.2.3`), a GitHub Release with auto-generated notes from conventional commits, and tears down the release deployment.
 
 ## Deploying Manually
 

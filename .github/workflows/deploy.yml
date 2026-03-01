@@ -7,6 +7,11 @@ on:
         description: Target environment name
         required: true
         type: string
+      ref:
+        description: Git ref to checkout (branch, tag, or SHA)
+        required: false
+        type: string
+        default: ''
       aws-region:
         description: AWS region
         required: false
@@ -39,6 +44,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -80,10 +87,10 @@ jobs:
           SANDBOX_IDENTIFIER: ${{ inputs.sandbox-identifier }}
           SANDBOX_BRANCH: ${{ inputs.sandbox-branch }}
 
-      - name: Trigger Amplify build (sandbox only)
-        if: inputs.sandbox-identifier != ''
+      - name: Trigger Amplify build (sandbox/release)
+        if: inputs.sandbox-branch != ''
         run: |
-          STACK_NAME="sandbox-${{ inputs.sandbox-identifier }}-FrontendStack"
+          STACK_NAME="${{ inputs.environment }}-FrontendStack"
           BRANCH_NAME="${{ inputs.sandbox-branch }}"
 
           APP_ID=$(aws cloudformation describe-stacks \

@@ -56,6 +56,21 @@ export function getSandboxConfig(
   }
 }
 
+/** Release environments: Release-vX.Y.Z (ephemeral, torn down when release PR merges) */
+export function getReleaseConfig(
+  version: string,
+  releaseBranch: string
+): EnvironmentConfig {
+  return {
+    ...BASE_CONFIG,
+    envName: `Release-v${version}`,
+    isSandbox: true,
+    sandboxBranch: releaseBranch,
+    removalPolicy: RemovalPolicy.DESTROY,
+    logRetention: RetentionDays.ONE_DAY,
+  }
+}
+
 export function resolveEnvironment(): EnvironmentConfig {
   const envName = process.env.ENVIRONMENT
   const sandboxIdentifier =
@@ -68,10 +83,18 @@ export function resolveEnvironment(): EnvironmentConfig {
 
   if (!envName) {
     throw new Error(
-      'ENVIRONMENT or SANDBOX_IDENTIFIER env var must be set. ' +
-        'Valid environments: development, staging, production. ' +
-        'For sandboxes, set SANDBOX_IDENTIFIER=<branch-slug>-<dev-hash>.'
+      'ENVIRONMENT, SANDBOX_IDENTIFIER, or RELEASE_VERSION must be set. ' +
+        'For releases, set RELEASE_VERSION and RELEASE_BRANCH.'
     )
+  }
+
+  if (envName.startsWith('Release-v')) {
+    const version = envName.replace(/^Release-v/, '')
+    const branch =
+      process.env.SANDBOX_BRANCH ??
+      process.env.RELEASE_BRANCH ??
+      `release/v${version}`
+    return getReleaseConfig(version, branch)
   }
 
   const config = environments[envName]
