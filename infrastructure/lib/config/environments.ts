@@ -56,14 +56,15 @@ export function getSandboxConfig(
   }
 }
 
-/** Release environments: Release-vX.Y.Z (ephemeral, torn down when release PR merges) */
+/** Release environments: Release-vX-Y-Z (ephemeral, torn down when release PR merges). Uses hyphens for CloudFormation stack name compatibility. */
 export function getReleaseConfig(
   version: string,
   releaseBranch: string
 ): EnvironmentConfig {
+  const sanitized = version.replace(/\./g, '-')
   return {
     ...BASE_CONFIG,
-    envName: `Release-v${version}`,
+    envName: `Release-v${sanitized}`,
     isSandbox: true,
     sandboxBranch: releaseBranch,
     removalPolicy: RemovalPolicy.DESTROY,
@@ -89,7 +90,8 @@ export function resolveEnvironment(): EnvironmentConfig {
   }
 
   if (envName.startsWith('Release-v')) {
-    const version = envName.replace(/^Release-v/, '')
+    const sanitized = envName.replace(/^Release-v/, '')
+    const version = sanitized.replace(/-/g, '.')
     const branch =
       process.env.SANDBOX_BRANCH ??
       process.env.RELEASE_BRANCH ??

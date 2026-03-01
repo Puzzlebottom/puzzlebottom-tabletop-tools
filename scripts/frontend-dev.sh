@@ -16,7 +16,7 @@ usage() {
   echo "  release/v*  -> Release-vX.Y.Z stack"
   echo "  feature/*   -> sandbox-<branch-slug>-<dev-hash> (must be deployed first)"
   echo
-  echo "Override: set FRONTEND_ENV to development, staging, production, Release-vX.Y.Z, or sandbox-<id>"
+  echo "Override: set FRONTEND_ENV to development, staging, production, Release-vX-Y-Z, or sandbox-<id>"
   echo
   echo "Requires: git, aws CLI, npm"
 }
@@ -69,7 +69,8 @@ else
     main) env_prefix="production" ;;
     release/v*)
       version="${branch_name#release/v}"
-      env_prefix="Release-v${version}"
+      version_sanitized="${version//./-}"
+      env_prefix="Release-v${version_sanitized}"
       echo "Release branch detected: ${branch_name} -> ${env_prefix}"
       ;;
     *)
