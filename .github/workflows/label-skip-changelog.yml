@@ -1,0 +1,28 @@
+# Auto-label PRs that should be excluded from release notes (merge PRs, etc.)
+name: Label skip-changelog
+
+on:
+  pull_request:
+    types: [opened, edited]
+    branches: [main, staging, development, 'release/*']
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Ensure label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "skip-changelog" --color "ededed" --description "Excluded from release notes" --force 2>/dev/null || true
+
+      - name: Add skip-changelog for merge PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          if [[ "$TITLE" =~ ^Merge\ .+\ into\ .+ ]]; then
+            gh pr edit "${{ github.event.pull_request.number }}" --add-label "skip-changelog"
+          fi

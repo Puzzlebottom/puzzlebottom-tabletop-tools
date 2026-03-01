@@ -1,0 +1,12 @@
+# Configures auto-generated release notes (used when generate_release_notes: true)
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+
+changelog:
+  exclude:
+    labels:
+      - back-sync
+      - automated
+      - release
+      - skip-changelog
+    authors:
+      - github-actions[bot]
