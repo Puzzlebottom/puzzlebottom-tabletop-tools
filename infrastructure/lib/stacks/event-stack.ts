@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib'
 import * as events from 'aws-cdk-lib/aws-events'
+import * as eventsTargets from 'aws-cdk-lib/aws-events-targets'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
 import { type Construct } from 'constructs'
 
@@ -38,6 +39,52 @@ export class EventStack extends cdk.Stack {
         maxReceiveCount: 3,
       },
       removalPolicy: config.removalPolicy,
+    })
+
+    const eventSource = 'puzzlebottom-tabletop-tools'
+
+    new events.Rule(this, 'InitiativeRollRequestCreatedRule', {
+      eventBus: this.eventBus,
+      ruleName: `${config.envName}-initiative-roll-request-created`,
+      description: 'Route InitiativeRollRequestCreated to pipeline',
+      eventPattern: {
+        source: [eventSource],
+        detailType: ['InitiativeRollRequestCreated'],
+      },
+      targets: [new eventsTargets.SqsQueue(this.pipelineQueue)],
+    })
+
+    new events.Rule(this, 'RollCompletedRule', {
+      eventBus: this.eventBus,
+      ruleName: `${config.envName}-roll-completed`,
+      description: 'Route RollCompleted to pipeline',
+      eventPattern: {
+        source: [eventSource],
+        detailType: ['RollCompleted'],
+      },
+      targets: [new eventsTargets.SqsQueue(this.pipelineQueue)],
+    })
+
+    new events.Rule(this, 'PlayerLeftRule', {
+      eventBus: this.eventBus,
+      ruleName: `${config.envName}-player-left`,
+      description: 'Route PlayerLeft to pipeline',
+      eventPattern: {
+        source: [eventSource],
+        detailType: ['PlayerLeft'],
+      },
+      targets: [new eventsTargets.SqsQueue(this.pipelineQueue)],
+    })
+
+    new events.Rule(this, 'PlayerJoinedRule', {
+      eventBus: this.eventBus,
+      ruleName: `${config.envName}-player-joined`,
+      description: 'Route PlayerJoined to pipeline',
+      eventPattern: {
+        source: [eventSource],
+        detailType: ['PlayerJoined'],
+      },
+      targets: [new eventsTargets.SqsQueue(this.pipelineQueue)],
     })
 
     new cdk.CfnOutput(this, 'EventBusName', {
