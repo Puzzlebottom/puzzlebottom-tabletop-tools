@@ -1,11 +1,150 @@
+enum RollerType {
+  gm
+  player
+}
+
+enum Visibility {
+  all
+  gm_only
+}
+
+enum RollRequestType {
+  ad_hoc
+  initiative
+}
+
+type PlayTable {
+  id: ID!
+  gmUserId: String!
+  inviteCode: String!
+  createdAt: String!
+  players: [Player!]
+}
+
+type Player {
+  id: ID!
+  characterName: String!
+  initiativeModifier: Int!
+}
+
+type Roll {
+  id: ID!
+  playTableId: ID!
+  rollerId: String!
+  rollerType: RollerType!
+  diceType: String!
+  values: [Int!]!
+  modifier: Int!
+  total: Int!
+  advantage: String
+  dc: Int
+  success: Boolean
+  visibility: Visibility!
+  rollRequestType: RollRequestType!
+  rollRequestId: ID
+  createdAt: String!
+}
+
+type RollDiceResponse {
+  rollId: ID!
+  accepted: Boolean!
+}
+
+type RollResult {
+  rollId: ID!
+  values: [Int!]!
+  modifier: Int!
+  total: Int!
+  advantage: String
+  dc: Int
+  success: Boolean
+  visibility: Visibility!
+}
+
+type RollRequest {
+  id: ID!
+  playTableId: ID!
+  targetPlayerIds: [String!]!
+  type: RollRequestType!
+  dc: Int
+  advantage: String
+  isPrivate: Boolean!
+  status: String!
+  createdAt: String!
+}
+
+type InitiativeEntry {
+  id: ID!
+  characterName: String!
+  value: Int!
+  modifier: Int!
+  total: Int!
+}
+
+type JoinPlayTableResponse {
+  id: ID!
+  playTableId: ID!
+}
+
+input JoinPlayTableInput {
+  characterName: String!
+  initiativeModifier: Int!
+}
+
+input RollDiceInput {
+  id: String
+  diceType: String!
+  advantage: String
+  modifier: Int
+  dc: Int
+  visibility: String
+  rollRequestId: ID
+}
+
+input CreateRollRequestInput {
+  targetPlayerIds: [String!]!
+  type: RollRequestType!
+  dc: Int
+  advantage: String
+  isPrivate: Boolean
+}
+
+type RollConnection {
+  items: [Roll!]!
+  nextToken: String
+}
+
 type Query {
-  _placeholder: String
+  playTable(id: ID!): PlayTable
+  playTableByInviteCode(inviteCode: String!): PlayTable
+  rollHistory(playTableId: ID!, limit: Int, nextToken: String): RollConnection
 }
 
 type Mutation {
-  _placeholder: Boolean
+  createPlayTable: PlayTable!
+  joinPlayTable(
+    inviteCode: String!
+    input: JoinPlayTableInput!
+  ): JoinPlayTableResponse!
+  leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
+  rollDice(playTableId: ID!, input: RollDiceInput!): RollDiceResponse!
+  createRollRequest(
+    playTableId: ID!
+    input: CreateRollRequestInput!
+  ): RollRequest!
+  fulfillRollRequest(rollRequestId: ID!, playTableId: ID!): RollDiceResponse!
+  clearInitiative(playTableId: ID!): Boolean!
+  notifyInitiativeUpdated(
+    playTableId: ID!
+    order: [InitiativeEntry!]!
+  ): [InitiativeEntry!]!
 }
 
 type Subscription {
-  _placeholder: String @aws_subscribe(mutations: ["_placeholder"])
+  onRollCompleted(playTableId: ID!): RollResult
+    @aws_subscribe(mutations: ["rollDice", "fulfillRollRequest"])
+  onRollRequestCreated(playTableId: ID!): RollRequest
+    @aws_subscribe(mutations: ["createRollRequest"])
+  onInitiativeUpdated(playTableId: ID!): [InitiativeEntry!]!
+    @aws_subscribe(mutations: ["notifyInitiativeUpdated"])
 }

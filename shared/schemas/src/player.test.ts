@@ -4,7 +4,7 @@ import { PlayerSchema } from './player'
 
 describe('PlayerSchema', () => {
   const validPlayer = {
-    playerKey: 'pk-abc-123',
+    id: 'pk-abc-123',
     characterName: 'Gandalf',
     initiativeModifier: 2,
   }
@@ -13,10 +13,10 @@ describe('PlayerSchema', () => {
     expect(PlayerSchema.safeParse(validPlayer).success).toBe(true)
   })
 
-  it('rejects missing playerKey', () => {
-    const { playerKey, ...withoutPlayerKey } = validPlayer
-    void playerKey
-    expect(PlayerSchema.safeParse(withoutPlayerKey).success).toBe(false)
+  it('rejects missing id', () => {
+    const { id, ...withoutId } = validPlayer
+    void id
+    expect(PlayerSchema.safeParse(withoutId).success).toBe(false)
   })
 
   it('rejects missing characterName', () => {

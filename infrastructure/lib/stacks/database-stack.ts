@@ -42,7 +42,7 @@ export class DatabaseStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     })
 
-    // GSI3: TARGET#<playerKey> + status#createdAt — list RollRequests by target player
+    // GSI3: TARGET#<playerId> + status#createdAt — list RollRequests by target player
     this.dataTable.addGlobalSecondaryIndex({
       indexName: 'GSI3',
       partitionKey: { name: 'GSI3PK', type: dynamodb.AttributeType.STRING },

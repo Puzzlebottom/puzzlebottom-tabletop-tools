@@ -105,7 +105,8 @@ describe('RollCompletedDetailSchema', () => {
       rollRequestType: 'ad_hoc' as const,
       rollerId: 'gm-sub',
       rollerType: 'gm' as const,
-      d20Value: 15,
+      values: [15],
+      modifier: 3,
       total: 18,
     }
     expect(RollCompletedDetailSchema.safeParse(detail).success).toBe(true)
@@ -119,7 +120,8 @@ describe('RollCompletedDetailSchema', () => {
       rollRequestType: 'initiative' as const,
       rollerId: 'pk-1',
       rollerType: 'player' as const,
-      d20Value: 12,
+      values: [12],
+      modifier: 3,
       total: 15,
       advantage: 'advantage' as const,
       dc: 14,
@@ -136,7 +138,8 @@ describe('RollCompletedDetailSchema', () => {
         rollRequestType: 'invalid',
         rollerId: 'gm',
         rollerType: 'gm',
-        d20Value: 10,
+        values: [10],
+        modifier: 0,
         total: 10,
       }).success
     ).toBe(false)
@@ -150,7 +153,8 @@ describe('RollCompletedDetailSchema', () => {
         rollRequestType: 'ad_hoc',
         rollerId: 'gm',
         rollerType: 'npc',
-        d20Value: 10,
+        values: [10],
+        modifier: 0,
         total: 10,
       }).success
     ).toBe(false)
@@ -159,11 +163,11 @@ describe('RollCompletedDetailSchema', () => {
 
 describe('PlayerLeftDetailSchema', () => {
   it('accepts valid detail', () => {
-    const detail = { playTableId: 'pt-1', playerKey: 'pk-1' }
+    const detail = { playTableId: 'pt-1', id: 'pk-1' }
     expect(PlayerLeftDetailSchema.safeParse(detail).success).toBe(true)
   })
 
-  it('rejects missing playerKey', () => {
+  it('rejects missing id', () => {
     expect(
       PlayerLeftDetailSchema.safeParse({ playTableId: 'pt-1' }).success
     ).toBe(false)
@@ -174,7 +178,7 @@ describe('PlayerJoinedDetailSchema', () => {
   it('accepts valid detail', () => {
     const detail = {
       playTableId: 'pt-1',
-      playerKey: 'pk-1',
+      id: 'pk-1',
       characterName: 'Frodo',
       initiativeModifier: 2,
     }
@@ -185,7 +189,7 @@ describe('PlayerJoinedDetailSchema', () => {
     expect(
       PlayerJoinedDetailSchema.safeParse({
         playTableId: 'pt-1',
-        playerKey: 'pk-1',
+        id: 'pk-1',
         initiativeModifier: 0,
       }).success
     ).toBe(false)
@@ -215,7 +219,8 @@ describe('EventDetailSchema', () => {
         rollRequestType: 'ad_hoc' as const,
         rollerId: 'gm',
         rollerType: 'gm' as const,
-        d20Value: 10,
+        values: [10],
+        modifier: 0,
         total: 10,
       },
     }
@@ -225,7 +230,7 @@ describe('EventDetailSchema', () => {
   it('accepts PlayerLeft', () => {
     const event = {
       detailType: DETAIL_TYPE_PLAYER_LEFT,
-      detail: { playTableId: 'pt-1', playerKey: 'pk-1' },
+      detail: { playTableId: 'pt-1', id: 'pk-1' },
     }
     expect(EventDetailSchema.safeParse(event).success).toBe(true)
   })
@@ -235,7 +240,7 @@ describe('EventDetailSchema', () => {
       detailType: DETAIL_TYPE_PLAYER_JOINED,
       detail: {
         playTableId: 'pt-1',
-        playerKey: 'pk-1',
+        id: 'pk-1',
         characterName: 'Gandalf',
         initiativeModifier: 3,
       },
@@ -285,14 +290,15 @@ describe('parseEventDetail', () => {
         rollRequestType: 'initiative',
         rollerId: 'pk-1',
         rollerType: 'player',
-        d20Value: 18,
+        values: [18],
+        modifier: 3,
         total: 21,
       },
     }
     const result = parseEventDetail(envelope)
     expect(result.detailType).toBe(DETAIL_TYPE_ROLL_COMPLETED)
     expect(result.detail.rollId).toBe('roll-1')
-    expect(result.detail.d20Value).toBe(18)
+    expect(result.detail.values).toEqual([18])
   })
 
   it('parses PlayerLeft envelope', () => {
@@ -301,11 +307,11 @@ describe('parseEventDetail', () => {
       id: 'evt-3',
       'detail-type': DETAIL_TYPE_PLAYER_LEFT,
       source: 'puzzlebottom-tabletop-tools',
-      detail: { playTableId: 'pt-1', playerKey: 'pk-1' },
+      detail: { playTableId: 'pt-1', id: 'pk-1' },
     }
     const result = parseEventDetail(envelope)
     expect(result.detailType).toBe(DETAIL_TYPE_PLAYER_LEFT)
-    expect(result.detail.playerKey).toBe('pk-1')
+    expect(result.detail.id).toBe('pk-1')
   })
 
   it('parses PlayerJoined envelope', () => {
@@ -316,7 +322,7 @@ describe('parseEventDetail', () => {
       source: 'puzzlebottom-tabletop-tools',
       detail: {
         playTableId: 'pt-1',
-        playerKey: 'pk-1',
+        id: 'pk-1',
         characterName: 'Aragorn',
         initiativeModifier: 2,
       },
@@ -343,7 +349,7 @@ describe('parseEventDetail', () => {
       id: 'evt-6',
       'detail-type': DETAIL_TYPE_PLAYER_LEFT,
       source: 'puzzlebottom-tabletop-tools',
-      detail: { playTableId: 'pt-1' }, // missing playerKey
+      detail: { playTableId: 'pt-1' }, // missing id
     }
     expect(() => parseEventDetail(envelope)).toThrow()
   })

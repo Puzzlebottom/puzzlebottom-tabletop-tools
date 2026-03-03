@@ -36,7 +36,7 @@ describe('DatabaseStack', () => {
 
     // GSI1: GM#gmUserId + createdAt — list PlayTables by GM
     // GSI2: INVITECODE#code + PLAYTABLE — lookup PlayTable by invite link
-    // GSI3: TARGET#playerKey + status#createdAt — list RollRequests by target player
+    // GSI3: TARGET#playerId + status#createdAt — list RollRequests by target player
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       GlobalSecondaryIndexes: Match.arrayWith([
         Match.objectLike({

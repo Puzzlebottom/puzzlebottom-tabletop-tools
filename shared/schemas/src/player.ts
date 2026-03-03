@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const PlayerSchema = z.object({
-  playerKey: z.string(),
+  id: z.string(),
   characterName: z.string(),
   initiativeModifier: z.number(),
 })

@@ -37,7 +37,8 @@ export const RollCompletedDetailSchema = z.object({
   rollRequestType: z.enum(['ad_hoc', 'initiative']),
   rollerId: z.string(),
   rollerType: z.enum(['gm', 'player']),
-  d20Value: z.number(),
+  values: z.array(z.number()).min(1),
+  modifier: z.number(),
   total: z.number(),
   advantage: z.enum(['advantage', 'disadvantage']).nullable().optional(),
   dc: z.number().nullable().optional(),
@@ -49,7 +50,7 @@ export type RollCompletedDetail = z.infer<typeof RollCompletedDetailSchema>
 /** PlayerLeft event detail (from leavePlayTable Lambda). */
 export const PlayerLeftDetailSchema = z.object({
   playTableId: z.string(),
-  playerKey: z.string(),
+  id: z.string(),
 })
 
 export type PlayerLeftDetail = z.infer<typeof PlayerLeftDetailSchema>
@@ -57,7 +58,7 @@ export type PlayerLeftDetail = z.infer<typeof PlayerLeftDetailSchema>
 /** PlayerJoined event detail (from joinPlayTable Lambda). */
 export const PlayerJoinedDetailSchema = z.object({
   playTableId: z.string(),
-  playerKey: z.string(),
+  id: z.string(),
   characterName: z.string(),
   initiativeModifier: z.number(),
 })
