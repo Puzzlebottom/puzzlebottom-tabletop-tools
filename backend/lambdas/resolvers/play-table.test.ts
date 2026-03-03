@@ -125,6 +125,58 @@ describe('play-table resolvers', () => {
       })
     })
 
+    it('routes playTableByInviteCode to playTableByInviteCode resolver', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [] })
+      const event = createEvent(
+        { inviteCode: 'XYZ789' },
+        {
+          fieldName: 'playTableByInviteCode',
+          parentTypeName: 'Query',
+        }
+      )
+      const result = (await handler(event, {} as never, vi.fn())) as {
+        id: string
+      } | null
+      expect(result).toBeNull()
+    })
+
+    it('routes joinPlayTable to joinPlayTable resolver', async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            PK: { S: 'PLAYTABLE#pt-1' },
+            SK: { S: 'METADATA' },
+            id: { S: 'pt-1' },
+          },
+        ],
+      })
+      mockSend.mockResolvedValueOnce({})
+      mockSend.mockResolvedValueOnce({})
+      const event = createEvent(
+        {
+          inviteCode: 'ABC123',
+          input: { characterName: 'Gandalf', initiativeModifier: 1 },
+        },
+        { fieldName: 'joinPlayTable', parentTypeName: 'Mutation' }
+      )
+      const result = (await handler(event, {} as never, vi.fn())) as {
+        id: string
+        playTableId: string
+      }
+      expect(result).toMatchObject({ playTableId: 'pt-1' })
+    })
+
+    it('routes leavePlayTable to leavePlayTable resolver', async () => {
+      mockSend.mockResolvedValueOnce({})
+      mockSend.mockResolvedValueOnce({})
+      const event = createEvent(
+        { playTableId: 'pt-1', playerId: 'p1' },
+        { fieldName: 'leavePlayTable', parentTypeName: 'Mutation' }
+      )
+      const result = (await handler(event, {} as never, vi.fn())) as boolean
+      expect(result).toBe(true)
+    })
+
     it('throws for unknown resolver', async () => {
       const event = createEvent(
         {},
@@ -152,7 +204,9 @@ describe('play-table resolvers', () => {
         }
       )
       const result = (await createPlayTable(
-        event as Parameters<typeof createPlayTable>[0]
+        event as Parameters<typeof createPlayTable>[0],
+        {} as never,
+        vi.fn()
       )) as {
         id: string
         gmUserId: string
@@ -178,9 +232,26 @@ describe('play-table resolvers', () => {
           identity: undefined,
         }
       )
-      await expect(createPlayTable(event as never)).rejects.toThrow(
+      await expect(
+        createPlayTable(event as never, {} as never, vi.fn())
+      ).rejects.toThrow(
         'Unauthorized: createPlayTable requires Cognito authentication'
       )
+    })
+
+    it('throws when unable to generate unique invite code after retries', async () => {
+      mockSend.mockResolvedValue({ Items: [{ id: { S: 'existing' } }] })
+      const event = createEvent(
+        {},
+        {
+          fieldName: 'createPlayTable',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'cognito-sub-abc' },
+        }
+      )
+      await expect(
+        createPlayTable(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Failed to generate unique invite code')
     })
   })
 
@@ -205,7 +276,9 @@ describe('play-table resolvers', () => {
         { fieldName: 'joinPlayTable', parentTypeName: 'Mutation' }
       )
       const result = (await joinPlayTable(
-        event as Parameters<typeof joinPlayTable>[0]
+        event as Parameters<typeof joinPlayTable>[0],
+        {} as never,
+        vi.fn()
       )) as { id: string; playTableId: string }
       expect(result).toMatchObject({
         id: expect.any(String),
@@ -222,9 +295,9 @@ describe('play-table resolvers', () => {
         },
         { fieldName: 'joinPlayTable', parentTypeName: 'Mutation' }
       )
-      await expect(joinPlayTable(event as never)).rejects.toThrow(
-        'Invalid invite code'
-      )
+      await expect(
+        joinPlayTable(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Invalid invite code')
     })
   })
 
@@ -236,7 +309,7 @@ describe('play-table resolvers', () => {
         { playTableId: 'pt-1', playerId: 'player-1' },
         { fieldName: 'leavePlayTable', parentTypeName: 'Mutation' }
       )
-      const result = await leavePlayTable(event as never)
+      const result = await leavePlayTable(event as never, {} as never, vi.fn())
       expect(result).toBe(true)
       expect(mockSend).toHaveBeenCalledTimes(2)
     })
@@ -270,7 +343,9 @@ describe('play-table resolvers', () => {
         { fieldName: 'playTable', parentTypeName: 'Query' }
       )
       const result = (await playTable(
-        event as Parameters<typeof playTable>[0]
+        event as Parameters<typeof playTable>[0],
+        {} as never,
+        vi.fn()
       )) as {
         id: string
         gmUserId: string
@@ -299,7 +374,9 @@ describe('play-table resolvers', () => {
         { fieldName: 'playTable', parentTypeName: 'Query' }
       )
       const result = (await playTable(
-        event as Parameters<typeof playTable>[0]
+        event as Parameters<typeof playTable>[0],
+        {} as never,
+        vi.fn()
       )) as {
         id: string
         gmUserId: string
@@ -337,7 +414,9 @@ describe('play-table resolvers', () => {
         { fieldName: 'playTableByInviteCode', parentTypeName: 'Query' }
       )
       const result = (await playTableByInviteCode(
-        event as Parameters<typeof playTableByInviteCode>[0]
+        event as Parameters<typeof playTableByInviteCode>[0],
+        {} as never,
+        vi.fn()
       )) as {
         id: string
         gmUserId: string
@@ -359,7 +438,9 @@ describe('play-table resolvers', () => {
         { fieldName: 'playTableByInviteCode', parentTypeName: 'Query' }
       )
       const result = (await playTableByInviteCode(
-        event as Parameters<typeof playTableByInviteCode>[0]
+        event as Parameters<typeof playTableByInviteCode>[0],
+        {} as never,
+        vi.fn()
       )) as {
         id: string
         gmUserId: string

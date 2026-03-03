@@ -132,7 +132,9 @@ describe('roll-request resolvers', () => {
         }
       )
       const result = (await createRollRequest(
-        event as Parameters<typeof createRollRequest>[0]
+        event as Parameters<typeof createRollRequest>[0],
+        {} as never,
+        vi.fn()
       )) as {
         id: string
         playTableId: string
@@ -164,7 +166,9 @@ describe('roll-request resolvers', () => {
           identity: undefined,
         }
       )
-      await expect(createRollRequest(event as never)).rejects.toThrow(
+      await expect(
+        createRollRequest(event as never, {} as never, vi.fn())
+      ).rejects.toThrow(
         'Unauthorized: createRollRequest requires Cognito authentication'
       )
     })
@@ -185,9 +189,72 @@ describe('roll-request resolvers', () => {
           identity: { sub: 'gm-123' },
         }
       )
-      await expect(createRollRequest(event as never)).rejects.toThrow(
-        'Play table not found'
+      await expect(
+        createRollRequest(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Play table not found')
+    })
+
+    it('creates ad_hoc RollRequest without publishing EventBridge', async () => {
+      mockSend
+        .mockResolvedValueOnce({
+          Item: {
+            PK: { S: 'PLAYTABLE#pt-1' },
+            SK: { S: 'METADATA' },
+          },
+        })
+        .mockResolvedValueOnce({})
+      const event = createEvent(
+        {
+          playTableId: 'pt-1',
+          input: {
+            targetPlayerIds: ['p1'],
+            type: 'ad_hoc',
+          },
+        },
+        {
+          fieldName: 'createRollRequest',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'gm-123' },
+        }
       )
+      const result = (await createRollRequest(
+        event as Parameters<typeof createRollRequest>[0],
+        {} as never,
+        vi.fn()
+      )) as { type: string }
+      expect(result.type).toBe('ad_hoc')
+      expect(mockSend).toHaveBeenCalledTimes(2)
+    })
+
+    it('creates RollRequest with empty targetPlayerIds', async () => {
+      mockSend
+        .mockResolvedValueOnce({
+          Item: {
+            PK: { S: 'PLAYTABLE#pt-1' },
+            SK: { S: 'METADATA' },
+          },
+        })
+        .mockResolvedValueOnce({})
+      const event = createEvent(
+        {
+          playTableId: 'pt-1',
+          input: {
+            targetPlayerIds: [],
+            type: 'ad_hoc',
+          },
+        },
+        {
+          fieldName: 'createRollRequest',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'gm-123' },
+        }
+      )
+      const result = (await createRollRequest(
+        event as Parameters<typeof createRollRequest>[0],
+        {} as never,
+        vi.fn()
+      )) as { targetPlayerIds: string[] }
+      expect(result.targetPlayerIds).toEqual([])
     })
   })
 })

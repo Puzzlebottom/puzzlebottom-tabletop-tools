@@ -160,7 +160,9 @@ describe('roll-dice resolvers', () => {
         }
       )
       const result = (await rollDice(
-        event as Parameters<typeof rollDice>[0]
+        event as Parameters<typeof rollDice>[0],
+        {} as never,
+        vi.fn()
       )) as { rollId: string; accepted: boolean }
       expect(result).toMatchObject({
         rollId: expect.stringMatching(
@@ -197,7 +199,9 @@ describe('roll-dice resolvers', () => {
         }
       )
       const result = (await rollDice(
-        event as Parameters<typeof rollDice>[0]
+        event as Parameters<typeof rollDice>[0],
+        {} as never,
+        vi.fn()
       )) as { rollId: string; accepted: boolean }
       expect(result.accepted).toBe(true)
     })
@@ -214,7 +218,9 @@ describe('roll-dice resolvers', () => {
           identity: undefined,
         }
       )
-      await expect(rollDice(event as never)).rejects.toThrow(
+      await expect(
+        rollDice(event as never, {} as never, vi.fn())
+      ).rejects.toThrow(
         'Unauthorized: rollDice requires Cognito (GM) or playerId in input (player)'
       )
     })
@@ -231,9 +237,67 @@ describe('roll-dice resolvers', () => {
           parentTypeName: 'Mutation',
         }
       )
-      await expect(rollDice(event as never)).rejects.toThrow(
-        'Player not found in play table'
+      await expect(
+        rollDice(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Player not found in play table')
+    })
+
+    it('rolls with advantage when specified', async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: { S: 'PLAYTABLE#pt-1' },
+          SK: { S: 'METADATA' },
+        },
+      })
+      mockSend.mockResolvedValueOnce({})
+      mockSend.mockResolvedValueOnce({})
+      const event = createEvent(
+        {
+          playTableId: 'pt-1',
+          input: { diceType: 'd20', advantage: 'advantage' },
+        },
+        {
+          fieldName: 'rollDice',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'gm-123' },
+        }
       )
+      const result = (await rollDice(
+        event as Parameters<typeof rollDice>[0],
+        {} as never,
+        vi.fn()
+      )) as { rollId: string; accepted: boolean }
+      expect(result).toMatchObject({ accepted: true })
+      expect(result.rollId).toBeDefined()
+    })
+
+    it('rolls with disadvantage when specified', async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: { S: 'PLAYTABLE#pt-1' },
+          SK: { S: 'METADATA' },
+        },
+      })
+      mockSend.mockResolvedValueOnce({})
+      mockSend.mockResolvedValueOnce({})
+      const event = createEvent(
+        {
+          playTableId: 'pt-1',
+          input: { diceType: 'd20', advantage: 'disadvantage' },
+        },
+        {
+          fieldName: 'rollDice',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'gm-123' },
+        }
+      )
+      const result = (await rollDice(
+        event as Parameters<typeof rollDice>[0],
+        {} as never,
+        vi.fn()
+      )) as { rollId: string; accepted: boolean }
+      expect(result).toMatchObject({ accepted: true })
+      expect(result.rollId).toBeDefined()
     })
 
     it('throws when play table not found', async () => {
@@ -249,9 +313,9 @@ describe('roll-dice resolvers', () => {
           identity: { sub: 'gm-123' },
         }
       )
-      await expect(rollDice(event as never)).rejects.toThrow(
-        'Play table not found'
-      )
+      await expect(
+        rollDice(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Play table not found')
     })
   })
 
@@ -285,7 +349,9 @@ describe('roll-dice resolvers', () => {
         { fieldName: 'fulfillRollRequest', parentTypeName: 'Mutation' }
       )
       const result = (await fulfillRollRequest(
-        event as Parameters<typeof fulfillRollRequest>[0]
+        event as Parameters<typeof fulfillRollRequest>[0],
+        {} as never,
+        vi.fn()
       )) as { rollId: string; accepted: boolean }
       expect(result).toMatchObject({
         rollId: expect.any(String),
@@ -308,9 +374,9 @@ describe('roll-dice resolvers', () => {
         },
         { fieldName: 'fulfillRollRequest', parentTypeName: 'Mutation' }
       )
-      await expect(fulfillRollRequest(event as never)).rejects.toThrow(
-        'Roll request not found'
-      )
+      await expect(
+        fulfillRollRequest(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Roll request not found')
     })
 
     it('throws when player not a target', async () => {
@@ -339,9 +405,9 @@ describe('roll-dice resolvers', () => {
         },
         { fieldName: 'fulfillRollRequest', parentTypeName: 'Mutation' }
       )
-      await expect(fulfillRollRequest(event as never)).rejects.toThrow(
-        'Player is not a target of this roll request'
-      )
+      await expect(
+        fulfillRollRequest(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Player is not a target of this roll request')
     })
 
     it('throws when roll request not pending', async () => {
@@ -370,9 +436,9 @@ describe('roll-dice resolvers', () => {
         },
         { fieldName: 'fulfillRollRequest', parentTypeName: 'Mutation' }
       )
-      await expect(fulfillRollRequest(event as never)).rejects.toThrow(
-        'Roll request is no longer pending'
-      )
+      await expect(
+        fulfillRollRequest(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Roll request is no longer pending')
     })
   })
 })

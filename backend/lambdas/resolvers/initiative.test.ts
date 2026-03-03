@@ -102,6 +102,16 @@ describe('initiative resolvers', () => {
         'Unknown resolver'
       )
     })
+
+    it('throws when parentType is not Mutation', async () => {
+      const event = createEvent(
+        {},
+        { fieldName: 'clearInitiative', parentTypeName: 'Query' }
+      )
+      await expect(handler(event, {} as never, vi.fn())).rejects.toThrow(
+        'Unknown resolver'
+      )
+    })
   })
 
   describe('clearInitiative', () => {
@@ -123,7 +133,9 @@ describe('initiative resolvers', () => {
         }
       )
       const result = await clearInitiative(
-        event as Parameters<typeof clearInitiative>[0]
+        event as Parameters<typeof clearInitiative>[0],
+        {} as never,
+        vi.fn()
       )
       expect(result).toBe(true)
       expect(mockSend).toHaveBeenCalledTimes(2)
@@ -138,7 +150,9 @@ describe('initiative resolvers', () => {
           identity: undefined,
         }
       )
-      await expect(clearInitiative(event as never)).rejects.toThrow(
+      await expect(
+        clearInitiative(event as never, {} as never, vi.fn())
+      ).rejects.toThrow(
         'Unauthorized: clearInitiative requires Cognito authentication'
       )
     })
@@ -153,9 +167,9 @@ describe('initiative resolvers', () => {
           identity: { sub: 'gm-123' },
         }
       )
-      await expect(clearInitiative(event as never)).rejects.toThrow(
-        'Play table not found'
-      )
+      await expect(
+        clearInitiative(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Play table not found')
     })
   })
 
@@ -178,7 +192,9 @@ describe('initiative resolvers', () => {
         }
       )
       const result = await notifyInitiativeUpdated(
-        event as Parameters<typeof notifyInitiativeUpdated>[0]
+        event as Parameters<typeof notifyInitiativeUpdated>[0],
+        {} as never,
+        vi.fn()
       )
       expect(result).toEqual(order)
     })

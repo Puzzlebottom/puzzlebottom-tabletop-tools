@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
-import { AppRoutes } from './App'
+import App, { AppRoutes } from './App'
 
 vi.mock('@aws-amplify/ui-react', () => ({
   Authenticator: ({
@@ -20,6 +20,11 @@ vi.mock('@aws-amplify/ui-react', () => ({
 }))
 
 describe('App', () => {
+  it('renders with BrowserRouter', () => {
+    render(<App />)
+    expect(screen.getByText('Dice Roller')).toBeInTheDocument()
+  })
+
   it('redirects / to /dice', () => {
     render(
       <MemoryRouter initialEntries={['/']}>

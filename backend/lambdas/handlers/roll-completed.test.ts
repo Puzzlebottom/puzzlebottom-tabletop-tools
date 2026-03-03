@@ -86,7 +86,7 @@ describe('roll-completed handler', () => {
       total: 17,
     }
 
-    await handler(event, MINIMAL_CONTEXT)
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockDynamoSend).toHaveBeenCalledTimes(2)
     expect(mockSfnSend).toHaveBeenCalledTimes(1)
@@ -125,7 +125,7 @@ describe('roll-completed handler', () => {
       total: 13,
     }
 
-    await handler(event, MINIMAL_CONTEXT)
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockDynamoSend).toHaveBeenCalledTimes(2)
     expect(mockSfnSend).not.toHaveBeenCalled()
@@ -164,7 +164,7 @@ describe('roll-completed handler', () => {
       total: 17,
     }
 
-    await handler(event, MINIMAL_CONTEXT)
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockDynamoSend).toHaveBeenCalledTimes(4)
     const putCall = mockDynamoSend.mock.calls[3]
@@ -196,7 +196,164 @@ describe('roll-completed handler', () => {
       total: 17,
     }
 
-    await expect(handler(event, MINIMAL_CONTEXT)).resolves.toBeUndefined()
+    await expect(
+      handler(event, MINIMAL_CONTEXT, vi.fn())
+    ).resolves.toBeUndefined()
     expect(mockDynamoSend).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns early when rollRequestId does not match INITIATIVE_PENDING', async () => {
+    const pendingItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE_PENDING',
+      taskToken: 'token-123',
+      rollRequestId: 'rr-other',
+      expectedPlayerKeys: ['p1'],
+      completedPlayerKeys: [],
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: pendingItem })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      rollId: 'roll-1',
+      rollRequestId: 'rr-1',
+      rollRequestType: 'initiative' as const,
+      rollerId: 'p1',
+      rollerType: 'player' as const,
+      values: [15],
+      modifier: 2,
+      total: 17,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns early when rollerId not in expectedPlayerKeys', async () => {
+    const pendingItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE_PENDING',
+      taskToken: 'token-123',
+      rollRequestId: 'rr-1',
+      expectedPlayerKeys: ['p1', 'p2'],
+      completedPlayerKeys: [],
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: pendingItem })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      rollId: 'roll-1',
+      rollRequestId: 'rr-1',
+      rollRequestType: 'initiative' as const,
+      rollerId: 'p3',
+      rollerType: 'player' as const,
+      values: [15],
+      modifier: 2,
+      total: 17,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns early when rollerId already in completedPlayerKeys', async () => {
+    const pendingItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE_PENDING',
+      taskToken: 'token-123',
+      rollRequestId: 'rr-1',
+      expectedPlayerKeys: ['p1', 'p2'],
+      completedPlayerKeys: ['p1'],
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: pendingItem })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      rollId: 'roll-1',
+      rollRequestId: 'rr-1',
+      rollRequestType: 'initiative' as const,
+      rollerId: 'p1',
+      rollerType: 'player' as const,
+      values: [15],
+      modifier: 2,
+      total: 17,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns early when rollRequestId does not match INITIATIVE', async () => {
+    const initiativeItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE',
+      rollRequestId: 'rr-other',
+      order: [
+        { id: 'p1', characterName: 'Alice', value: 18, modifier: 2, total: 20 },
+      ],
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: undefined })
+      .mockResolvedValueOnce({ Item: initiativeItem })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      rollId: 'roll-1',
+      rollRequestId: 'rr-1',
+      rollRequestType: 'initiative' as const,
+      rollerId: 'p3',
+      rollerType: 'player' as const,
+      values: [14],
+      modifier: 3,
+      total: 17,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockDynamoSend).toHaveBeenCalledTimes(2)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('returns early when rollerId already in INITIATIVE order', async () => {
+    const initiativeItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE',
+      rollRequestId: 'rr-1',
+      order: [
+        { id: 'p1', characterName: 'Alice', value: 18, modifier: 2, total: 20 },
+        { id: 'p2', characterName: 'Bob', value: 15, modifier: 1, total: 16 },
+      ],
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: undefined })
+      .mockResolvedValueOnce({ Item: initiativeItem })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      rollId: 'roll-1',
+      rollRequestId: 'rr-1',
+      rollRequestType: 'initiative' as const,
+      rollerId: 'p1',
+      rollerType: 'player' as const,
+      values: [15],
+      modifier: 2,
+      total: 17,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockDynamoSend).toHaveBeenCalledTimes(2)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

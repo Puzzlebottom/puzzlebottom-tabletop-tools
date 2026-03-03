@@ -82,7 +82,7 @@ describe('player-joined handler', () => {
       initiativeModifier: 3,
     }
 
-    await handler(event, MINIMAL_CONTEXT)
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockDynamoSend).toHaveBeenCalledTimes(3)
     const putCall = mockDynamoSend.mock.calls[2]
@@ -121,7 +121,7 @@ describe('player-joined handler', () => {
       initiativeModifier: 3,
     }
 
-    await handler(event, MINIMAL_CONTEXT)
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockDynamoSend).toHaveBeenCalledTimes(3)
     const putCall = mockDynamoSend.mock.calls[2]
@@ -145,7 +145,7 @@ describe('player-joined handler', () => {
       initiativeModifier: 3,
     }
 
-    await handler(event, MINIMAL_CONTEXT)
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockDynamoSend).toHaveBeenCalledTimes(2)
     expect(mockFetch).not.toHaveBeenCalled()
@@ -161,6 +161,171 @@ describe('player-joined handler', () => {
       initiativeModifier: 3,
     }
 
-    await expect(handler(event, MINIMAL_CONTEXT)).resolves.toBeUndefined()
+    await expect(
+      handler(event, MINIMAL_CONTEXT, vi.fn())
+    ).resolves.toBeUndefined()
+  })
+
+  it('sorts new entry by total then value then modifier when adding to order', async () => {
+    const initiativeItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE',
+      rollRequestId: 'rr-1',
+      order: [
+        { id: 'p1', characterName: 'Alice', value: 18, modifier: 2, total: 20 },
+        { id: 'p2', characterName: 'Bob', value: 15, modifier: 1, total: 16 },
+      ],
+    })
+    const rollItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'ROLL#r-p3',
+      rollerId: 'p3',
+      values: [17],
+      modifier: 2,
+      total: 19,
+      rollRequestType: 'initiative',
+      rollRequestId: 'rr-1',
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: initiativeItem })
+      .mockResolvedValueOnce({ Items: [rollItem] })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      id: 'p3',
+      characterName: 'Charlie',
+      initiativeModifier: 2,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    const putCall = mockDynamoSend.mock.calls[2]
+    const putInput = (putCall?.[0] as { input?: unknown })?.input as {
+      Item?: { order?: { L?: { M?: { id?: { S?: string } } }[] } }
+    }
+    const order = putInput?.Item?.order?.L ?? []
+    expect(order).toHaveLength(3)
+    const ids = order.map((e) => e?.M?.id?.S)
+    expect(ids).toEqual(['p1', 'p3', 'p2'])
+  })
+
+  it('amends order when prior roll has no rollRequestId and initiative has no rollRequestId', async () => {
+    const initiativeItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE',
+      order: [
+        { id: 'p1', characterName: 'Alice', value: 18, modifier: 2, total: 20 },
+      ],
+    })
+    const rollItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'ROLL#r-p2',
+      rollerId: 'p2',
+      values: [12],
+      modifier: 1,
+      total: 13,
+      rollRequestType: 'initiative',
+      rollRequestId: null,
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: initiativeItem })
+      .mockResolvedValueOnce({ Items: [rollItem] })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      id: 'p2',
+      characterName: 'Bob',
+      initiativeModifier: 1,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockDynamoSend).toHaveBeenCalledTimes(3)
+    const putCall = mockDynamoSend.mock.calls[2]
+    const putInput = (putCall?.[0] as { input?: unknown })?.input as {
+      Item?: { order?: { L?: { M?: { id?: { S?: string } } }[] } }
+    }
+    const order = putInput?.Item?.order?.L ?? []
+    expect(order).toHaveLength(2)
+    expect(order?.[1]?.M?.id?.S).toBe('p2')
+  })
+
+  it('sorts by modifier when total and value are tied', async () => {
+    const initiativeItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE',
+      rollRequestId: 'rr-1',
+      order: [
+        { id: 'p1', characterName: 'Alice', value: 18, modifier: 1, total: 19 },
+        { id: 'p2', characterName: 'Bob', value: 18, modifier: 0, total: 19 },
+      ],
+    })
+    const rollItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'ROLL#r-p3',
+      rollerId: 'p3',
+      values: [18],
+      modifier: 2,
+      total: 19,
+      rollRequestType: 'initiative',
+      rollRequestId: 'rr-1',
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: initiativeItem })
+      .mockResolvedValueOnce({ Items: [rollItem] })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      id: 'p3',
+      characterName: 'Charlie',
+      initiativeModifier: 2,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    const putCall = mockDynamoSend.mock.calls[2]
+    const putInput = (putCall?.[0] as { input?: unknown })?.input as {
+      Item?: {
+        order?: {
+          L?: { M?: { id?: { S?: string }; modifier?: { N?: string } } }[]
+        }
+      }
+    }
+    const order = putInput?.Item?.order?.L ?? []
+    expect(order).toHaveLength(3)
+    expect(order?.[0]?.M?.id?.S).toBe('p3')
+    expect(order?.[0]?.M?.modifier?.N).toBe('2')
+    expect(order?.[1]?.M?.id?.S).toBe('p1')
+    expect(order?.[2]?.M?.id?.S).toBe('p2')
+  })
+
+  it('returns early when player already in INITIATIVE order', async () => {
+    const initiativeItem = marshall({
+      PK: 'PLAYTABLE#pt-1',
+      SK: 'INITIATIVE',
+      rollRequestId: 'rr-1',
+      order: [
+        { id: 'p1', characterName: 'Alice', value: 18, modifier: 2, total: 20 },
+        { id: 'p2', characterName: 'Bob', value: 15, modifier: 1, total: 16 },
+      ],
+    })
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: initiativeItem })
+      .mockResolvedValue({})
+
+    const event = {
+      playTableId: 'pt-1',
+      id: 'p1',
+      characterName: 'Alice',
+      initiativeModifier: 3,
+    }
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

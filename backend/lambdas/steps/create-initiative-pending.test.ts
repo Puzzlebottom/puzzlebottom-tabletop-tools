@@ -36,7 +36,7 @@ describe('create-initiative-pending handler', () => {
       taskToken: 'token-123',
     }
 
-    await handler(payload, MINIMAL_CONTEXT)
+    await handler(payload, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockSend).toHaveBeenCalledTimes(1)
   })

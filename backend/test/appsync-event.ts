@@ -1,4 +1,23 @@
-import type { AppSyncResolverEvent } from 'aws-lambda/trigger/appsync-resolver'
+import type {
+  AppSyncIdentityCognito,
+  AppSyncResolverEvent,
+} from 'aws-lambda/trigger/appsync-resolver'
+
+/** Minimal Cognito identity for tests. Resolvers typically only need sub. */
+function toTestIdentity(
+  identity?: { sub?: string } | null
+): AppSyncIdentityCognito | undefined {
+  if (!identity?.sub) return undefined
+  return {
+    sub: identity.sub,
+    issuer: 'https://cognito-idp.test.amazonaws.com/test',
+    username: 'test-user',
+    claims: {},
+    sourceIp: [],
+    defaultAuthStrategy: 'user',
+    groups: null,
+  }
+}
 
 /**
  * Creates a minimal AppSyncResolverEvent for unit testing.
@@ -7,11 +26,11 @@ import type { AppSyncResolverEvent } from 'aws-lambda/trigger/appsync-resolver'
  */
 export function createAppSyncEvent<TArguments>(
   args: TArguments,
-  identity?: AppSyncResolverEvent<TArguments>['identity']
+  identity?: { sub?: string } | null
 ): AppSyncResolverEvent<TArguments> {
   return {
     arguments: args,
-    identity: identity ?? undefined,
+    identity: toTestIdentity(identity),
     source: null,
     request: { headers: {}, domainName: null },
     info: {

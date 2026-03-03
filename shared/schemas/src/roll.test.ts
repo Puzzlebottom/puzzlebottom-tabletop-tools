@@ -51,7 +51,7 @@ describe('RollSchema', () => {
     values: [15],
     modifier: 2,
     total: 17,
-    advantage: null as const,
+    advantage: null,
     dc: 15,
     success: true,
     visibility: 'all' as const,

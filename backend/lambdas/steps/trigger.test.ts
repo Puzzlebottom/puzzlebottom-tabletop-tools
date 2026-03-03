@@ -256,4 +256,47 @@ describe('trigger handler (dispatcher)', () => {
 
     expect(mockSfnSend).not.toHaveBeenCalled()
   })
+
+  it('skips RollCompleted with invalid detail', async () => {
+    const event = createSqsEvent([
+      JSON.stringify({
+        version: '0',
+        id: 'evt-123',
+        'detail-type': 'RollCompleted',
+        source: 'puzzlebottom-tabletop-tools',
+        detail: { invalid: 'detail' },
+      }),
+    ])
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockLambdaSend).not.toHaveBeenCalled()
+  })
+
+  it('rethrows when Lambda invoke fails', async () => {
+    mockLambdaSend.mockRejectedValueOnce(new Error('Lambda error'))
+    const detail = {
+      playTableId: 'pt-1',
+      rollId: 'roll-1',
+      rollRequestType: 'initiative' as const,
+      rollerId: 'p1',
+      rollerType: 'player' as const,
+      values: [15],
+      modifier: 2,
+      total: 17,
+    }
+    const event = createSqsEvent([
+      JSON.stringify({
+        version: '0',
+        id: 'evt-123',
+        'detail-type': 'RollCompleted',
+        source: 'puzzlebottom-tabletop-tools',
+        detail,
+      }),
+    ])
+
+    await expect(handler(event, MINIMAL_CONTEXT, vi.fn())).rejects.toThrow(
+      'Lambda error'
+    )
+  })
 })

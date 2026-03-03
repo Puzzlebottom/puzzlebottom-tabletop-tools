@@ -274,8 +274,10 @@ describe('parseEventDetail', () => {
     }
     const result = parseEventDetail(envelope)
     expect(result.detailType).toBe(DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED)
-    expect(result.detail.playTableId).toBe('pt-1')
-    expect(result.detail.expectedCount).toBe(1)
+    if (result.detailType === DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED) {
+      expect(result.detail.playTableId).toBe('pt-1')
+      expect(result.detail.expectedCount).toBe(1)
+    }
   })
 
   it('parses RollCompleted envelope', () => {
@@ -297,8 +299,10 @@ describe('parseEventDetail', () => {
     }
     const result = parseEventDetail(envelope)
     expect(result.detailType).toBe(DETAIL_TYPE_ROLL_COMPLETED)
-    expect(result.detail.rollId).toBe('roll-1')
-    expect(result.detail.values).toEqual([18])
+    if (result.detailType === DETAIL_TYPE_ROLL_COMPLETED) {
+      expect(result.detail.rollId).toBe('roll-1')
+      expect(result.detail.values).toEqual([18])
+    }
   })
 
   it('parses PlayerLeft envelope', () => {
@@ -311,7 +315,9 @@ describe('parseEventDetail', () => {
     }
     const result = parseEventDetail(envelope)
     expect(result.detailType).toBe(DETAIL_TYPE_PLAYER_LEFT)
-    expect(result.detail.id).toBe('pk-1')
+    if (result.detailType === DETAIL_TYPE_PLAYER_LEFT) {
+      expect(result.detail.id).toBe('pk-1')
+    }
   })
 
   it('parses PlayerJoined envelope', () => {
@@ -329,7 +335,9 @@ describe('parseEventDetail', () => {
     }
     const result = parseEventDetail(envelope)
     expect(result.detailType).toBe(DETAIL_TYPE_PLAYER_JOINED)
-    expect(result.detail.characterName).toBe('Aragorn')
+    if (result.detailType === DETAIL_TYPE_PLAYER_JOINED) {
+      expect(result.detail.characterName).toBe('Aragorn')
+    }
   })
 
   it('throws for unknown detail-type', () => {

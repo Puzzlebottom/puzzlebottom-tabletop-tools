@@ -70,7 +70,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
         },
       }
     )
@@ -141,7 +141,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
         },
       }
     )
@@ -173,7 +173,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
         },
       }
     )
@@ -205,7 +205,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
         },
       }
     )

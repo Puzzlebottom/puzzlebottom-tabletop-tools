@@ -13,7 +13,12 @@ import {
   EVENT_SOURCE,
   RollCompletedDetailSchema,
 } from '@puzzlebottom-tabletop-tools/schemas'
-import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
+import type {
+  AppSyncResolverEvent,
+  AppSyncResolverHandler,
+  Callback,
+  Context,
+} from 'aws-lambda'
 import { randomUUID } from 'crypto'
 
 const dynamo = new DynamoDBClient({})
@@ -55,7 +60,10 @@ async function resolveActor(
   identity: AppSyncResolverEvent<unknown>['identity'],
   playerId?: string | null
 ): Promise<RollerIdentity> {
-  const gmSub = identity?.sub as string | undefined
+  const gmSub =
+    identity && 'sub' in identity
+      ? (identity as { sub: string }).sub
+      : undefined
   if (gmSub) {
     return { type: 'gm', rollerId: gmSub }
   }
@@ -103,7 +111,7 @@ async function performRoll(params: {
   } = params
 
   const { values, used } = rollD20(advantage)
-  const total = used + modifier
+  const total = used + (modifier ?? 0)
   const success = dc !== undefined && dc !== null ? total >= dc : null
 
   const rollId = randomUUID()
@@ -292,7 +300,9 @@ export const fulfillRollRequest: AppSyncResolverHandler<
  * Main handler that routes AppSync invocations to rollDice or fulfillRollRequest.
  */
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>
+  event: AppSyncResolverEvent<unknown>,
+  context: Context,
+  callback: Callback<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -311,7 +321,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
           rollRequestId?: string | null
         }
       }>
-      return rollDice(e)
+      return rollDice(e, context, callback)
     }
     if (fieldName === 'fulfillRollRequest') {
       const e = event as AppSyncResolverEvent<{
@@ -319,7 +329,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
         playTableId: string
         playerId: string
       }>
-      return fulfillRollRequest(e)
+      return fulfillRollRequest(e, context, callback)
     }
   }
 

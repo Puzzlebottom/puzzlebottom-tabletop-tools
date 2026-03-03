@@ -4,7 +4,12 @@ import {
   GetItemCommand,
 } from '@aws-sdk/client-dynamodb'
 import { marshall } from '@aws-sdk/util-dynamodb'
-import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
+import type {
+  AppSyncResolverEvent,
+  AppSyncResolverHandler,
+  Callback,
+  Context,
+} from 'aws-lambda'
 
 const dynamo = new DynamoDBClient({})
 const TABLE_NAME = process.env.TABLE_NAME!
@@ -13,7 +18,10 @@ export const clearInitiative: AppSyncResolverHandler<
   { playTableId: string },
   boolean
 > = async (event) => {
-  const gmUserId = event.identity?.sub as string | undefined
+  const gmUserId =
+    event.identity && 'sub' in event.identity
+      ? (event.identity as { sub: string }).sub
+      : undefined
   if (!gmUserId) {
     throw new Error(
       'Unauthorized: clearInitiative requires Cognito authentication'
@@ -75,7 +83,9 @@ export const notifyInitiativeUpdated: AppSyncResolverHandler<
 }
 
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>
+  event: AppSyncResolverEvent<unknown>,
+  context: Context,
+  callback: Callback<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -83,7 +93,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
   if (parentType === 'Mutation') {
     if (fieldName === 'clearInitiative') {
       const e = event as AppSyncResolverEvent<{ playTableId: string }>
-      return clearInitiative(e)
+      return clearInitiative(e, context, callback)
     }
     if (fieldName === 'notifyInitiativeUpdated') {
       const e = event as AppSyncResolverEvent<{
@@ -96,7 +106,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
           total: number
         }[]
       }>
-      return notifyInitiativeUpdated(e)
+      return notifyInitiativeUpdated(e, context, callback)
     }
   }
 

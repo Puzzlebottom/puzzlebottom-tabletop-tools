@@ -17,7 +17,12 @@ import {
   PlayerJoinedDetailSchema,
   PlayerLeftDetailSchema,
 } from '@puzzlebottom-tabletop-tools/schemas'
-import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
+import type {
+  AppSyncResolverEvent,
+  AppSyncResolverHandler,
+  Callback,
+  Context,
+} from 'aws-lambda'
 import { randomUUID } from 'crypto'
 
 const dynamo = new DynamoDBClient({})
@@ -38,7 +43,10 @@ export const createPlayTable: AppSyncResolverHandler<
   Record<string, never>,
   { id: string; gmUserId: string; inviteCode: string; createdAt: string }
 > = async (event) => {
-  const gmUserId = event.identity?.sub as string | undefined
+  const gmUserId =
+    event.identity && 'sub' in event.identity
+      ? (event.identity as { sub: string }).sub
+      : undefined
   if (!gmUserId) {
     throw new Error(
       'Unauthorized: createPlayTable requires Cognito authentication'
@@ -285,7 +293,9 @@ export const playTable: AppSyncResolverHandler<
  * AppSync sends the full context when using Direct Lambda (no request template).
  */
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>
+  event: AppSyncResolverEvent<unknown>,
+  context: Context,
+  callback: Callback<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -293,32 +303,32 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
   if (parentType === 'Query') {
     if (fieldName === 'playTable') {
       const e = event as AppSyncResolverEvent<{ id: string }>
-      return playTable(e)
+      return playTable(e, context, callback)
     }
     if (fieldName === 'playTableByInviteCode') {
       const e = event as AppSyncResolverEvent<{ inviteCode: string }>
-      return playTableByInviteCode(e)
+      return playTableByInviteCode(e, context, callback)
     }
   }
 
   if (parentType === 'Mutation') {
     if (fieldName === 'createPlayTable') {
       const e = event as AppSyncResolverEvent<Record<string, never>>
-      return createPlayTable(e)
+      return createPlayTable(e, context, callback)
     }
     if (fieldName === 'joinPlayTable') {
       const e = event as AppSyncResolverEvent<{
         inviteCode: string
         input: { characterName: string; initiativeModifier: number }
       }>
-      return joinPlayTable(e)
+      return joinPlayTable(e, context, callback)
     }
     if (fieldName === 'leavePlayTable') {
       const e = event as AppSyncResolverEvent<{
         playTableId: string
         playerId: string
       }>
-      return leavePlayTable(e)
+      return leavePlayTable(e, context, callback)
     }
   }
 

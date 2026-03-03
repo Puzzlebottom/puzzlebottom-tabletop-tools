@@ -13,7 +13,12 @@ import {
   EVENT_SOURCE,
   InitiativeRollRequestCreatedDetailSchema,
 } from '@puzzlebottom-tabletop-tools/schemas'
-import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
+import type {
+  AppSyncResolverEvent,
+  AppSyncResolverHandler,
+  Callback,
+  Context,
+} from 'aws-lambda'
 import { randomUUID } from 'crypto'
 
 const dynamo = new DynamoDBClient({})
@@ -43,7 +48,10 @@ export const createRollRequest: AppSyncResolverHandler<
     createdAt: string
   }
 > = async (event) => {
-  const gmUserId = event.identity?.sub as string | undefined
+  const gmUserId =
+    event.identity && 'sub' in event.identity
+      ? (event.identity as { sub: string }).sub
+      : undefined
   if (!gmUserId) {
     throw new Error(
       'Unauthorized: createRollRequest requires Cognito authentication'
@@ -124,14 +132,16 @@ export const createRollRequest: AppSyncResolverHandler<
     type,
     dc: dc ?? null,
     advantage: advantage ?? null,
-    isPrivate,
+    isPrivate: isPrivate ?? false,
     status,
     createdAt,
   }
 }
 
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>
+  event: AppSyncResolverEvent<unknown>,
+  context: Context,
+  callback: Callback<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -147,7 +157,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
         isPrivate?: boolean | null
       }
     }>
-    return createRollRequest(e)
+    return createRollRequest(e, context, callback)
   }
 
   throw new Error(`Unknown resolver: ${parentType}.${fieldName}`)
