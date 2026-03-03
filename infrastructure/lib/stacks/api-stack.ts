@@ -136,6 +136,78 @@ export class ApiStack extends cdk.Stack {
       fieldName: 'fulfillRollRequest',
     })
 
+    const rollRequestFn = new lambdaNode.NodejsFunction(this, 'RollRequestFn', {
+      functionName: `${config.envName}-roll-request-resolver`,
+      entry: path.join(
+        import.meta.dirname,
+        '../../../backend/lambdas/resolvers/roll-request.ts'
+      ),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_24_X,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      environment: {
+        TABLE_NAME: dataTable.tableName,
+        EVENT_BUS_NAME: eventBus.eventBusName,
+      },
+      bundling: {
+        format: lambdaNode.OutputFormat.ESM,
+        minify: true,
+        sourceMap: true,
+      },
+    })
+
+    dataTable.grantReadWriteData(rollRequestFn)
+    eventBus.grantPutEventsTo(rollRequestFn)
+
+    const rollRequestDs = this.api.addLambdaDataSource(
+      'RollRequestDataSource',
+      rollRequestFn
+    )
+
+    rollRequestDs.createResolver('CreateRollRequestResolver', {
+      typeName: 'Mutation',
+      fieldName: 'createRollRequest',
+    })
+
+    const initiativeFn = new lambdaNode.NodejsFunction(this, 'InitiativeFn', {
+      functionName: `${config.envName}-initiative-resolver`,
+      entry: path.join(
+        import.meta.dirname,
+        '../../../backend/lambdas/resolvers/initiative.ts'
+      ),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_24_X,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      environment: {
+        TABLE_NAME: dataTable.tableName,
+      },
+      bundling: {
+        format: lambdaNode.OutputFormat.ESM,
+        minify: true,
+        sourceMap: true,
+      },
+    })
+
+    dataTable.grantReadWriteData(initiativeFn)
+
+    const initiativeDs = this.api.addLambdaDataSource(
+      'InitiativeDataSource',
+      initiativeFn
+    )
+
+    initiativeDs.createResolver('ClearInitiativeResolver', {
+      typeName: 'Mutation',
+      fieldName: 'clearInitiative',
+    })
+    initiativeDs.createResolver('NotifyInitiativeUpdatedResolver', {
+      typeName: 'Mutation',
+      fieldName: 'notifyInitiativeUpdated',
+    })
+
     new cdk.CfnOutput(this, 'GraphQLApiUrl', {
       value: this.api.graphqlUrl,
       exportName: `${config.envName}-graphql-api-url`,
