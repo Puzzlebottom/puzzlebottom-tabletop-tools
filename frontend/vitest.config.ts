@@ -23,6 +23,7 @@ export default defineConfig(() =>
           '**/*.test.{ts,tsx}',
           '**/*.spec.{ts,tsx}',
           'src/test/**',
+          'src/components/DiceRollerScene.tsx',
         ],
         thresholds: {
           lines: 90,

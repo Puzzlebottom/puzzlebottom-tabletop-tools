@@ -159,9 +159,12 @@ module.exports = tseslint.config(
   // Must be last: disables ESLint rules that conflict with Prettier
   prettierConfig,
 
-  // DiceRoller: Three.js/R3F use lowercase primitives and types that strict TS may not resolve
+  // DiceRoller + DiceRollerScene: Three.js/R3F use lowercase primitives and types that strict TS may not resolve
   {
-    files: ['frontend/src/components/DiceRoller.tsx'],
+    files: [
+      'frontend/src/components/DiceRoller.tsx',
+      'frontend/src/components/DiceRollerScene.tsx',
+    ],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',

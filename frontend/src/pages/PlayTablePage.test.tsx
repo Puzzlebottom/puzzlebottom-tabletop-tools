@@ -687,4 +687,35 @@ describe('PlayTablePage', () => {
       expect(screen.getByRole('button', { name: /roll d20/i })).toBeEnabled()
     })
   })
+
+  it('resets rolling and sets cocked when GM ad hoc roll rejects', async () => {
+    const user = userEvent.setup()
+    mockGetStoredPlayer.mockReturnValue(null)
+    vi.mocked(getCurrentUser).mockResolvedValue({} as never)
+    mockGraphql
+      .mockResolvedValueOnce({
+        data: { rollHistory: { items: [], nextToken: null } },
+      })
+      .mockRejectedValueOnce(new Error('Ad hoc roll failed'))
+
+    render(
+      <MemoryRouter initialEntries={['/dice/table/table-1']}>
+        <Routes>
+          <Route path="/dice/table/:playTableId" element={<PlayTablePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /roll d20/i })
+      ).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /roll d20/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/re-roll/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /roll d20/i })).toBeEnabled()
+  })
 })

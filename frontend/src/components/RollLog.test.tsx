@@ -56,6 +56,43 @@ describe('RollLog', () => {
     expect(screen.getByText(/DC 15.*success/)).toBeInTheDocument()
   })
 
+  it('shows DC and fail when success is false', () => {
+    const rolls: RollDisplayItem[] = [
+      {
+        id: 'roll-2',
+        rollerId: 'p1',
+        rollerType: 'player',
+        total: 10,
+        values: [8],
+        modifier: 2,
+        dc: 15,
+        success: false,
+        visibility: 'all',
+        createdAt: '2024-01-01T00:00:00Z',
+      },
+    ]
+    render(<RollLog rolls={rolls} />)
+    expect(screen.getByText(/DC 15.*fail/)).toBeInTheDocument()
+  })
+
+  it('shows advantage when present', () => {
+    const rolls: RollDisplayItem[] = [
+      {
+        id: 'roll-3',
+        rollerId: 'p1',
+        rollerType: 'player',
+        total: 18,
+        values: [15, 12],
+        modifier: 3,
+        advantage: 'advantage',
+        visibility: 'all',
+        createdAt: '2024-01-01T00:00:00Z',
+      },
+    ]
+    render(<RollLog rolls={rolls} />)
+    expect(screen.getByText(/\[advantage\]/)).toBeInTheDocument()
+  })
+
   it('shows load more button when hasMore', async () => {
     const user = userEvent.setup()
     const onLoadMore = vi.fn()
