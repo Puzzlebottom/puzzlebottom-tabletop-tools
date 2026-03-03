@@ -97,6 +97,45 @@ export class ApiStack extends cdk.Stack {
       fieldName: 'playTableByInviteCode',
     })
 
+    const rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
+      functionName: `${config.envName}-roll-dice-resolver`,
+      entry: path.join(
+        import.meta.dirname,
+        '../../../backend/lambdas/resolvers/roll-dice.ts'
+      ),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_24_X,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      environment: {
+        TABLE_NAME: dataTable.tableName,
+        EVENT_BUS_NAME: eventBus.eventBusName,
+      },
+      bundling: {
+        format: lambdaNode.OutputFormat.ESM,
+        minify: true,
+        sourceMap: true,
+      },
+    })
+
+    dataTable.grantReadWriteData(rollDiceFn)
+    eventBus.grantPutEventsTo(rollDiceFn)
+
+    const rollDiceDs = this.api.addLambdaDataSource(
+      'RollDiceDataSource',
+      rollDiceFn
+    )
+
+    rollDiceDs.createResolver('RollDiceResolver', {
+      typeName: 'Mutation',
+      fieldName: 'rollDice',
+    })
+    rollDiceDs.createResolver('FulfillRollRequestResolver', {
+      typeName: 'Mutation',
+      fieldName: 'fulfillRollRequest',
+    })
+
     new cdk.CfnOutput(this, 'GraphQLApiUrl', {
       value: this.api.graphqlUrl,
       exportName: `${config.envName}-graphql-api-url`,

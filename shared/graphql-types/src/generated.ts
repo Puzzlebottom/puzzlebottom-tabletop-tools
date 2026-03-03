@@ -66,6 +66,7 @@ export type MutationCreateRollRequestArgs = {
 
 export type MutationFulfillRollRequestArgs = {
   playTableId: Scalars['ID']['input'];
+  playerId: Scalars['String']['input'];
   rollRequestId: Scalars['ID']['input'];
 };
 

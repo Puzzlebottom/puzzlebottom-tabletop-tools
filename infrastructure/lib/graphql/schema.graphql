@@ -132,7 +132,11 @@ type Mutation {
     playTableId: ID!
     input: CreateRollRequestInput!
   ): RollRequest!
-  fulfillRollRequest(rollRequestId: ID!, playTableId: ID!): RollDiceResponse!
+  fulfillRollRequest(
+    rollRequestId: ID!
+    playTableId: ID!
+    playerId: String!
+  ): RollDiceResponse!
   clearInitiative(playTableId: ID!): Boolean!
   notifyInitiativeUpdated(
     playTableId: ID!
