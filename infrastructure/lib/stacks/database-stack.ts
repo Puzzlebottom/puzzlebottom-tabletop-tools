@@ -26,10 +26,27 @@ export class DatabaseStack extends cdk.Stack {
       timeToLiveAttribute: 'ttl',
     })
 
+    // GSI1: GM#<gmUserId> + createdAt — list PlayTables by GM
     this.dataTable.addGlobalSecondaryIndex({
       indexName: 'GSI1',
       partitionKey: { name: 'GSI1PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    })
+
+    // GSI2: INVITECODE#<code> + PLAYTABLE — lookup PlayTable by invite link
+    this.dataTable.addGlobalSecondaryIndex({
+      indexName: 'GSI2',
+      partitionKey: { name: 'GSI2PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI2SK', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    })
+
+    // GSI3: TARGET#<playerKey> + status#createdAt — list RollRequests by target player
+    this.dataTable.addGlobalSecondaryIndex({
+      indexName: 'GSI3',
+      partitionKey: { name: 'GSI3PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI3SK', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     })
 

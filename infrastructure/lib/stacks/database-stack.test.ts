@@ -25,7 +25,7 @@ describe('DatabaseStack', () => {
     })
   })
 
-  it('creates a GSI named GSI1', () => {
+  it('creates GSIs for dice roller access patterns', () => {
     const app = new cdk.App()
     const stack = new DatabaseStack(app, 'TestDatabaseStack', {
       config: mockConfig,
@@ -34,6 +34,9 @@ describe('DatabaseStack', () => {
 
     const template = Template.fromStack(stack)
 
+    // GSI1: GM#gmUserId + createdAt — list PlayTables by GM
+    // GSI2: INVITECODE#code + PLAYTABLE — lookup PlayTable by invite link
+    // GSI3: TARGET#playerKey + status#createdAt — list RollRequests by target player
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       GlobalSecondaryIndexes: Match.arrayWith([
         Match.objectLike({
@@ -41,6 +44,20 @@ describe('DatabaseStack', () => {
           KeySchema: Match.arrayWith([
             { AttributeName: 'GSI1PK', KeyType: 'HASH' },
             { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
+          ]),
+        }),
+        Match.objectLike({
+          IndexName: 'GSI2',
+          KeySchema: Match.arrayWith([
+            { AttributeName: 'GSI2PK', KeyType: 'HASH' },
+            { AttributeName: 'GSI2SK', KeyType: 'RANGE' },
+          ]),
+        }),
+        Match.objectLike({
+          IndexName: 'GSI3',
+          KeySchema: Match.arrayWith([
+            { AttributeName: 'GSI3PK', KeyType: 'HASH' },
+            { AttributeName: 'GSI3SK', KeyType: 'RANGE' },
           ]),
         }),
       ]),
