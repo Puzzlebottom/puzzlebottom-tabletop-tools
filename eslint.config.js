@@ -58,6 +58,11 @@ module.exports = tseslint.config(
           pattern: 'backend/lambdas/resolvers/**/*.ts',
           mode: 'full',
         },
+        {
+          type: 'handlers',
+          pattern: 'backend/lambdas/handlers/**/*.ts',
+          mode: 'full',
+        },
         { type: 'frontend', pattern: 'frontend/src/**/*.ts', mode: 'full' },
         { type: 'frontend', pattern: 'frontend/src/**/*.tsx', mode: 'full' },
         {
@@ -77,6 +82,7 @@ module.exports = tseslint.config(
             { from: 'contracts', disallow: ['*'] },
             { from: 'steps', allow: ['domain'] },
             { from: 'resolvers', allow: ['domain', 'contracts'] },
+            { from: 'handlers', allow: ['domain'] },
             { from: 'frontend', allow: ['domain', 'contracts'] },
             { from: 'infrastructure', allow: [] },
           ],
