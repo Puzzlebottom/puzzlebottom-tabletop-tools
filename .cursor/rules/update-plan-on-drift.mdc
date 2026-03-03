@@ -1,0 +1,16 @@
+---
+description: Update plans when implementation changes cause drift from the original directive
+alwaysApply: true
+---
+
+# Update Plan on Drift
+
+When implementing a task that is part of a larger plan, changes often occur during review: additional decisions, clarifications, or refinements can lead to drift from the original directive.
+
+**Keep the plan in sync.** When such drift happens:
+
+1. **Update the plan** so it reflects the new decisions or clarified direction
+2. **Document what changed** — briefly note the revision and why
+3. **Ensure subsequent tasks** can see the updated directive and won't repeat old assumptions
+
+This prevents future work from following outdated instructions or redoing work that was intentionally changed.

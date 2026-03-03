@@ -1,0 +1,14 @@
+---
+description: Require explanation of work before committing when implementing a task
+alwaysApply: true
+---
+
+# Explain Before Commit
+
+When implementing a task (from a plan, todo, or user request):
+
+1. **Before committing**, provide a brief explanation of what was done
+2. **Include:** what changed, why it was done, and how it fits the plan or request
+3. **Keep it concise:** 2–5 sentences is usually enough
+
+This supports review, future maintenance, and helps the user understand the work before it lands in the repo.

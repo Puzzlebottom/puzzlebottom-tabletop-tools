@@ -1,0 +1,12 @@
+---
+description: Never skip the pre-commit hook when committing
+alwaysApply: true
+---
+
+# Never Skip Pre-Commit Hook
+
+**NEVER** use `--no-verify`, `-n`, or `--no-gpg-sign` (or any flag that bypasses git hooks) when committing.
+
+- Always run the full pre-commit hook (format:check, codegen:check, lint-staged, typecheck, test)
+- If the hook fails, fix the issues rather than bypassing
+- The pre-commit hook exists to catch problems before they land in the repo
