@@ -4,11 +4,16 @@ import { Template } from 'aws-cdk-lib/assertions'
 import { mockConfig } from '../test/mock-config.js'
 import { ApiStack } from './api-stack.js'
 import { AuthStack } from './auth-stack.js'
+import { DatabaseStack } from './database-stack.js'
 import { EventStack } from './event-stack.js'
 
 function createApiStack(): ApiStack {
   const app = new cdk.App()
   const authStack = new AuthStack(app, 'AuthStack', {
+    config: mockConfig,
+    env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
+  })
+  const databaseStack = new DatabaseStack(app, 'DatabaseStack', {
     config: mockConfig,
     env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
   })
@@ -20,6 +25,7 @@ function createApiStack(): ApiStack {
     config: mockConfig,
     userPool: authStack.userPool,
     eventBus: eventStack.eventBus,
+    dataTable: databaseStack.dataTable,
     env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
   })
 }

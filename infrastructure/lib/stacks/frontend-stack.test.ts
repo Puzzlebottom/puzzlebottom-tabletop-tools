@@ -10,6 +10,7 @@ import {
 } from '../test/mock-config.js'
 import { ApiStack } from './api-stack.js'
 import { AuthStack } from './auth-stack.js'
+import { DatabaseStack } from './database-stack.js'
 import { EventStack } from './event-stack.js'
 import { FrontendStack } from './frontend-stack.js'
 
@@ -21,6 +22,10 @@ function createFrontendStack(config = mockConfig): FrontendStack {
     config,
     env: { account: config.awsAccount, region: config.awsRegion },
   })
+  const databaseStack = new DatabaseStack(app, 'DatabaseStack', {
+    config,
+    env: { account: config.awsAccount, region: config.awsRegion },
+  })
   const eventStack = new EventStack(app, 'EventStack', {
     config,
     env: { account: config.awsAccount, region: config.awsRegion },
@@ -29,6 +34,7 @@ function createFrontendStack(config = mockConfig): FrontendStack {
     config,
     userPool: authStack.userPool,
     eventBus: eventStack.eventBus,
+    dataTable: databaseStack.dataTable,
     env: { account: config.awsAccount, region: config.awsRegion },
   })
   return new FrontendStack(app, 'TestFrontendStack', {
@@ -115,6 +121,10 @@ describe('FrontendStack', () => {
       config: mockConfig,
       env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
     })
+    const databaseStack = new DatabaseStack(app, 'DatabaseStack', {
+      config: mockConfig,
+      env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
+    })
     const eventStack = new EventStack(app, 'EventStack', {
       config: mockConfig,
       env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
@@ -123,6 +133,7 @@ describe('FrontendStack', () => {
       config: mockConfig,
       userPool: authStack.userPool,
       eventBus: eventStack.eventBus,
+      dataTable: databaseStack.dataTable,
       env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
     })
 

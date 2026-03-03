@@ -59,6 +59,7 @@ const apiStack = new ApiStack(app, `${prefix}-ApiStack`, {
   config,
   userPool: authStack.userPool,
   eventBus: eventStack.eventBus,
+  dataTable: databaseStack.dataTable,
 })
 
 const frontendStack = new FrontendStack(app, `${prefix}-FrontendStack`, {
