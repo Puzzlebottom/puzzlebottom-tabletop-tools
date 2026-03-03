@@ -16,3 +16,56 @@ export const joinPlayTableMutation = /* GraphQL */ `
     }
   }
 `
+
+export const leavePlayTableMutation = /* GraphQL */ `
+  mutation LeavePlayTable($playTableId: ID!, $playerId: String!) {
+    leavePlayTable(playTableId: $playTableId, playerId: $playerId)
+  }
+`
+
+export const rollDiceMutation = /* GraphQL */ `
+  mutation RollDice($playTableId: ID!, $input: RollDiceInput!) {
+    rollDice(playTableId: $playTableId, input: $input) {
+      rollId
+      accepted
+    }
+  }
+`
+
+export const fulfillRollRequestMutation = /* GraphQL */ `
+  mutation FulfillRollRequest(
+    $rollRequestId: ID!
+    $playTableId: ID!
+    $playerId: String!
+  ) {
+    fulfillRollRequest(
+      rollRequestId: $rollRequestId
+      playTableId: $playTableId
+      playerId: $playerId
+    ) {
+      rollId
+      accepted
+    }
+  }
+`
+
+export const createRollRequestMutation = /* GraphQL */ `
+  mutation CreateRollRequest(
+    $playTableId: ID!
+    $input: CreateRollRequestInput!
+  ) {
+    createRollRequest(playTableId: $playTableId, input: $input) {
+      id
+      targetPlayerIds
+      type
+      status
+      createdAt
+    }
+  }
+`
+
+export const clearInitiativeMutation = /* GraphQL */ `
+  mutation ClearInitiative($playTableId: ID!) {
+    clearInitiative(playTableId: $playTableId)
+  }
+`

@@ -8,6 +8,31 @@ const mockGetStoredPlayer = vi.fn()
 vi.mock('../lib/player-storage', () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- test mock
   getStoredPlayer: () => mockGetStoredPlayer(),
+  clearStoredPlayer: vi.fn(),
+}))
+
+vi.mock('aws-amplify/api', () => ({
+  generateClient: () => ({
+    graphql: (config: unknown) => {
+      const isSubscription =
+        typeof config === 'object' &&
+        config !== null &&
+        'query' in config &&
+        typeof (config as { query: string }).query === 'string' &&
+        (config as { query: string }).query.includes('subscription')
+      if (isSubscription) {
+        return {
+          subscribe: () => ({ unsubscribe: vi.fn() }),
+        }
+      }
+      return Promise.resolve({
+        data: {
+          rollHistory: { items: [], nextToken: null },
+          playTable: { players: [] },
+        },
+      })
+    },
+  }),
 }))
 
 vi.mock('aws-amplify/auth', () => ({
@@ -125,5 +150,54 @@ describe('PlayTablePage', () => {
       </MemoryRouter>
     )
     expect(screen.getByText('Loading…')).toBeInTheDocument()
+  })
+
+  it('shows roll log and initiative when in player view', async () => {
+    mockGetStoredPlayer.mockReturnValue({
+      playerId: 'p1',
+      playTableId: 'table-1',
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/dice/table/table-1']}>
+        <Routes>
+          <Route path="/dice/table/:playTableId" element={<PlayTablePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Roll log')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Initiative')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /roll d20/i })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /leave table/i })
+    ).toBeInTheDocument()
+  })
+
+  it('shows GM controls when in GM view', async () => {
+    mockGetStoredPlayer.mockReturnValue(null)
+    vi.mocked(getCurrentUser).mockResolvedValue({} as never)
+
+    render(
+      <MemoryRouter initialEntries={['/dice/table/table-1']}>
+        <Routes>
+          <Route path="/dice/table/:playTableId" element={<PlayTablePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('GM controls')).toBeInTheDocument()
+    })
+    expect(
+      screen.getByRole('button', { name: /request initiative roll/i })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /clear initiative/i })
+    ).toBeInTheDocument()
   })
 })
