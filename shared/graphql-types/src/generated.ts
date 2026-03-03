@@ -213,7 +213,7 @@ export type RollerType =
   | 'player';
 
 export type Subscription = {
-  onInitiativeUpdated?: Maybe<InitiativeOrderUpdated>;
+  onInitiativeUpdated: InitiativeOrderUpdated;
   onRollCompleted?: Maybe<RollResult>;
   onRollRequestCreated?: Maybe<RollRequest>;
 };
@@ -332,7 +332,7 @@ export type OnInitiativeUpdatedSubscriptionVariables = Exact<{
 }>;
 
 
-export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated?: { order: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> } | null };
+export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated: { order: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> } };
 
 
 type Properties<T> = Required<{

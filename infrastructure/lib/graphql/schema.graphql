@@ -161,6 +161,6 @@ type Subscription {
     @aws_subscribe(mutations: ["rollDice", "fulfillRollRequest"])
   onRollRequestCreated(playTableId: ID!): RollRequest
     @aws_subscribe(mutations: ["createRollRequest"])
-  onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated
+  onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated!
     @aws_subscribe(mutations: ["notifyInitiativeUpdated"])
 }
