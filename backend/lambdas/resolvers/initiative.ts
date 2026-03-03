@@ -85,10 +85,16 @@ export const notifyInitiativeUpdated: AppSyncResolverHandler<
   return Promise.resolve({ order: event.arguments.order })
 }
 
+/** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
+const NOOP_CONTEXT = {} as Context
+const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
+
+/**
+ * Main handler that routes to clearInitiative or notifyInitiativeUpdated.
+ * Uses async/await (no callback param) for Node.js 24+ compatibility.
+ */
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>,
-  context: Context,
-  callback: Callback<unknown>
+  event: AppSyncResolverEvent<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -96,7 +102,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
   if (parentType === 'Mutation') {
     if (fieldName === 'clearInitiative') {
       const e = event as AppSyncResolverEvent<{ playTableId: string }>
-      return clearInitiative(e, context, callback)
+      return clearInitiative(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
     if (fieldName === 'notifyInitiativeUpdated') {
       const e = event as AppSyncResolverEvent<{
@@ -109,7 +115,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
           total: number
         }[]
       }>
-      return notifyInitiativeUpdated(e, context, callback)
+      return notifyInitiativeUpdated(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
   }
 

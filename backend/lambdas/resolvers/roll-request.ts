@@ -138,10 +138,15 @@ export const createRollRequest: AppSyncResolverHandler<
   }
 }
 
+/** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
+const NOOP_CONTEXT = {} as Context
+const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
+
+/**
+ * Main handler for createRollRequest. Uses async/await (no callback param) for Node.js 24+ compatibility.
+ */
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>,
-  context: Context,
-  callback: Callback<unknown>
+  event: AppSyncResolverEvent<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -157,7 +162,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
         isPrivate?: boolean | null
       }
     }>
-    return createRollRequest(e, context, callback)
+    return createRollRequest(e, NOOP_CONTEXT, NOOP_CALLBACK)
   }
 
   throw new Error(`Unknown resolver: ${parentType}.${fieldName}`)

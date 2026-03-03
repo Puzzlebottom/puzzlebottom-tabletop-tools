@@ -321,13 +321,16 @@ export const fulfillRollRequest: AppSyncResolverHandler<
   })
 }
 
+/** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
+const NOOP_CONTEXT = {} as Context
+const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
+
 /**
  * Main handler that routes AppSync invocations to rollDice or fulfillRollRequest.
+ * Uses async/await (no callback param) for Node.js 24+ compatibility.
  */
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>,
-  context: Context,
-  callback: Callback<unknown>
+  event: AppSyncResolverEvent<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -346,7 +349,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
           rollRequestId?: string | null
         }
       }>
-      return rollDice(e, context, callback)
+      return rollDice(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
     if (fieldName === 'fulfillRollRequest') {
       const e = event as AppSyncResolverEvent<{
@@ -354,7 +357,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
         playTableId: string
         playerId: string
       }>
-      return fulfillRollRequest(e, context, callback)
+      return fulfillRollRequest(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
   }
 

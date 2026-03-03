@@ -8,6 +8,18 @@ import { createPlayTableMutation } from '../graphql/mutations'
 
 const client = generateClient()
 
+/** Extract user-facing message from Amplify/AppSync/GraphQL errors. */
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  const o = err as Record<string, unknown>
+  const gqlErrors = o.errors as { message?: string }[] | undefined
+  if (Array.isArray(gqlErrors) && gqlErrors[0]?.message) {
+    return gqlErrors[0].message
+  }
+  if (typeof o.message === 'string') return o.message
+  return 'Failed to create play table'
+}
+
 export function CreatePlayTablePage() {
   return (
     <Authenticator>
@@ -44,9 +56,8 @@ function CreatePlayTableContent({
         inviteCode: result.data.createPlayTable.inviteCode,
       })
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to create play table'
-      )
+      const message = extractErrorMessage(err)
+      setError(message)
     } finally {
       setCreating(false)
     }

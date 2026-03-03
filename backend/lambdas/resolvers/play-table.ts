@@ -288,14 +288,17 @@ export const playTable: AppSyncResolverHandler<
   return fetchPlayTableWithPlayers(playTableId)
 }
 
+/** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. Kept for AppSyncResolverHandler type compatibility. */
+const NOOP_CONTEXT = {} as Context
+const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
+
 /**
  * Main handler that routes AppSync invocations to the appropriate resolver.
  * AppSync sends the full context when using Direct Lambda (no request template).
+ * Uses async/await (no callback param) for Node.js 24+ compatibility.
  */
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
-  event: AppSyncResolverEvent<unknown>,
-  context: Context,
-  callback: Callback<unknown>
+  event: AppSyncResolverEvent<unknown>
 ) => {
   const fieldName = event.info?.fieldName ?? ''
   const parentType = event.info?.parentTypeName ?? ''
@@ -303,32 +306,32 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
   if (parentType === 'Query') {
     if (fieldName === 'playTable') {
       const e = event as AppSyncResolverEvent<{ id: string }>
-      return playTable(e, context, callback)
+      return playTable(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
     if (fieldName === 'playTableByInviteCode') {
       const e = event as AppSyncResolverEvent<{ inviteCode: string }>
-      return playTableByInviteCode(e, context, callback)
+      return playTableByInviteCode(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
   }
 
   if (parentType === 'Mutation') {
     if (fieldName === 'createPlayTable') {
       const e = event as AppSyncResolverEvent<Record<string, never>>
-      return createPlayTable(e, context, callback)
+      return createPlayTable(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
     if (fieldName === 'joinPlayTable') {
       const e = event as AppSyncResolverEvent<{
         inviteCode: string
         input: { characterName: string; initiativeModifier: number }
       }>
-      return joinPlayTable(e, context, callback)
+      return joinPlayTable(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
     if (fieldName === 'leavePlayTable') {
       const e = event as AppSyncResolverEvent<{
         playTableId: string
         playerId: string
       }>
-      return leavePlayTable(e, context, callback)
+      return leavePlayTable(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
   }
 
