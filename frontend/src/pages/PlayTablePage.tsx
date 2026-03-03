@@ -15,6 +15,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { DiceRoller } from '../components/DiceRoller'
+import type {
+  AdHocRollOptions,
+  InitiativeRollRequestOptions,
+} from '../components/GMRollControls'
 import { GMRollControls } from '../components/GMRollControls'
 import { InitiativeList } from '../components/InitiativeList'
 import { RollLog } from '../components/RollLog'
@@ -56,6 +60,9 @@ export function PlayTablePage() {
   const [pendingRollRequest, setPendingRollRequest] = useState<{
     id: string
     targetPlayerIds: string[]
+    dc?: number | null
+    advantage?: string | null
+    isPrivate?: boolean
   } | null>(null)
   const [rolling, setRolling] = useState(false)
   const [, setPendingRollId] = useState<string | null>(null)
@@ -64,6 +71,7 @@ export function PlayTablePage() {
   const [requestingInitiative, setRequestingInitiative] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [adHocOptions, setAdHocOptions] = useState<AdHocRollOptions>({})
   const playerIdRef = useRef<string | null>(null)
 
   const stored = getStoredPlayer()
@@ -182,6 +190,9 @@ export function PlayTablePage() {
           setPendingRollRequest({
             id: req.id,
             targetPlayerIds: req.targetPlayerIds,
+            dc: req.dc,
+            advantage: req.advantage,
+            isPrivate: req.isPrivate,
           })
       },
     })
@@ -289,7 +300,9 @@ export function PlayTablePage() {
     }
   }
 
-  const handleRequestInitiative = async () => {
+  const handleRequestInitiative = async (
+    options: InitiativeRollRequestOptions
+  ) => {
     if (!playTableId) return
     setRequestingInitiative(true)
     try {
@@ -306,6 +319,9 @@ export function PlayTablePage() {
           input: {
             targetPlayerIds,
             type: 'initiative',
+            dc: options.dc,
+            advantage: options.advantage ?? undefined,
+            isPrivate: options.isPrivate,
           },
         },
       })
@@ -314,7 +330,7 @@ export function PlayTablePage() {
     }
   }
 
-  const handleAdHocRoll = async () => {
+  const handleAdHocRoll = async (options: AdHocRollOptions) => {
     if (!playTableId) return
     setRolling(true)
     setDiceCocked(false)
@@ -324,7 +340,12 @@ export function PlayTablePage() {
         query: rollDiceMutation,
         variables: {
           playTableId,
-          input: { diceType: 'd20' },
+          input: {
+            diceType: 'd20',
+            dc: options.dc,
+            advantage: options.advantage ?? undefined,
+            visibility: options.visibility ?? 'all',
+          },
         },
       })) as { data?: { rollDice: { rollId: string } } }
       const rollId = result.data?.rollDice?.rollId
@@ -370,6 +391,7 @@ export function PlayTablePage() {
     <>
       <RollLog
         rolls={rolls}
+        viewerIsGm={!isPlayer}
         onLoadMore={
           rollsNextToken
             ? () => void fetchRollHistory(rollsNextToken)
@@ -385,7 +407,28 @@ export function PlayTablePage() {
           playerIdRef.current &&
           pendingRollRequest.targetPlayerIds.includes(playerIdRef.current) ? (
             <section>
-              <p>Roll requested for initiative!</p>
+              <p>
+                Roll requested for initiative!
+                {((pendingRollRequest.dc !== undefined &&
+                  pendingRollRequest.dc !== null) ||
+                  (pendingRollRequest.advantage !== undefined &&
+                    pendingRollRequest.advantage !== null)) && (
+                  <span style={{ fontSize: '0.9rem', color: '#666' }}>
+                    {' '}
+                    {[
+                      pendingRollRequest.dc !== undefined &&
+                      pendingRollRequest.dc !== null
+                        ? `DC ${pendingRollRequest.dc}`
+                        : null,
+                      pendingRollRequest.advantage
+                        ? `(${pendingRollRequest.advantage})`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </span>
+                )}
+              </p>
               <button
                 type="button"
                 onClick={() => void handleFulfillRollRequest()}
@@ -407,15 +450,17 @@ export function PlayTablePage() {
       ) : (
         <>
           <GMRollControls
-            onRequestInitiative={() => void handleRequestInitiative()}
-            onAdHocRoll={() => void handleAdHocRoll()}
+            onRequestInitiative={(opts) => void handleRequestInitiative(opts)}
+            onAdHocRoll={(opts) => void handleAdHocRoll(opts)}
             onClearInitiative={() => void handleClearInitiative()}
+            adHocOptions={adHocOptions}
+            onAdHocOptionsChange={setAdHocOptions}
             requestingInitiative={requestingInitiative}
             rolling={rolling}
             clearing={clearing}
           />
           <DiceRoller
-            onRoll={() => void handleAdHocRoll()}
+            onRoll={() => void handleAdHocRoll(adHocOptions)}
             rolling={rolling}
             disabled={rolling}
             settledValue={diceSettledValue}

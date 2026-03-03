@@ -75,6 +75,51 @@ describe('RollLog', () => {
     expect(screen.getByText(/DC 15.*fail/)).toBeInTheDocument()
   })
 
+  it('hides gm_only rolls when viewerIsGm is false', () => {
+    const rolls: RollDisplayItem[] = [
+      {
+        id: 'roll-1',
+        rollerId: 'gm',
+        rollerType: 'gm',
+        total: 15,
+        values: [15],
+        modifier: 0,
+        visibility: 'all',
+        createdAt: '2024-01-01T00:00:00Z',
+      },
+      {
+        id: 'roll-2',
+        rollerId: 'gm',
+        rollerType: 'gm',
+        total: 20,
+        values: [20],
+        modifier: 0,
+        visibility: 'gm_only',
+        createdAt: '2024-01-01T00:00:01Z',
+      },
+    ]
+    render(<RollLog rolls={rolls} viewerIsGm={false} />)
+    expect(screen.getByText(/Roll roll-1…: 15/)).toBeInTheDocument()
+    expect(screen.queryByText(/Roll roll-2…: 20/)).not.toBeInTheDocument()
+  })
+
+  it('shows all rolls including gm_only when viewerIsGm is true', () => {
+    const rolls: RollDisplayItem[] = [
+      {
+        id: 'roll-1',
+        rollerId: 'gm',
+        rollerType: 'gm',
+        total: 20,
+        values: [20],
+        modifier: 0,
+        visibility: 'gm_only',
+        createdAt: '2024-01-01T00:00:00Z',
+      },
+    ]
+    render(<RollLog rolls={rolls} viewerIsGm />)
+    expect(screen.getByText(/Roll roll-1…: 20/)).toBeInTheDocument()
+  })
+
   it('shows advantage when present', () => {
     const rolls: RollDisplayItem[] = [
       {

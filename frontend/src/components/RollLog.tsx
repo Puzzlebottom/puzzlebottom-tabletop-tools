@@ -47,25 +47,41 @@ function formatRoll(item: RollDisplayItem): string {
   return `Roll ${id.slice(0, 8)}…: ${total}${dcPart}${advPart}`
 }
 
+function isVisibleToViewer(
+  item: RollDisplayItem,
+  viewerIsGm: boolean
+): boolean {
+  const visibility = item.visibility
+  if (visibility === 'gm_only' && !viewerIsGm) return false
+  return true
+}
+
 export function RollLog({
   rolls,
   onLoadMore,
   hasMore,
   loading,
+  viewerIsGm = true,
 }: {
   rolls: RollDisplayItem[]
   onLoadMore?: () => void
   hasMore?: boolean
   loading?: boolean
+  /** When false, rolls with visibility gm_only are hidden. */
+  viewerIsGm?: boolean
 }) {
+  const visibleRolls = viewerIsGm
+    ? rolls
+    : rolls.filter((r) => isVisibleToViewer(r, viewerIsGm))
+
   return (
     <section aria-label="Roll log">
       <h2>Roll log</h2>
-      {rolls.length === 0 && !loading ? (
+      {visibleRolls.length === 0 && !loading ? (
         <p>No rolls yet.</p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {rolls.map((item) => {
+          {visibleRolls.map((item) => {
             const key = 'id' in item ? item.id : item.rollId
             return (
               <li

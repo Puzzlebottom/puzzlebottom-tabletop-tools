@@ -380,17 +380,20 @@ describe('PlayTablePage', () => {
     )
 
     await waitFor(() => {
-      expect(mockGraphql).toHaveBeenCalledWith(
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- expect.objectContaining returns asymmetric matcher */
+      expect(mockGraphql).toHaveBeenNthCalledWith(
+        3,
         expect.objectContaining({
-          variables: {
+          variables: expect.objectContaining({
             playTableId: 'table-1',
-            input: {
+            input: expect.objectContaining({
               targetPlayerIds: ['p1', 'p2'],
               type: 'initiative',
-            },
-          },
+            }),
+          }),
         })
       )
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     })
   })
 
