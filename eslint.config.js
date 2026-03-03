@@ -82,7 +82,7 @@ module.exports = tseslint.config(
             { from: 'contracts', disallow: ['*'] },
             { from: 'steps', allow: ['domain'] },
             { from: 'resolvers', allow: ['domain', 'contracts'] },
-            { from: 'handlers', allow: ['domain'] },
+            { from: 'handlers', allow: ['domain', 'handlers'] },
             { from: 'frontend', allow: ['domain', 'contracts'] },
             { from: 'infrastructure', allow: [] },
           ],

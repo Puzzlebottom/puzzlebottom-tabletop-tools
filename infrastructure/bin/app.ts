@@ -43,6 +43,14 @@ const eventStack = new EventStack(app, `${prefix}-EventStack`, {
   config,
 })
 
+const apiStack = new ApiStack(app, `${prefix}-ApiStack`, {
+  ...stackProps,
+  config,
+  userPool: authStack.userPool,
+  eventBus: eventStack.eventBus,
+  dataTable: databaseStack.dataTable,
+})
+
 const stepFunctionStack = new StepFunctionStack(
   app,
   `${prefix}-StepFunctionStack`,
@@ -51,16 +59,9 @@ const stepFunctionStack = new StepFunctionStack(
     config,
     dataTable: databaseStack.dataTable,
     pipelineQueue: eventStack.pipelineQueue,
+    graphqlApi: apiStack.api,
   }
 )
-
-const apiStack = new ApiStack(app, `${prefix}-ApiStack`, {
-  ...stackProps,
-  config,
-  userPool: authStack.userPool,
-  eventBus: eventStack.eventBus,
-  dataTable: databaseStack.dataTable,
-})
 
 const frontendStack = new FrontendStack(app, `${prefix}-FrontendStack`, {
   ...stackProps,

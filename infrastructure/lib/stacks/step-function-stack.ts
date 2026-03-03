@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib'
+import type * as appsync from 'aws-cdk-lib/aws-appsync'
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
@@ -7,6 +8,7 @@ import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as logs from 'aws-cdk-lib/aws-logs'
 import type * as sqs from 'aws-cdk-lib/aws-sqs'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
+import * as sfnTasks from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import { type Construct } from 'constructs'
 import * as path from 'path'
 
@@ -16,6 +18,7 @@ interface StepFunctionStackProps extends cdk.StackProps {
   config: EnvironmentConfig
   dataTable: dynamodb.Table
   pipelineQueue: sqs.Queue
+  graphqlApi: appsync.IGraphqlApi
 }
 
 export class StepFunctionStack extends cdk.Stack {
@@ -24,7 +27,7 @@ export class StepFunctionStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StepFunctionStackProps) {
     super(scope, id, props)
 
-    const { config, pipelineQueue } = props
+    const { config, pipelineQueue, graphqlApi } = props
 
     const lambdaDefaults: lambdaNode.NodejsFunctionProps = {
       runtime: lambda.Runtime.NODEJS_24_X,
@@ -38,9 +41,75 @@ export class StepFunctionStack extends cdk.Stack {
       },
     }
 
-    const definition = new sfn.Pass(this, 'PassThrough', {
-      result: sfn.Result.fromObject({}),
-    }).next(new sfn.Succeed(this, 'Succeed'))
+    const createInitiativePendingFn = new lambdaNode.NodejsFunction(
+      this,
+      'CreateInitiativePendingFn',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-create-initiative-pending`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/steps/create-initiative-pending.ts'
+        ),
+        environment: {
+          TABLE_NAME: props.dataTable.tableName,
+        },
+      }
+    )
+    props.dataTable.grantReadWriteData(createInitiativePendingFn)
+
+    const orderInitiativeFn = new lambdaNode.NodejsFunction(
+      this,
+      'OrderInitiativeFn',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-order-initiative`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/steps/order-initiative.ts'
+        ),
+        environment: {
+          TABLE_NAME: props.dataTable.tableName,
+          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+        },
+      }
+    )
+    props.dataTable.grantReadWriteData(orderInitiativeFn)
+    orderInitiativeFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [
+          `arn:aws:appsync:${config.awsRegion}:${config.awsAccount}:apis/${graphqlApi.apiId}/*`,
+        ],
+      })
+    )
+
+    const createInitiativePendingTask = new sfnTasks.LambdaInvoke(
+      this,
+      'CreateInitiativePending',
+      {
+        lambdaFunction: createInitiativePendingFn,
+        integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        payload: sfn.TaskInput.fromObject({
+          taskToken: sfn.JsonPath.taskToken,
+          'playTableId.$': '$.playTableId',
+          'rollRequestId.$': '$.rollRequestId',
+          'targetPlayerIds.$': '$.targetPlayerIds',
+          'expectedCount.$': '$.expectedCount',
+        }),
+      }
+    )
+
+    const orderInitiativeTask = new sfnTasks.LambdaInvoke(
+      this,
+      'OrderInitiative',
+      {
+        lambdaFunction: orderInitiativeFn,
+        payload: sfn.TaskInput.fromJsonPathAt('$'),
+      }
+    )
+
+    const definition = createInitiativePendingTask.next(orderInitiativeTask)
 
     const logGroup = new logs.LogGroup(this, 'StateMachineLogGroup', {
       logGroupName: `/aws/stepfunctions/${config.envName}-puzzlebottom-tabletop-tools`,
@@ -70,7 +139,26 @@ export class StepFunctionStack extends cdk.Stack {
           import.meta.dirname,
           '../../../backend/lambdas/handlers/roll-completed.ts'
         ),
+        environment: {
+          TABLE_NAME: props.dataTable.tableName,
+          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+        },
       }
+    )
+    props.dataTable.grantReadWriteData(rollCompletedHandler)
+    rollCompletedHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['states:SendTaskSuccess'],
+        resources: ['*'],
+      })
+    )
+    rollCompletedHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [
+          `arn:aws:appsync:${config.awsRegion}:${config.awsAccount}:apis/${graphqlApi.apiId}/*`,
+        ],
+      })
     )
 
     const playerLeftHandler = new lambdaNode.NodejsFunction(
@@ -83,7 +171,26 @@ export class StepFunctionStack extends cdk.Stack {
           import.meta.dirname,
           '../../../backend/lambdas/handlers/player-left.ts'
         ),
+        environment: {
+          TABLE_NAME: props.dataTable.tableName,
+          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+        },
       }
+    )
+    props.dataTable.grantReadWriteData(playerLeftHandler)
+    playerLeftHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['states:SendTaskSuccess'],
+        resources: ['*'],
+      })
+    )
+    playerLeftHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [
+          `arn:aws:appsync:${config.awsRegion}:${config.awsAccount}:apis/${graphqlApi.apiId}/*`,
+        ],
+      })
     )
 
     const playerJoinedHandler = new lambdaNode.NodejsFunction(
@@ -96,7 +203,20 @@ export class StepFunctionStack extends cdk.Stack {
           import.meta.dirname,
           '../../../backend/lambdas/handlers/player-joined.ts'
         ),
+        environment: {
+          TABLE_NAME: props.dataTable.tableName,
+          APPSYNC_GRAPHQL_URL: graphqlApi.graphqlUrl as string,
+        },
       }
+    )
+    props.dataTable.grantReadWriteData(playerJoinedHandler)
+    playerJoinedHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [
+          `arn:aws:appsync:${config.awsRegion}:${config.awsAccount}:apis/${graphqlApi.apiId}/*`,
+        ],
+      })
     )
 
     const triggerFn = new lambdaNode.NodejsFunction(this, 'SqsTriggerFn', {
