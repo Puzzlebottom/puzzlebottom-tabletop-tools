@@ -58,6 +58,9 @@ export function PlayTablePage() {
     targetPlayerIds: string[]
   } | null>(null)
   const [rolling, setRolling] = useState(false)
+  const [, setPendingRollId] = useState<string | null>(null)
+  const [diceSettledValue, setDiceSettledValue] = useState<number | undefined>()
+  const [diceCocked, setDiceCocked] = useState(false)
   const [requestingInitiative, setRequestingInitiative] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -147,7 +150,18 @@ export function PlayTablePage() {
           ?.onRollCompleted
         if (result) {
           setRolls((prev) => [result as RollDisplayItem, ...prev])
-          setRolling(false)
+          setPendingRollId((prev) => {
+            if (prev === result.rollId) {
+              setRolling(false)
+              const d20 =
+                result.values.length > 0
+                  ? Math.max(...result.values)
+                  : undefined
+              setDiceSettledValue(d20)
+              return null
+            }
+            return prev
+          })
         }
       },
     })
@@ -220,8 +234,10 @@ export function PlayTablePage() {
   const handleRoll = async () => {
     if (!playTableId) return
     setRolling(true)
+    setDiceCocked(false)
+    setDiceSettledValue(undefined)
     try {
-      await client.graphql(
+      const result = (await client.graphql(
         {
           query: rollDiceMutation,
           variables: {
@@ -235,9 +251,12 @@ export function PlayTablePage() {
           },
         },
         isPlayer ? { authMode: 'apiKey' as const } : undefined
-      )
+      )) as { data?: { rollDice: { rollId: string } } }
+      const rollId = result.data?.rollDice?.rollId
+      if (rollId) setPendingRollId(rollId)
     } catch {
       setRolling(false)
+      setDiceCocked(true)
     }
   }
 
@@ -248,8 +267,10 @@ export function PlayTablePage() {
     )
     if (!isTarget) return
     setRolling(true)
+    setDiceCocked(false)
+    setDiceSettledValue(undefined)
     try {
-      await client.graphql(
+      const result = (await client.graphql(
         {
           query: fulfillRollRequestMutation,
           variables: {
@@ -259,9 +280,12 @@ export function PlayTablePage() {
           },
         },
         { authMode: 'apiKey' as const }
-      )
+      )) as { data?: { fulfillRollRequest: { rollId: string } } }
+      const rollId = result.data?.fulfillRollRequest?.rollId
+      if (rollId) setPendingRollId(rollId)
     } catch {
       setRolling(false)
+      setDiceCocked(true)
     }
   }
 
@@ -293,16 +317,21 @@ export function PlayTablePage() {
   const handleAdHocRoll = async () => {
     if (!playTableId) return
     setRolling(true)
+    setDiceCocked(false)
+    setDiceSettledValue(undefined)
     try {
-      await client.graphql({
+      const result = (await client.graphql({
         query: rollDiceMutation,
         variables: {
           playTableId,
           input: { diceType: 'd20' },
         },
-      })
+      })) as { data?: { rollDice: { rollId: string } } }
+      const rollId = result.data?.rollDice?.rollId
+      if (rollId) setPendingRollId(rollId)
     } catch {
       setRolling(false)
+      setDiceCocked(true)
     }
   }
 
@@ -370,6 +399,8 @@ export function PlayTablePage() {
               onRoll={() => void handleRoll()}
               rolling={rolling}
               disabled={rolling}
+              settledValue={diceSettledValue}
+              cocked={diceCocked}
             />
           )}
         </>
@@ -387,6 +418,8 @@ export function PlayTablePage() {
             onRoll={() => void handleAdHocRoll()}
             rolling={rolling}
             disabled={rolling}
+            settledValue={diceSettledValue}
+            cocked={diceCocked}
           />
         </>
       )}

@@ -15,12 +15,14 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.15.1",
+    "@react-three/fiber": "^9.5.0",
     "@puzzlebottom-tabletop-tools/graphql-types": "*",
     "@puzzlebottom-tabletop-tools/schemas": "*",
     "aws-amplify": "^6.16.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.6.1"
+    "react-router-dom": "^7.6.1",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.0",
@@ -28,6 +30,7 @@
     "@testing-library/user-event": "^14.5.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.170.0",
     "@vitejs/plugin-react": "^5.1.4",
     "jsdom": "^28.1.0",
     "typescript": "~5.9.3",

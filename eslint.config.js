@@ -157,5 +157,37 @@ module.exports = tseslint.config(
   },
 
   // Must be last: disables ESLint rules that conflict with Prettier
-  prettierConfig
+  prettierConfig,
+
+  // DiceRoller: Three.js/R3F use lowercase primitives and types that strict TS may not resolve
+  {
+    files: ['frontend/src/components/DiceRoller.tsx'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      'react/no-unknown-property': [
+        'error',
+        {
+          ignore: [
+            'args',
+            'intensity',
+            'position',
+            'roughness',
+            'metalness',
+            'flatShading',
+          ],
+        },
+      ],
+    },
+  },
+
+  // Test setup: ResizeObserver mock needs empty methods
+  {
+    files: ['frontend/src/test/setup.ts'],
+    rules: {
+      '@typescript-eslint/no-empty-function': 'off',
+    },
+  }
 )
