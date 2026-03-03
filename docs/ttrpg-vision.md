@@ -1,235 +1,275 @@
 # Puzzlebottom's Tabletop Tools Suite — Vision & Open Questions
 
-This document captures the product vision and open questions for the TTRPG tools suite. Update answers as decisions are made.
+This document captures the product vision, open questions, and prioritization for development. Update as decisions are made.
+
+---
 
 ## Confirmed Vision (Summary)
 
-| Aspect               | Decision                                                                             |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| **Project name**     | Puzzlebottom's Tabletop Tools Suite                                                  |
-| **First tool**       | Dice roller                                                                          |
-| **Player interface** | Cross-platform: web + iOS + Android (future)                                         |
-| **Dice animation**   | 3D animated; simple at first, fancier later                                          |
-| **Roll types**       | Ad hoc (player-initiated) + GM-assigned (skill checks, saves, initiative, etc.)      |
-| **GM controls**      | Assign rolls to any/all players; set DC, advantage, modifiers; toggle private/public |
-| **Visibility**       | Player roll results public to play group by default; GM can make private             |
-| **Ruleset**          | 5e D&D first; extensible for other rulesets                                          |
-| **Architecture**     | Modular—additional tools added with focus on modularization                          |
+| Aspect               | Long-term                                                                            | MVP                                               |
+| -------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| **Project name**     | Puzzlebottom's Tabletop Tools Suite                                                  | —                                                 |
+| **First tool**       | Dice roller                                                                          | —                                                 |
+| **Player interface** | Cross-platform: web + iOS + Android                                                  | Web only                                          |
+| **Dice animation**   | 3D animated; simple at first, fancier later                                          | Low-poly 3D, basic lighting, no sound             |
+| **Roll types**       | Ad hoc (player + GM) + GM-assigned (skill checks, saves, initiative, etc.)           | Ad hoc (player + GM); GM-assigned initiative only |
+| **GM controls**      | Assign rolls to any/all players; set DC, advantage, modifiers; toggle private/public | Same                                              |
+| **Visibility**       | Public by default; GM can make private                                               | Same                                              |
+| **Ruleset**          | 5e D&D first; extensible for other rulesets                                          | None                                              |
+| **Architecture**     | Modular—additional tools added with focus on modularization                          | —                                                 |
 
 ---
 
-## Open Questions (By Category)
+## Open Questions
 
-Update each **Answer** line when a decision is made. **Priority:** MVP = must answer before dice roller MVP; Defer = can wait for later phases.
-
-### Product & Scope
-
-1. **Play group model** — Is a "play group" always tied to a campaign, or can players form groups without a campaign (e.g. one-shot sessions)?
-   - **Priority:** Defer (needed for GM-assigned rolls; not for ad hoc MVP)
-   - **Answer:** _TBD_
-
-2. **GM interface** — Will the GM use the web app only, or will GMs also need a mobile interface?
-   - **Priority:** Defer
-   - **Answer:** _TBD_
-
-3. **Offline support** — Do players need to roll dice offline (e.g. poor connectivity at the table) and sync later, or is online-only acceptable?
-   - **Priority:** Defer
-   - **Answer:** _TBD_
-
-4. **Session vs campaign** — Is a "session" always part of a campaign, or can there be standalone sessions?
-   - **Priority:** Defer
-   - **Answer:** _TBD_
-
-5. **Tool composition** — Will tools be presented as one unified app (tabs/sections) or as separate deployables that share auth and data?
-   - **Priority:** Defer (single tool for MVP)
-   - **Answer:** _TBD_
+Questions to resolve during development. Full list in the plan. Add your answers here as you decide.
 
 ---
 
-### Cross-Platform Strategy
+## Decisions
 
-6. **Mobile framework** — React Native, Flutter, or native (Swift/Kotlin)? Consider code reuse with web, team skills, and 3D rendering needs.
-   - **Priority:** Defer (mobile is Phase 2)
-   - **Answer:** _TBD_
+### PlayTable Membership & Join Flow
 
-7. **Shared logic** — How much should be shared between web and native? (e.g. roll logic, ruleset config, API client)
-   - **Priority:** Defer
-   - **Answer:** _TBD_
+1. GM creates a PlayTable and invite link. GM is the only person required to sign in.
+2. Players use the link to join the PlayTable. On join, they are prompted for:
+   - Character name
+   - Initiative modifier
 
-8. **Mobile timeline** — Is mobile a Phase 2 after web dice roller ships, or should architecture decisions account for mobile from day one?
-   - **Priority:** Defer
-   - **Answer:** _TBD_
+### PlayTable Model
 
-9. **3D on mobile** — Same 3D stack (e.g. Three.js/Babylon) on web and native, or different approaches per platform?
-   - **Priority:** Defer
-   - **Answer:** _TBD_
+- **Long term:** Support both campaigns and one-shots.
+- **MVP:** PlayTable stands alone. No Campaign entity. Keep structure minimal.
+- **Scaffolding:** Design so Campaign can be added later (e.g. optional `campaignId` on PlayTable, or Campaign references PlayTables) without breaking migrations. Only add complexity now if it helps that future extension.
 
----
+### Session vs Campaign
 
-### Dice Roller — Behavior
+- Sessions can be standalone or part of a campaign. Both are supported long term.
+- **MVP:** All sessions are standalone (no Campaign). When Campaign is added, Session gets optional `campaignId`.
 
-10. **Dice notation** — Support full notation (e.g. `2d6+3`, `4d6kh3`) or curated presets only (d20, 2d6, etc.)?
-    - **Priority:** MVP
-    - **Answer:** _TBD_
+### GM Designation
 
-11. **GM-assigned roll flow** — Does the GM "push" a roll request to player devices (real-time), or do players poll/refresh to see assigned rolls?
-    - **Priority:** Defer (GM-assigned is Phase 2)
-    - **Answer:** _TBD_
+- GM owns the PlayTable (and campaign, when that exists). One GM per PlayTable.
+- GM is stable; players join and leave. GM role transfer deferred.
+- **MVP:** GM does not appear in initiative order. GM and Player are separate.
+- **Later:** GM will control enemy/NPC entities and encounter events; GM (or their controlled entities) will occupy initiative order.
 
-12. **Initiative** — Is initiative a special roll type (d20 + Dex mod) that auto-orders, or does the GM manually order results?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+### GM-Assigned Roll Flow
 
-13. **Roll modifiers** — Beyond advantage/disadvantage and DC: proficiency, inspiration, bless, guidance? How configurable per ruleset?
-    - **Priority:** MVP (at least advantage/disadvantage + flat modifier for 5e)
-    - **Answer:** _TBD_
+- GM pushes roll requests to player devices in real time (AppSync subscriptions). No polling.
 
-14. **Roll context** — Do rolls link to a character (for auto-modifiers) or are they standalone with manual modifier entry?
-    - **Priority:** MVP (standalone simplifies MVP; character linking can be Phase 2)
-    - **Answer:** _TBD_
+### Tool Composition
 
-15. **Roll history** — How long is history retained? Per session, per campaign, or user-level? Can GM/players export or search?
-    - **Priority:** MVP (affects whether we persist rolls and how)
-    - **Answer:** _TBD_
+- Unified app. Tools (dice roller, character sheet, etc.) as sections/routes within one deploy. Shared auth, shared data, single URL.
 
----
+### Tool Dependencies
 
-### Dice Roller — Real-Time & Visibility
+- **MVP:** Dice roller works without campaigns or full character entities (Option B). PlayTable + Players (name, initiative modifier) sufficient.
+- **Eventually:** Rolls will depend on campaigns/characters (Option A). Design so rolls can optionally link to character later without breaking MVP data.
 
-16. **Update latency** — How fast must roll results appear to other players? AppSync subscriptions (real-time) vs polling?
-    - **Priority:** Defer for ad hoc MVP (single user); MVP when adding shared/group rolls
-    - **Answer:** _TBD_
+### Initiative Tie-Breaking
 
-17. **Private rolls** — When GM toggles private: hidden from all players, or hidden from some (e.g. only GM sees)?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+- Sort by: d20 result (desc), then initiative modifier (desc).
+- If both roll and modifier tie: players occupy the same initiative slot, randomly ordered among themselves.
 
-18. **Roll assignment visibility** — When GM assigns a roll, do all players see the assignment, or only the target player(s)?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+### Initiative Re-Rolls
 
----
+- GM can clear and re-roll initiative.
 
-### Ruleset Extensibility
+### Private Rolls
 
-19. **5e scope** — Which 5e elements are predefined: skills (18), saves (6), ability checks, attack rolls, death saves? All or subset?
-    - **Priority:** MVP (defines which presets to build)
-    - **Answer:** _TBD_
+- **GM-initiated roll (ad hoc):** When GM marks it private, only GM sees the result. No players see it.
+- **GM-assigned roll (player rolls):** When GM marks it private, only GM and the target player see the result. Other players do not.
+- **Private roll UX:** Other players see nothing at all — no "a roll happened" or obscured placeholder.
 
-20. **Ruleset config format** — How are rulesets defined: JSON/YAML config, code, or both? Who can add rulesets (you only vs community)?
-    - **Priority:** Defer (5e hardcoded for MVP)
-    - **Answer:** _TBD_
+### Result Broadcast Timing
 
-21. **Other rulesets** — Which are in scope (Pathfinder 2e, OSR, custom)? Timeline for first non-5e ruleset?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+- Roller sees their result at the same moment as everyone else. Like a live roll at a physical table — no early peek.
+- **Result is determined and persisted before reveal.** Server: RNG → write to DynamoDB → then publish to subscription. No client sees the result until after persist.
+- **All receive via subscription.** The mutation does NOT return the result for display; it returns only `rollId` or `accepted`. The actual result is delivered only via the AppSync subscription. Clients (including the roller) wait for the subscription payload before displaying. So everyone gets it at the same time.
 
-22. **Modifier sources** — Do modifiers come from character sheet data (e.g. STR +3) or are they always manually entered at roll time?
-    - **Priority:** MVP (manual for MVP; character-sheet-driven is Phase 2)
-    - **Answer:** _TBD_
+### Subscription (AppSync)
 
----
+- **What it is:** AppSync subscriptions are real-time push. Clients subscribe to a channel (e.g. `onRollCompleted(playTableId)`). When the server publishes a payload (triggered by the mutation completing), AppSync pushes it to all subscribed clients.
+- **Reveal order:** Server completes RNG + persist, then publishes. All subscribers receive the payload at roughly the same time (network latency varies, but no one gets it before persist). The mutation response returns before the subscription fires, so clients must ignore the mutation for display and only render when the subscription arrives.
 
-### 3D Dice Animation
+### Animation Duration
 
-23. **3D engine** — Three.js, Babylon.js, or other? Consider bundle size, mobile performance, and animation capabilities.
-    - **Priority:** MVP
-    - **Answer:** _TBD_
+- Minimum duration so fast server responses don't feel abrupt. Add some variance so it doesn't feel mechanical.
 
-24. **Simplicity vs fancy** — For "simple at first": 2D sprites, basic 3D cubes, or low-poly 3D? What defines "fancier" later (physics, materials, sound)?
-    - **Priority:** MVP
-    - **Answer:** _TBD_
+### Roll-in-Progress
 
-25. **Performance targets** — Lowest supported device? 60fps on mid-range phones, or 30fps acceptable?
-    - **Priority:** Defer (web-first MVP; can use reasonable defaults)
-    - **Answer:** _TBD_
+- **Per player/GM:** One ad hoc roll in progress at a time. Block another roll from that person until the current one completes.
+- **Across players:** Multiple players (and the GM) can be rolling at the same time.
+- **GM-assigned:** GM can have multiple roll requests pending from players at once (e.g. initiative = all players have a pending request).
 
-26. **Dice customization** — Will players/GMs be able to choose dice appearance (color, style) or is one default sufficient initially?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+### GM-Assigned + Player-Initiated Conflict
 
----
+- GM-assigned roll request goes to **pending** until the player initiates the roll. If player is mid-roll, request waits.
+- Players can have multiple pending requests.
+- GM can: issue multiple requests, cancel pending requests, or delete rolls after they've been made.
 
-### Modularization & Architecture
+### RollRequest Type & Initiative Ordering
 
-27. **Monorepo structure** — Per-tool packages (e.g. `packages/dice-roller`, `packages/character-sheet`)? Shared packages (`shared/roll-logic`, `shared/rulesets`)?
-    - **Priority:** Defer (incremental; single tool for MVP)
-    - **Answer:** _TBD_
+- **RollRequest has a type.** e.g. `initiative`, `skill_check`, etc. MVP implements `initiative` only; build so other types can be added later.
+- **Results handled the same** — regardless of type, the roll flow (RNG, persist, reveal) is identical.
+- **Initiative ordering:** Not computed in the mutation/subscription flow. A consumer (e.g. Lambda) reacts to the `RollCompleted` EventBridge event; when it detects an initiative roll, it computes the ordered list and stores/updates it. Clients display the ordered initiative list from a separate query or subscription. Keeps the roll flow generic; initiative-specific logic lives in the event consumer.
 
-28. **Backend organization** — One GraphQL API with tool-specific types/resolvers, or separate APIs per tool? How does this affect AppSync schema growth?
-    - **Priority:** Defer (use existing AppSync for MVP)
-    - **Answer:** _TBD_
+### 3D Engine
 
-29. **Frontend modularization** — Per-tool route bundles, lazy-loaded? Or each tool as a separate app entry?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+- Three.js (with react-three-fiber).
 
-30. **Shared domain** — What entities are shared across tools (User, PlayGroup, Campaign, Session, Character)? Defined in `shared/schemas`?
-    - **Priority:** Defer (minimal for MVP: User, Roll)
-    - **Answer:** _TBD_
+### 3D Dice — Simple vs Fancy
 
-31. **Tool dependencies** — Can the dice roller exist without campaigns/characters, or does it assume those exist? (Affects MVP scope.)
-    - **Priority:** MVP (standalone enables simpler MVP)
-    - **Answer:** _TBD_
+- **Simple (MVP):** Low-poly 3D with basic lighting and animation.
+- **Fancy (later):** Physics, materials, sound. On mobile: shake device to roll with haptic feedback.
 
----
+### Roll History
 
-### Data & Auth
+- **MVP:** Per-PlayTable history. Searchable log of rolls. No export.
+- **Pagination:** Infinite scroll with paginated fetch-more (load more as user scrolls).
 
-32. **Play group membership** — How do players join: invite link, code, GM-add? Is there a "join request" flow?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+### Rate Limiting
 
-33. **GM designation** — One GM per campaign/group, or multiple? Can GM role be transferred?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+- None. Only limit is the one-roll-in-progress-per-player rule.
 
-34. **Character linking** — Do rolls optionally attach to a character for audit/history? Required for GM-assigned rolls?
-    - **Priority:** Defer
-    - **Answer:** _TBD_
+### Reduced Motion
 
-35. **Cognito scope** — Keep Cognito for auth, or consider migration for mobile (e.g. social login, Apple Sign-In)?
-    - **Priority:** Defer (keep Cognito for MVP)
-    - **Answer:** _TBD_
+- No reduced-motion mode for MVP. Deferred.
+
+### Sound
+
+- Dice sounds on roll/land. Toggleable (on/off). **Deferred** — not in MVP.
+
+### Roll Assignment Visibility (Targeted GM-Assigned)
+
+- GM's choice. If GM makes it private: only the target player sees the assignment (and only player + GM see the result). If public: all see assignment and result.
+
+### Offline Player Assignment
+
+- No support. Assignment is for online players only. Deferred.
+
+### Connection Loss Mid-Roll
+
+- Roll result is persisted in DB. If server completed the roll before disconnect, the result exists. On reconnect, player fetches PlayTable roll history and sees their result. Server is source of truth.
+
+### DynamoDB Design (MVP)
+
+- **Structure:** GM has a PlayTable → players → rolls.
+- **PlayTable = session (MVP):** For MVP, PlayTable is effectively the session. No separate Session entity. (Avoid "session" as entity name to prevent confusion with user/browser sessions.)
+- **Visibility:** Player sees log of their own rolls. GM sees log of all rolls in the PlayTable.
+- **Access patterns:** Rolls by player; rolls by PlayTable (all). Single DynamoDB table with GSIs to support both. Detail when implementing.
+
+### Player Identity (Rejoin)
+
+- Support player rejoin. Player identified by cookie or session key stored in local storage (localStorage). On join, client receives a key; stores it locally. On rejoin (same browser/device), key is read and player is recognized as the same. No sign-in required.
 
 ---
 
-### Infrastructure & Deployment
+## Dice Roll Flow (Option A)
 
-36. **EventBridge/SQS** — Does the dice roller need the existing pipeline (submit → process → store), or is it more real-time (AppSync mutation + subscription only)?
-    - **Priority:** MVP (determines architecture: pipeline vs direct AppSync)
-    - **Answer:** _TBD_
+This flow defines how roll requests, server-side RNG, animation, persistence, and downstream reactions work together.
 
-37. **DynamoDB design** — How do rolls, play groups, campaigns, and sessions relate? Single table or multiple? GSI design for "rolls by session" etc.?
-    - **Priority:** MVP (if storing rolls); Defer if roll history is Phase 2
-    - **Answer:** _TBD_
+### Principles
 
-38. **Sandbox strategy** — Do sandbox deploys still make sense for TTRPG development, or is a single dev/staging/prod sufficient?
-    - **Priority:** Defer (existing sandbox works)
-    - **Answer:** _TBD_
+- **AppSync for live** — Roll requests, results, and multi-user synced display use AppSync (mutations + subscriptions).
+- **EventBridge for reactions** — After a roll is successfully persisted, an event is dispatched so other services can react (analytics, exports, future tools).
+- **Server-side RNG** — Roll results are always determined on the server. Client never generates the outcome.
+- **Animation masks latency** — Animation starts when the client sends the request and runs until the server result arrives. Network/DB latency is hidden behind the dice tumble.
+- **Cocked die = error state** — If the server fails (timeout, error), the animation completes as a "cocked die" (ambiguous result, re-roll required). This maps the real-world concept to a clear error UX.
+
+### Flow (Step by Step)
+
+1. **Client sends roll request**  
+   Player (or GM assigning to player) triggers a roll. Client calls `rollDice` mutation with roll params (dice type, modifiers, playTableId, etc.).
+
+2. **Animation starts immediately**  
+   As soon as the mutation is sent, the 3D dice animation begins (tumbling, physics). The client does not know the result yet.
+
+3. **Server: resolve roll**  
+   AppSync invokes the `rollDice` resolver (Lambda):
+   - Validate request (playTableId, permissions, params)
+   - Generate roll result via server-side RNG
+   - Write roll record to DynamoDB
+   - Publish result to AppSync subscription (only after persist — no client sees result before this)
+   - Dispatch `RollCompleted` event to EventBridge (for downstream consumers)
+   - Return `rollId` or `accepted` to the requesting client (no result in mutation response)
+
+4. **Client receives result**  
+   Subscription payload arrives with the actual dice values. All clients (including the roller) receive via subscription. Animation completes: dice settle on the correct faces.
+
+5. **On failure**  
+   If the resolver fails, times out, or returns an error: the client never receives a valid result. The animation completes as a **cocked die** — dice land in an ambiguous orientation (e.g. on edge, tilted). UI indicates "ambiguous result, please re-roll." No result is persisted; no EventBridge event is sent.
+
+### EventBridge Post-Roll Event
+
+After a successful roll:
+
+- **Event:** `source: puzzlebottom-tabletop-tools`, `detailType: RollCompleted`
+- **Detail:** Roll id, playTableId, result, metadata, rollRequestType (e.g. `initiative`)
+- **Consumers:** Analytics, roll history aggregation, **initiative ordering** (when type is `initiative`, compute order and store/update), future tools. Real-time display: AppSync subscription. Initiative order: EventBridge consumer.
+
+### Summary Diagram
+
+```
+Client                    AppSync/Lambda              EventBridge
+  |                              |                          |
+  |-- rollDice mutation -------->|                          |
+  |   (animation starts)         |                          |
+  |                              |-- RNG                    |
+  |                              |-- DynamoDB write         |
+  |                              |-- subscription publish   |
+  |<-- result -------------------|                          |
+  |   (animation lands)          |-- PutEvents ------------->|
+  |                              |   (RollCompleted)         |
+  |                              |                          |
+  |   On error: animation -> cocked die, no event            |
+```
 
 ---
 
-## MVP Question Summary (11 to answer first)
+## Question Prioritization
 
-| #   | Question                                     |
-| --- | -------------------------------------------- |
-| 10  | Dice notation: presets vs full               |
-| 13  | Roll modifiers: advantage + DC minimum       |
-| 14  | Roll context: standalone vs character-linked |
-| 15  | Roll history: store or not, retention        |
-| 19  | 5e scope: which presets                      |
-| 22  | Modifier sources: manual for MVP             |
-| 23  | 3D engine: Three.js vs Babylon vs other      |
-| 24  | Simplicity: 2D vs basic 3D vs low-poly       |
-| 31  | Tool dependencies: standalone for MVP        |
-| 36  | EventBridge/SQS vs AppSync-only              |
-| 37  | DynamoDB design (if storing rolls)           |
+### Must Answer Before Dice Roller MVP
+
+See plan for full question list. Prioritize questions that affect API design, roll flow, and animation behavior.
+
+### Can Be Deferred to Phase 2
+
+- Mobile framework choice (decide when starting mobile)
+- Offline support
+- Full dice notation
+- Character linking
+- Roll history export/search
+- Dice customization
+- GM role transfer
+- Join request flow
 
 ---
 
-## Suggested Next Steps (When Ready)
+## Dice Roller MVP Scope (Proposed)
 
-1. **Answer MVP questions** — Resolve the 11 MVP-priority questions above to unblock implementation.
-2. **Rebrand** — Update project name to Puzzlebottom's Tabletop Tools Suite (per existing plan todo).
-3. **Dice roller MVP scope** — Define minimal feature set (e.g. web-only, ad hoc rolls, 5e presets, no GM assignment yet) to unblock implementation.
+Minimal feature set to unblock implementation. Refine as you answer questions.
+
+| Feature        | In scope                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Platform**   | Web only                                                                                                                                   |
+| **Roll types** | Ad hoc (player-initiated); ad hoc (GM-initiated); GM-assigned initiative only                                                              |
+| **Initiative** | Single GM action: "Call for initiative" → all players requested to roll d20. Results displayed in descending order for all players and GM. |
+| **Dice**       | d20 only                                                                                                                                   |
+| **Modifiers**  | Advantage, disadvantage, DC — assigned by GM                                                                                               |
+| **Visibility** | Public by default; GM can make private                                                                                                     |
+| **Entities**   | User (GM), PlayTable, Player (name + initiative modifier; no sign-in), Roll, RollRequest                                                   |
+| **3D**         | Basic 3D dice (Three.js)                                                                                                                   |
+| **Ruleset**    | None — no ruleset required at MVP                                                                                                          |
+
+**Out of scope for MVP:** Other dice (2d6, 4d6, etc.), full dice notation, 5e presets (skills/saves/attacks), full character entities, player sign-in, offline, mobile, campaign metadata, roll history export, sound.
+
+---
+
+## Suggested Next Steps
+
+1. **Answer questions** — Work through the plan; add your decisions to this doc as you go.
+2. **Create domain entities** — Add `PlayTable`, `Player`, `Roll`, `RollRequest` to `shared/schemas` (or new `shared/domain`).
+3. **Extend GraphQL schema** — Add dice roller types, mutations, subscriptions.
+4. **Implement dice roller UI** — Route `/dice`, roll form, 3D dice component.
+5. **Implement backend** — Resolvers for create roll, assign roll, subscribe to rolls.
