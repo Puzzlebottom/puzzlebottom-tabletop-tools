@@ -75,11 +75,17 @@ describe('roll-dice resolvers', () => {
       )
       const result = (await handler(event, {} as never, vi.fn())) as {
         rollId: string
-        accepted: boolean
+        values: number[]
+        modifier: number
+        total: number
+        visibility: string
       }
       expect(result).toMatchObject({
         rollId: expect.any(String),
-        accepted: true,
+        values: expect.any(Array),
+        modifier: expect.any(Number),
+        total: expect.any(Number),
+        visibility: 'all',
       })
     })
 
@@ -116,11 +122,17 @@ describe('roll-dice resolvers', () => {
       )
       const result = (await handler(event, {} as never, vi.fn())) as {
         rollId: string
-        accepted: boolean
+        values: number[]
+        modifier: number
+        total: number
+        visibility: string
       }
       expect(result).toMatchObject({
         rollId: expect.any(String),
-        accepted: true,
+        values: expect.any(Array),
+        modifier: expect.any(Number),
+        total: expect.any(Number),
+        visibility: 'all',
       })
     })
 
@@ -163,12 +175,19 @@ describe('roll-dice resolvers', () => {
         event as Parameters<typeof rollDice>[0],
         {} as never,
         vi.fn()
-      )) as { rollId: string; accepted: boolean }
+      )) as {
+        rollId: string
+        values: number[]
+        total: number
+        visibility: string
+      }
       expect(result).toMatchObject({
         rollId: expect.stringMatching(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
         ),
-        accepted: true,
+        values: expect.any(Array),
+        total: expect.any(Number),
+        visibility: 'all',
       })
     })
 
@@ -202,8 +221,10 @@ describe('roll-dice resolvers', () => {
         event as Parameters<typeof rollDice>[0],
         {} as never,
         vi.fn()
-      )) as { rollId: string; accepted: boolean }
-      expect(result.accepted).toBe(true)
+      )) as { rollId: string; values: number[]; total: number }
+      expect(result.rollId).toBeDefined()
+      expect(result.values).toBeDefined()
+      expect(result.total).toBeDefined()
     })
 
     it('throws when neither GM nor player', async () => {
@@ -266,9 +287,10 @@ describe('roll-dice resolvers', () => {
         event as Parameters<typeof rollDice>[0],
         {} as never,
         vi.fn()
-      )) as { rollId: string; accepted: boolean }
-      expect(result).toMatchObject({ accepted: true })
+      )) as { rollId: string; values: number[]; total: number }
       expect(result.rollId).toBeDefined()
+      expect(result.values).toBeDefined()
+      expect(result.total).toBeDefined()
     })
 
     it('rolls with disadvantage when specified', async () => {
@@ -295,9 +317,10 @@ describe('roll-dice resolvers', () => {
         event as Parameters<typeof rollDice>[0],
         {} as never,
         vi.fn()
-      )) as { rollId: string; accepted: boolean }
-      expect(result).toMatchObject({ accepted: true })
+      )) as { rollId: string; values: number[]; total: number }
       expect(result.rollId).toBeDefined()
+      expect(result.values).toBeDefined()
+      expect(result.total).toBeDefined()
     })
 
     it('throws when play table not found', async () => {
@@ -352,10 +375,17 @@ describe('roll-dice resolvers', () => {
         event as Parameters<typeof fulfillRollRequest>[0],
         {} as never,
         vi.fn()
-      )) as { rollId: string; accepted: boolean }
+      )) as {
+        rollId: string
+        values: number[]
+        total: number
+        visibility: string
+      }
       expect(result).toMatchObject({
         rollId: expect.any(String),
-        accepted: true,
+        values: expect.any(Array),
+        total: expect.any(Number),
+        visibility: 'all',
       })
     })
 

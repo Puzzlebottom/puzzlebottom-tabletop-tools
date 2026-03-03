@@ -57,11 +57,11 @@ export type Mutation = {
   clearInitiative: Scalars['Boolean']['output'];
   createPlayTable: PlayTable;
   createRollRequest: RollRequest;
-  fulfillRollRequest: RollDiceResponse;
+  fulfillRollRequest: RollResult;
   joinPlayTable: JoinPlayTableResponse;
   leavePlayTable: Scalars['Boolean']['output'];
   notifyInitiativeUpdated: InitiativeOrderUpdated;
-  rollDice: RollDiceResponse;
+  rollDice: RollResult;
 };
 
 
@@ -214,7 +214,7 @@ export type RollerType =
 
 export type Subscription = {
   onInitiativeUpdated: InitiativeOrderUpdated;
-  onRollCompleted?: Maybe<RollResult>;
+  onRollCompleted: RollResult;
   onRollRequestCreated?: Maybe<RollRequest>;
 };
 
@@ -264,7 +264,7 @@ export type RollDiceMutationVariables = Exact<{
 }>;
 
 
-export type RollDiceMutation = { rollDice: { rollId: string, accepted: boolean } };
+export type RollDiceMutation = { rollDice: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
 
 export type FulfillRollRequestMutationVariables = Exact<{
   rollRequestId: Scalars['ID']['input'];
@@ -273,7 +273,7 @@ export type FulfillRollRequestMutationVariables = Exact<{
 }>;
 
 
-export type FulfillRollRequestMutation = { fulfillRollRequest: { rollId: string, accepted: boolean } };
+export type FulfillRollRequestMutation = { fulfillRollRequest: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
 
 export type CreateRollRequestMutationVariables = Exact<{
   playTableId: Scalars['ID']['input'];
@@ -318,7 +318,7 @@ export type OnRollCompletedSubscriptionVariables = Exact<{
 }>;
 
 
-export type OnRollCompletedSubscription = { onRollCompleted?: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } | null };
+export type OnRollCompletedSubscription = { onRollCompleted: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
 
 export type OnRollRequestCreatedSubscriptionVariables = Exact<{
   playTableId: Scalars['ID']['input'];

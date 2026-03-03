@@ -139,7 +139,7 @@ type Mutation {
     input: JoinPlayTableInput!
   ): JoinPlayTableResponse!
   leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
-  rollDice(playTableId: ID!, input: RollDiceInput!): RollDiceResponse!
+  rollDice(playTableId: ID!, input: RollDiceInput!): RollResult!
   createRollRequest(
     playTableId: ID!
     input: CreateRollRequestInput!
@@ -148,7 +148,7 @@ type Mutation {
     rollRequestId: ID!
     playTableId: ID!
     playerId: String!
-  ): RollDiceResponse!
+  ): RollResult!
   clearInitiative(playTableId: ID!): Boolean!
   notifyInitiativeUpdated(
     playTableId: ID!
@@ -157,7 +157,7 @@ type Mutation {
 }
 
 type Subscription {
-  onRollCompleted(playTableId: ID!): RollResult
+  onRollCompleted(playTableId: ID!): RollResult!
     @aws_subscribe(mutations: ["rollDice", "fulfillRollRequest"])
   onRollRequestCreated(playTableId: ID!): RollRequest
     @aws_subscribe(mutations: ["createRollRequest"])

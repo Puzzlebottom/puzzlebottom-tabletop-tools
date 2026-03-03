@@ -97,7 +97,16 @@ async function performRoll(params: {
   visibility?: string | null
   rollRequestId?: string | null
   rollRequestType: 'ad_hoc' | 'initiative'
-}): Promise<{ rollId: string; values: number[]; total: number }> {
+}): Promise<{
+  rollId: string
+  values: number[]
+  modifier: number
+  total: number
+  advantage: string | null
+  dc: number | null
+  success: boolean | null
+  visibility: 'all' | 'gm_only'
+}> {
   const {
     playTableId,
     roller,
@@ -174,7 +183,27 @@ async function performRoll(params: {
     })
   )
 
-  return { rollId, values, total }
+  return {
+    rollId,
+    values,
+    modifier: modifier ?? 0,
+    total,
+    advantage: advantage ?? null,
+    dc: dc ?? null,
+    success: success ?? null,
+    visibility: vis,
+  }
+}
+
+interface RollResult {
+  rollId: string
+  values: number[]
+  modifier: number
+  total: number
+  advantage: string | null
+  dc: number | null
+  success: boolean | null
+  visibility: 'all' | 'gm_only'
 }
 
 export const rollDice: AppSyncResolverHandler<
@@ -190,7 +219,7 @@ export const rollDice: AppSyncResolverHandler<
       rollRequestId?: string | null
     }
   },
-  { rollId: string; accepted: boolean }
+  RollResult
 > = async (event) => {
   const { playTableId, input } = event.arguments
   const identity = event.identity
@@ -210,7 +239,7 @@ export const rollDice: AppSyncResolverHandler<
     throw new Error('Play table not found')
   }
 
-  const { rollId } = await performRoll({
+  return performRoll({
     playTableId,
     roller,
     diceType: input.diceType,
@@ -221,8 +250,6 @@ export const rollDice: AppSyncResolverHandler<
     rollRequestId: input.rollRequestId,
     rollRequestType: input.rollRequestId ? 'initiative' : 'ad_hoc',
   })
-
-  return { rollId, accepted: true }
 }
 
 export const fulfillRollRequest: AppSyncResolverHandler<
@@ -231,7 +258,7 @@ export const fulfillRollRequest: AppSyncResolverHandler<
     playTableId: string
     playerId: string
   },
-  { rollId: string; accepted: boolean }
+  RollResult
 > = async (event) => {
   const { rollRequestId, playTableId, playerId } = event.arguments
 
@@ -281,7 +308,7 @@ export const fulfillRollRequest: AppSyncResolverHandler<
 
   const roller: RollerIdentity = { type: 'player', rollerId: playerId }
 
-  const { rollId } = await performRoll({
+  return performRoll({
     playTableId,
     roller,
     diceType: 'd20',
@@ -292,8 +319,6 @@ export const fulfillRollRequest: AppSyncResolverHandler<
     rollRequestId,
     rollRequestType: rollRequest.type as 'ad_hoc' | 'initiative',
   })
-
-  return { rollId, accepted: true }
 }
 
 /**

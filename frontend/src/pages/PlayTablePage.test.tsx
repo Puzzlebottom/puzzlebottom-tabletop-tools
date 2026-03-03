@@ -301,7 +301,18 @@ describe('PlayTablePage', () => {
         data: { rollHistory: { items: [], nextToken: null } },
       })
       .mockResolvedValueOnce({
-        data: { rollDice: { rollId: 'r1', accepted: true } },
+        data: {
+          rollDice: {
+            rollId: 'r1',
+            values: [15],
+            modifier: 0,
+            total: 15,
+            advantage: null,
+            dc: null,
+            success: null,
+            visibility: 'all',
+          },
+        },
       })
 
     render(
@@ -345,7 +356,18 @@ describe('PlayTablePage', () => {
         data: { rollHistory: { items: [], nextToken: null } },
       })
       .mockResolvedValueOnce({
-        data: { rollDice: { rollId: 'r1', accepted: true } },
+        data: {
+          rollDice: {
+            rollId: 'r1',
+            values: [15],
+            modifier: 0,
+            total: 15,
+            advantage: null,
+            dc: null,
+            success: null,
+            visibility: 'all',
+          },
+        },
       })
 
     render(
@@ -535,7 +557,18 @@ describe('PlayTablePage', () => {
         data: { rollHistory: { items: [], nextToken: null } },
       })
       .mockResolvedValueOnce({
-        data: { rollDice: { rollId: 'r1', accepted: true } },
+        data: {
+          rollDice: {
+            rollId: 'r1',
+            values: [15],
+            modifier: 0,
+            total: 15,
+            advantage: null,
+            dc: null,
+            success: null,
+            visibility: 'all',
+          },
+        },
       })
 
     render(
@@ -707,7 +740,13 @@ describe('PlayTablePage', () => {
         data: {
           fulfillRollRequest: {
             rollId: 'r1',
-            accepted: true,
+            values: [15],
+            modifier: 0,
+            total: 15,
+            advantage: null,
+            dc: null,
+            success: null,
+            visibility: 'all',
           },
         },
       })
