@@ -1,13 +1,149 @@
-import { useParams } from 'react-router-dom'
+import { generateClient } from 'aws-amplify/api'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+
+import { joinPlayTableMutation } from '../graphql/mutations'
+import { getStoredPlayer, storePlayer } from '../lib/player-storage'
+
+const client = generateClient()
 
 export function JoinPlayTablePage() {
   const { inviteCode } = useParams<{ inviteCode: string }>()
+  const navigate = useNavigate()
+  const [characterName, setCharacterName] = useState('')
+  const [initiativeModifier, setInitiativeModifier] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [checkingRejoin, setCheckingRejoin] = useState(true)
+
+  useEffect(() => {
+    const stored = getStoredPlayer()
+    if (!stored || !inviteCode?.trim()) {
+      setCheckingRejoin(false)
+      return
+    }
+    let cancelled = false
+    const check = async () => {
+      try {
+        const result = (await client.graphql(
+          {
+            query: /* GraphQL */ `
+              query PlayTableByInviteCode($inviteCode: String!) {
+                playTableByInviteCode(inviteCode: $inviteCode) {
+                  id
+                }
+              }
+            `,
+            variables: { inviteCode: inviteCode.trim() },
+          },
+          { authMode: 'apiKey' }
+        )) as { data: { playTableByInviteCode?: { id: string } } }
+        const playTableId = result.data.playTableByInviteCode?.id
+        if (!cancelled && playTableId === stored.playTableId) {
+          void navigate(`/dice/table/${playTableId}`, { replace: true })
+        }
+      } catch {
+        // Fall through to show form
+      } finally {
+        if (!cancelled) setCheckingRejoin(false)
+      }
+    }
+    void check()
+    return () => {
+      cancelled = true
+    }
+  }, [inviteCode, navigate])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteCode?.trim()) {
+      setError('Invite code is required')
+      return
+    }
+    if (!characterName.trim()) {
+      setError('Character name is required')
+      return
+    }
+    setError(null)
+    setSubmitting(true)
+    try {
+      const result = (await client.graphql(
+        {
+          query: joinPlayTableMutation,
+          variables: {
+            inviteCode: inviteCode.trim(),
+            input: {
+              characterName: characterName.trim(),
+              initiativeModifier,
+            },
+          },
+        },
+        { authMode: 'apiKey' }
+      )) as { data: { joinPlayTable: { id: string; playTableId: string } } }
+
+      const { id, playTableId } = result.data.joinPlayTable
+      storePlayer(id, playTableId)
+      void navigate(`/dice/table/${playTableId}`, { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to join play table')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (checkingRejoin) {
+    return (
+      <main style={{ maxWidth: 640, margin: '0 auto', padding: '2rem' }}>
+        <p>Checking…</p>
+      </main>
+    )
+  }
 
   return (
     <main style={{ maxWidth: 640, margin: '0 auto', padding: '2rem' }}>
       <h1>Join play table</h1>
       <p>Invite code: {inviteCode ?? '—'}</p>
-      {/* D2: form for characterName, initiativeModifier */}
+      <form
+        onSubmit={(e) => {
+          void handleSubmit(e)
+        }}
+      >
+        <div style={{ marginBottom: '1rem' }}>
+          <label htmlFor="characterName">
+            Character name
+            <input
+              id="characterName"
+              type="text"
+              value={characterName}
+              onChange={(e) => setCharacterName(e.target.value)}
+              required
+              disabled={submitting}
+              style={{ display: 'block', marginTop: '0.25rem', width: '100%' }}
+            />
+          </label>
+        </div>
+        <div style={{ marginBottom: '1rem' }}>
+          <label htmlFor="initiativeModifier">
+            Initiative modifier
+            <input
+              id="initiativeModifier"
+              type="number"
+              value={initiativeModifier}
+              onChange={(e) =>
+                setInitiativeModifier(parseInt(e.target.value, 10) || 0)
+              }
+              disabled={submitting}
+              style={{ display: 'block', marginTop: '0.25rem', width: '100%' }}
+            />
+          </label>
+        </div>
+        {error !== null && (
+          <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>
+        )}
+        <button type="submit" disabled={submitting}>
+          {submitting ? 'Joining…' : 'Join'}
+        </button>
+      </form>
     </main>
   )
 }

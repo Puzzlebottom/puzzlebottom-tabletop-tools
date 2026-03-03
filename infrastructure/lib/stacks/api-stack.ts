@@ -37,6 +37,7 @@ export class ApiStack extends cdk.Stack {
         },
         additionalAuthorizationModes: [
           { authorizationType: appsync.AuthorizationType.IAM },
+          { authorizationType: appsync.AuthorizationType.API_KEY },
         ],
       },
       logConfig: {

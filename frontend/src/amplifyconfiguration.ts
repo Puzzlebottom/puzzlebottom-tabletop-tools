@@ -9,6 +9,7 @@ const amplifyConfig = {
     GraphQL: {
       endpoint: import.meta.env.VITE_GRAPHQL_ENDPOINT,
       defaultAuthMode: 'userPool' as const,
+      apiKey: import.meta.env.VITE_GRAPHQL_API_KEY as string | undefined,
     },
   },
 }

@@ -3,8 +3,7 @@ import { getCurrentUser } from 'aws-amplify/auth'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-const PLAYER_KEY_STORAGE = 'playerKey'
-const PLAY_TABLE_ID_STORAGE = 'playTableId'
+import { getStoredPlayer } from '../lib/player-storage'
 
 export function PlayTablePage() {
   const { playTableId } = useParams<{ playTableId: string }>()
@@ -15,8 +14,9 @@ export function PlayTablePage() {
   useEffect(() => {
     if (!playTableId) return
 
-    const storedPlayerKey = localStorage.getItem(PLAYER_KEY_STORAGE)
-    const storedPlayTableId = localStorage.getItem(PLAY_TABLE_ID_STORAGE)
+    const stored = getStoredPlayer()
+    const storedPlayerKey = stored?.playerId ?? null
+    const storedPlayTableId = stored?.playTableId ?? null
     const isPlayer =
       storedPlayerKey !== null && storedPlayTableId === playTableId
 
