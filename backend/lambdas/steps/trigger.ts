@@ -1,5 +1,6 @@
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
 import {
+  DataRecordSchema,
   EventBridgeEventBodySchema,
   type StepInput,
 } from '@puzzlebottom-tabletop-tools/schemas'
@@ -29,11 +30,28 @@ export const handler: SQSHandler = async (event) => {
       continue
     }
 
-    const { detail } = parseResult.data
+    const envelope = parseResult.data
+    if (envelope['detail-type'] !== 'DataSubmitted') {
+      console.error(
+        `Unsupported detail-type: ${envelope['detail-type']}. Skipping record`
+      )
+      continue
+    }
+
+    const detailResult = DataRecordSchema.safeParse(envelope.detail)
+    if (!detailResult.success) {
+      console.error(
+        'Invalid DataSubmitted detail:',
+        detailResult.error.flatten().formErrors.join(', '),
+        'Skipping record'
+      )
+      continue
+    }
+
     const pipelineId = randomUUID()
 
     const stepInput: StepInput = {
-      record: detail,
+      record: detailResult.data,
       pipelineId,
       timestamp: new Date().toISOString(),
     }

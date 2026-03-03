@@ -1,18 +1,140 @@
 import { z } from 'zod'
 
-import { DataRecordSchema } from './data-record'
-
 /** EventBridge source for pipeline events. Add new sources here when extending. */
 export const EVENT_SOURCE = 'puzzlebottom-tabletop-tools' as const
 export type EventSource = typeof EVENT_SOURCE
 
-/** EventBridge detail types for pipeline events. Add new types here when extending. */
-export const DETAIL_TYPE_DATA_SUBMITTED = 'DataSubmitted' as const
-export type EventDetailType = typeof DETAIL_TYPE_DATA_SUBMITTED
+/** EventBridge detail types for dice roller events. */
+export const DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED =
+  'InitiativeRollRequestCreated' as const
+export const DETAIL_TYPE_ROLL_COMPLETED = 'RollCompleted' as const
+export const DETAIL_TYPE_PLAYER_LEFT = 'PlayerLeft' as const
+export const DETAIL_TYPE_PLAYER_JOINED = 'PlayerJoined' as const
 
-/** EventBridge event body structure when delivered to SQS. */
-export const EventBridgeEventBodySchema = z.object({
-  detail: DataRecordSchema,
+export type EventDetailType =
+  | typeof DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED
+  | typeof DETAIL_TYPE_ROLL_COMPLETED
+  | typeof DETAIL_TYPE_PLAYER_LEFT
+  | typeof DETAIL_TYPE_PLAYER_JOINED
+
+/** InitiativeRollRequestCreated event detail (from createRollRequest Lambda). */
+export const InitiativeRollRequestCreatedDetailSchema = z.object({
+  playTableId: z.string(),
+  rollRequestId: z.string(),
+  targetPlayerIds: z.array(z.string()),
+  expectedCount: z.number(),
 })
 
-export type EventBridgeEventBody = z.infer<typeof EventBridgeEventBodySchema>
+export type InitiativeRollRequestCreatedDetail = z.infer<
+  typeof InitiativeRollRequestCreatedDetailSchema
+>
+
+/** RollCompleted event detail (from rollDice / fulfillRollRequest Lambda). */
+export const RollCompletedDetailSchema = z.object({
+  playTableId: z.string(),
+  rollId: z.string(),
+  rollRequestId: z.string().optional(),
+  rollRequestType: z.enum(['ad_hoc', 'initiative']),
+  rollerId: z.string(),
+  rollerType: z.enum(['gm', 'player']),
+  d20Value: z.number(),
+  total: z.number(),
+  advantage: z.enum(['advantage', 'disadvantage']).nullable().optional(),
+  dc: z.number().nullable().optional(),
+  success: z.boolean().nullable().optional(),
+})
+
+export type RollCompletedDetail = z.infer<typeof RollCompletedDetailSchema>
+
+/** PlayerLeft event detail (from leavePlayTable Lambda). */
+export const PlayerLeftDetailSchema = z.object({
+  playTableId: z.string(),
+  playerKey: z.string(),
+})
+
+export type PlayerLeftDetail = z.infer<typeof PlayerLeftDetailSchema>
+
+/** PlayerJoined event detail (from joinPlayTable Lambda). */
+export const PlayerJoinedDetailSchema = z.object({
+  playTableId: z.string(),
+  playerKey: z.string(),
+  characterName: z.string(),
+  initiativeModifier: z.number(),
+})
+
+export type PlayerJoinedDetail = z.infer<typeof PlayerJoinedDetailSchema>
+
+/** Discriminated union of all event details with their detail-type. */
+export const EventDetailSchema = z.discriminatedUnion('detailType', [
+  z.object({
+    detailType: z.literal(DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED),
+    detail: InitiativeRollRequestCreatedDetailSchema,
+  }),
+  z.object({
+    detailType: z.literal(DETAIL_TYPE_ROLL_COMPLETED),
+    detail: RollCompletedDetailSchema,
+  }),
+  z.object({
+    detailType: z.literal(DETAIL_TYPE_PLAYER_LEFT),
+    detail: PlayerLeftDetailSchema,
+  }),
+  z.object({
+    detailType: z.literal(DETAIL_TYPE_PLAYER_JOINED),
+    detail: PlayerJoinedDetailSchema,
+  }),
+])
+
+export type EventDetail = z.infer<typeof EventDetailSchema>
+
+/** EventBridge event envelope when delivered to SQS. */
+export const EventBridgeEnvelopeSchema = z.object({
+  version: z.string(),
+  id: z.string(),
+  'detail-type': z.string(),
+  source: z.string(),
+  detail: z.unknown().refine((v) => v !== undefined, {
+    message: 'detail is required',
+  }),
+})
+
+export type EventBridgeEnvelope = z.infer<typeof EventBridgeEnvelopeSchema>
+
+/**
+ * Parses an EventBridge envelope and returns typed detail based on detail-type.
+ * Throws if detail-type is unknown or detail fails validation.
+ */
+export function parseEventDetail(envelope: EventBridgeEnvelope): EventDetail {
+  const detailType = envelope['detail-type']
+  const detail = envelope.detail
+
+  switch (detailType) {
+    case DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED:
+      return {
+        detailType,
+        detail: InitiativeRollRequestCreatedDetailSchema.parse(detail),
+      }
+    case DETAIL_TYPE_ROLL_COMPLETED:
+      return {
+        detailType,
+        detail: RollCompletedDetailSchema.parse(detail),
+      }
+    case DETAIL_TYPE_PLAYER_LEFT:
+      return {
+        detailType,
+        detail: PlayerLeftDetailSchema.parse(detail),
+      }
+    case DETAIL_TYPE_PLAYER_JOINED:
+      return {
+        detailType,
+        detail: PlayerJoinedDetailSchema.parse(detail),
+      }
+    default:
+      throw new Error(`Unknown detail-type: ${detailType}`)
+  }
+}
+
+/** Alias for EventBridgeEnvelopeSchema. Validates SQS message body (EventBridge envelope). */
+export const EventBridgeEventBodySchema = EventBridgeEnvelopeSchema
+
+/** Alias for EventBridgeEnvelope. */
+export type EventBridgeEventBody = EventBridgeEnvelope

@@ -42,7 +42,15 @@ describe('trigger handler', () => {
 
   it('starts Step Function execution for valid SQS record', async () => {
     const record = createDataRecord()
-    const event = createSqsEvent([JSON.stringify({ detail: record })])
+    const event = createSqsEvent([
+      JSON.stringify({
+        version: '0',
+        id: 'evt-123',
+        'detail-type': 'DataSubmitted',
+        source: 'puzzlebottom-tabletop-tools',
+        detail: record,
+      }),
+    ])
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
@@ -71,7 +79,15 @@ describe('trigger handler', () => {
   })
 
   it('skips record with invalid EventBridge event body', async () => {
-    const event = createSqsEvent([JSON.stringify({ detail: null })])
+    const event = createSqsEvent([
+      JSON.stringify({
+        version: '0',
+        id: 'evt-123',
+        'detail-type': 'DataSubmitted',
+        source: 'puzzlebottom-tabletop-tools',
+        detail: null,
+      }),
+    ])
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 

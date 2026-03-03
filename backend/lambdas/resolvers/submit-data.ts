@@ -8,7 +8,6 @@ import type {
 } from '@puzzlebottom-tabletop-tools/graphql-types'
 import {
   type DataRecord,
-  DETAIL_TYPE_DATA_SUBMITTED,
   EVENT_SOURCE,
   PayloadSchema,
 } from '@puzzlebottom-tabletop-tools/schemas'
@@ -53,7 +52,7 @@ export const handler: AppSyncResolverHandler<
         {
           EventBusName: EVENT_BUS_NAME,
           Source: EVENT_SOURCE,
-          DetailType: DETAIL_TYPE_DATA_SUBMITTED,
+          DetailType: 'DataSubmitted',
           Detail: JSON.stringify(record),
         },
       ],
