@@ -28,3 +28,19 @@ export {
   type ValidateOutput,
   ValidateOutputSchema,
 } from './pipeline'
+export { type PlayTable, PlayTableSchema } from './play-table'
+export { type Player, PlayerSchema } from './player'
+export {
+  type Roll,
+  type RollerType,
+  RollerTypeSchema,
+  RollSchema,
+  type Visibility,
+  VisibilitySchema,
+} from './roll'
+export {
+  type RollRequest,
+  RollRequestSchema,
+  type RollRequestType,
+  RollRequestTypeSchema,
+} from './roll-request'
