@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib'
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import * as iam from 'aws-cdk-lib/aws-iam'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources'
 import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs'
@@ -59,6 +60,45 @@ export class StepFunctionStack extends cdk.Stack {
       },
     })
 
+    const rollCompletedHandler = new lambdaNode.NodejsFunction(
+      this,
+      'RollCompletedHandler',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-roll-completed-handler`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/handlers/roll-completed.ts'
+        ),
+      }
+    )
+
+    const playerLeftHandler = new lambdaNode.NodejsFunction(
+      this,
+      'PlayerLeftHandler',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-player-left-handler`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/handlers/player-left.ts'
+        ),
+      }
+    )
+
+    const playerJoinedHandler = new lambdaNode.NodejsFunction(
+      this,
+      'PlayerJoinedHandler',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-player-joined-handler`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/handlers/player-joined.ts'
+        ),
+      }
+    )
+
     const triggerFn = new lambdaNode.NodejsFunction(this, 'SqsTriggerFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-trigger`,
@@ -68,10 +108,23 @@ export class StepFunctionStack extends cdk.Stack {
       ),
       environment: {
         STATE_MACHINE_ARN: this.stateMachine.stateMachineArn,
+        ROLL_COMPLETED_HANDLER_ARN: rollCompletedHandler.functionArn,
+        PLAYER_LEFT_HANDLER_ARN: playerLeftHandler.functionArn,
+        PLAYER_JOINED_HANDLER_ARN: playerJoinedHandler.functionArn,
       },
     })
 
     this.stateMachine.grantStartExecution(triggerFn)
+    triggerFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['lambda:InvokeFunction'],
+        resources: [
+          rollCompletedHandler.functionArn,
+          playerLeftHandler.functionArn,
+          playerJoinedHandler.functionArn,
+        ],
+      })
+    )
 
     triggerFn.addEventSource(
       new eventsources.SqsEventSource(pipelineQueue, {

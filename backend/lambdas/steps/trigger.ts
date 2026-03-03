@@ -1,14 +1,24 @@
+import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda'
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
 import {
-  DataRecordSchema,
+  DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED,
+  DETAIL_TYPE_PLAYER_JOINED,
+  DETAIL_TYPE_PLAYER_LEFT,
+  DETAIL_TYPE_ROLL_COMPLETED,
   EventBridgeEventBodySchema,
-  type StepInput,
+  InitiativeRollRequestCreatedDetailSchema,
+  parseEventDetail,
+  RollCompletedDetailSchema,
 } from '@puzzlebottom-tabletop-tools/schemas'
-import { type SQSHandler } from 'aws-lambda'
-import { randomUUID } from 'crypto'
+import type { SQSHandler } from 'aws-lambda'
 
 const sfnClient = new SFNClient({})
+const lambdaClient = new LambdaClient({})
+
 const STATE_MACHINE_ARN = process.env.STATE_MACHINE_ARN!
+const ROLL_COMPLETED_HANDLER_ARN = process.env.ROLL_COMPLETED_HANDLER_ARN!
+const PLAYER_LEFT_HANDLER_ARN = process.env.PLAYER_LEFT_HANDLER_ARN!
+const PLAYER_JOINED_HANDLER_ARN = process.env.PLAYER_JOINED_HANDLER_ARN!
 
 export const handler: SQSHandler = async (event) => {
   for (const sqsRecord of event.Records) {
@@ -31,39 +41,102 @@ export const handler: SQSHandler = async (event) => {
     }
 
     const envelope = parseResult.data
-    if (envelope['detail-type'] !== 'DataSubmitted') {
-      console.error(
-        `Unsupported detail-type: ${envelope['detail-type']}. Skipping record`
-      )
-      continue
+    const detailType = envelope['detail-type']
+
+    try {
+      switch (detailType) {
+        case DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED: {
+          const detailResult =
+            InitiativeRollRequestCreatedDetailSchema.safeParse(envelope.detail)
+          if (!detailResult.success) {
+            console.error(
+              'Invalid InitiativeRollRequestCreated detail:',
+              detailResult.error.flatten().formErrors.join(', '),
+              'Skipping record'
+            )
+            continue
+          }
+          await sfnClient.send(
+            new StartExecutionCommand({
+              stateMachineArn: STATE_MACHINE_ARN,
+              name: detailResult.data.rollRequestId,
+              input: JSON.stringify(detailResult.data),
+            })
+          )
+          console.log(
+            `Started Initiative Step Function: ${detailResult.data.rollRequestId}`
+          )
+          break
+        }
+
+        case DETAIL_TYPE_ROLL_COMPLETED: {
+          const detailResult = RollCompletedDetailSchema.safeParse(
+            envelope.detail
+          )
+          if (!detailResult.success) {
+            console.error(
+              'Invalid RollCompleted detail:',
+              detailResult.error.flatten().formErrors.join(', '),
+              'Skipping record'
+            )
+            continue
+          }
+          if (detailResult.data.rollRequestType !== 'initiative') {
+            continue
+          }
+          await lambdaClient.send(
+            new InvokeCommand({
+              FunctionName: ROLL_COMPLETED_HANDLER_ARN,
+              InvocationType: 'Event',
+              Payload: JSON.stringify(detailResult.data),
+            })
+          )
+          console.log(
+            `Invoked roll-completed handler for roll ${detailResult.data.rollId}`
+          )
+          break
+        }
+
+        case DETAIL_TYPE_PLAYER_LEFT: {
+          const parsedEvent = parseEventDetail(envelope)
+          if (parsedEvent.detailType !== DETAIL_TYPE_PLAYER_LEFT) continue
+          await lambdaClient.send(
+            new InvokeCommand({
+              FunctionName: PLAYER_LEFT_HANDLER_ARN,
+              InvocationType: 'Event',
+              Payload: JSON.stringify(parsedEvent.detail),
+            })
+          )
+          console.log(
+            `Invoked player-left handler for player ${parsedEvent.detail.id}`
+          )
+          break
+        }
+
+        case DETAIL_TYPE_PLAYER_JOINED: {
+          const parsedEvent = parseEventDetail(envelope)
+          if (parsedEvent.detailType !== DETAIL_TYPE_PLAYER_JOINED) continue
+          await lambdaClient.send(
+            new InvokeCommand({
+              FunctionName: PLAYER_JOINED_HANDLER_ARN,
+              InvocationType: 'Event',
+              Payload: JSON.stringify(parsedEvent.detail),
+            })
+          )
+          console.log(
+            `Invoked player-joined handler for player ${parsedEvent.detail.id}`
+          )
+          break
+        }
+
+        default:
+          console.error(
+            `Unsupported detail-type: ${detailType}. Skipping record`
+          )
+      }
+    } catch (err) {
+      console.error('Dispatcher error:', err)
+      throw err
     }
-
-    const detailResult = DataRecordSchema.safeParse(envelope.detail)
-    if (!detailResult.success) {
-      console.error(
-        'Invalid DataSubmitted detail:',
-        detailResult.error.flatten().formErrors.join(', '),
-        'Skipping record'
-      )
-      continue
-    }
-
-    const pipelineId = randomUUID()
-
-    const stepInput: StepInput = {
-      record: detailResult.data,
-      pipelineId,
-      timestamp: new Date().toISOString(),
-    }
-
-    await sfnClient.send(
-      new StartExecutionCommand({
-        stateMachineArn: STATE_MACHINE_ARN,
-        name: pipelineId,
-        input: JSON.stringify(stepInput),
-      })
-    )
-
-    console.log(`Started pipeline execution: ${pipelineId}`)
   }
 }
