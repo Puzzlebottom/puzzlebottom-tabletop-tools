@@ -1,31 +1,28 @@
-import { Authenticator } from '@aws-amplify/ui-react'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+
+import { CreatePlayTablePage } from './pages/CreatePlayTablePage'
+import { DiceLandingPage } from './pages/DiceLandingPage'
+import { HomePage } from './pages/HomePage'
+import { JoinPlayTablePage } from './pages/JoinPlayTablePage'
+import { PlayTablePage } from './pages/PlayTablePage'
+
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/dice" element={<DiceLandingPage />} />
+      <Route path="/dice/create" element={<CreatePlayTablePage />} />
+      <Route path="/dice/join/:inviteCode" element={<JoinPlayTablePage />} />
+      <Route path="/dice/table/:playTableId" element={<PlayTablePage />} />
+    </Routes>
+  )
+}
 
 function App() {
   return (
-    <Authenticator>
-      {({ signOut, user }) => (
-        <main style={{ maxWidth: 640, margin: '0 auto', padding: '2rem' }}>
-          <header
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '2rem',
-            }}
-          >
-            <h1 style={{ margin: 0 }}>
-              Puzzlebottom&apos;s Tabletop Tools Suite
-            </h1>
-            <div>
-              <span style={{ marginRight: '1rem' }}>
-                {user?.signInDetails?.loginId}
-              </span>
-              <button onClick={signOut}>Sign out</button>
-            </div>
-          </header>
-        </main>
-      )}
-    </Authenticator>
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   )
 }
 

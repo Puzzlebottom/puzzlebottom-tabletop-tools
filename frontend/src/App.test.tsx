@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
-import App from './App'
+import { AppRoutes } from './App'
 
 vi.mock('@aws-amplify/ui-react', () => ({
   Authenticator: ({
@@ -19,17 +20,21 @@ vi.mock('@aws-amplify/ui-react', () => ({
 }))
 
 describe('App', () => {
-  it('renders app title', () => {
-    render(<App />)
-    expect(
-      screen.getByText("Puzzlebottom's Tabletop Tools Suite")
-    ).toBeInTheDocument()
+  it('redirects / to /dice', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AppRoutes />
+      </MemoryRouter>
+    )
+    expect(screen.getByText('Dice Roller')).toBeInTheDocument()
   })
 
-  it('renders sign out button', () => {
-    render(<App />)
-    expect(
-      screen.getByRole('button', { name: /sign out/i })
-    ).toBeInTheDocument()
+  it('renders dice landing at /dice', () => {
+    render(
+      <MemoryRouter initialEntries={['/dice']}>
+        <AppRoutes />
+      </MemoryRouter>
+    )
+    expect(screen.getByText('Dice Roller')).toBeInTheDocument()
   })
 })
