@@ -1,6 +1,5 @@
 import * as cdk from 'aws-cdk-lib'
 import * as events from 'aws-cdk-lib/aws-events'
-import * as targets from 'aws-cdk-lib/aws-events-targets'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
 import { type Construct } from 'constructs'
 
@@ -39,16 +38,6 @@ export class EventStack extends cdk.Stack {
         maxReceiveCount: 3,
       },
       removalPolicy: config.removalPolicy,
-    })
-
-    new events.Rule(this, 'DataSubmittedRule', {
-      ruleName: `${config.envName}-data-submitted`,
-      eventBus: this.eventBus,
-      eventPattern: {
-        source: ['puzzlebottom-tabletop-tools'],
-        detailType: ['DataSubmitted'],
-      },
-      targets: [new targets.SqsQueue(this.pipelineQueue)],
     })
 
     new cdk.CfnOutput(this, 'EventBusName', {

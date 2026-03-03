@@ -1,7 +1,5 @@
 import { Authenticator } from '@aws-amplify/ui-react'
 
-import SubmitDataForm from './components/SubmitDataForm'
-
 function App() {
   return (
     <Authenticator>
@@ -25,7 +23,6 @@ function App() {
               <button onClick={signOut}>Sign out</button>
             </div>
           </header>
-          <SubmitDataForm />
         </main>
       )}
     </Authenticator>

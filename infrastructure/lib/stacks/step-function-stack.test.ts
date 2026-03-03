@@ -36,22 +36,13 @@ describe('StepFunctionStack', () => {
     })
   })
 
-  it('creates pipeline Lambdas: ingest, transform, validate, store, trigger', () => {
+  it('creates trigger Lambda for SQS', () => {
     const stack = createStepFunctionStack()
     const template = Template.fromStack(stack)
 
-    const expectedFunctions = [
-      `${mockConfig.envName}-pipeline-ingest`,
-      `${mockConfig.envName}-pipeline-transform`,
-      `${mockConfig.envName}-pipeline-validate`,
-      `${mockConfig.envName}-pipeline-store`,
-      `${mockConfig.envName}-pipeline-trigger`,
-    ]
-    for (const name of expectedFunctions) {
-      template.hasResourceProperties('AWS::Lambda::Function', {
-        FunctionName: name,
-      })
-    }
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: `${mockConfig.envName}-pipeline-trigger`,
+    })
   })
 
   it('creates CloudWatch Log Group for state machine', () => {

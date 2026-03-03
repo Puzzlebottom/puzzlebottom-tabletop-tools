@@ -79,6 +79,31 @@ describe('trigger handler', () => {
   })
 
   it('skips record with invalid EventBridge event body', async () => {
+    const event = createSqsEvent([JSON.stringify({ invalid: 'envelope' })])
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockSend).not.toHaveBeenCalled()
+  })
+
+  it('skips record with unsupported detail-type', async () => {
+    const record = createDataRecord()
+    const event = createSqsEvent([
+      JSON.stringify({
+        version: '0',
+        id: 'evt-123',
+        'detail-type': 'OtherEventType',
+        source: 'puzzlebottom-tabletop-tools',
+        detail: record,
+      }),
+    ])
+
+    await handler(event, MINIMAL_CONTEXT, vi.fn())
+
+    expect(mockSend).not.toHaveBeenCalled()
+  })
+
+  it('skips record with invalid DataSubmitted detail', async () => {
     const event = createSqsEvent([
       JSON.stringify({
         version: '0',

@@ -15,30 +15,13 @@ export type Scalars = {
 };
 
 export type Mutation = {
-  submitData: SubmitDataResponse;
-};
-
-
-export type MutationSubmitDataArgs = {
-  payload: Scalars['String']['input'];
-  source: Scalars['String']['input'];
+  _placeholder?: Maybe<Scalars['Boolean']['output']>;
 };
 
 export type Query = {
   _placeholder?: Maybe<Scalars['String']['output']>;
 };
 
-export type SubmitDataResponse = {
-  id: Scalars['ID']['output'];
-  status: Scalars['String']['output'];
-  submittedAt: Scalars['String']['output'];
-};
-
 export type Subscription = {
-  onDataProcessed?: Maybe<SubmitDataResponse>;
-};
-
-
-export type SubscriptionOnDataProcessedArgs = {
-  id?: InputMaybe<Scalars['ID']['input']>;
+  _placeholder?: Maybe<Scalars['String']['output']>;
 };

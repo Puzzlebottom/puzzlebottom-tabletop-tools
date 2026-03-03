@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib'
-import { Match, Template } from 'aws-cdk-lib/assertions'
+import { Template } from 'aws-cdk-lib/assertions'
 
 import { mockConfig } from '../test/mock-config.js'
 import { ApiStack } from './api-stack.js'
@@ -34,21 +34,6 @@ describe('ApiStack', () => {
       Name: `${mockConfig.envName}-puzzlebottom-tabletop-tools-api`,
       AuthenticationType: 'AMAZON_COGNITO_USER_POOLS',
       XrayEnabled: true,
-    })
-  })
-
-  it('creates submit-data Lambda with EventBridge env var', () => {
-    const stack = createApiStack()
-    const template = Template.fromStack(stack)
-
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      FunctionName: `${mockConfig.envName}-submit-data`,
-      Runtime: 'nodejs24.x',
-      Environment: Match.objectLike({
-        Variables: Match.objectLike({
-          EVENT_BUS_NAME: Match.anyValue(),
-        }),
-      }),
     })
   })
 

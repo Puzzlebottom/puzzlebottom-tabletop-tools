@@ -1,18 +1,11 @@
-type SubmitDataResponse {
-  id: ID!
-  status: String!
-  submittedAt: String!
-}
-
-type Mutation {
-  submitData(source: String!, payload: String!): SubmitDataResponse!
-}
-
 type Query {
   _placeholder: String
 }
 
+type Mutation {
+  _placeholder: Boolean
+}
+
 type Subscription {
-  onDataProcessed(id: ID): SubmitDataResponse
-    @aws_subscribe(mutations: ["submitData"])
+  _placeholder: String @aws_subscribe(mutations: ["_placeholder"])
 }

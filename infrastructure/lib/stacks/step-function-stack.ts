@@ -6,7 +6,6 @@ import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as logs from 'aws-cdk-lib/aws-logs'
 import type * as sqs from 'aws-cdk-lib/aws-sqs'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
-import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import { type Construct } from 'constructs'
 import * as path from 'path'
 
@@ -24,7 +23,7 @@ export class StepFunctionStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StepFunctionStackProps) {
     super(scope, id, props)
 
-    const { config, dataTable, pipelineQueue } = props
+    const { config, pipelineQueue } = props
 
     const lambdaDefaults: lambdaNode.NodejsFunctionProps = {
       runtime: lambda.Runtime.NODEJS_24_X,
@@ -38,100 +37,9 @@ export class StepFunctionStack extends cdk.Stack {
       },
     }
 
-    const ingestFn = new lambdaNode.NodejsFunction(this, 'IngestFn', {
-      ...lambdaDefaults,
-      functionName: `${config.envName}-pipeline-ingest`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/steps/ingest.ts'
-      ),
-    })
-
-    const transformFn = new lambdaNode.NodejsFunction(this, 'TransformFn', {
-      ...lambdaDefaults,
-      functionName: `${config.envName}-pipeline-transform`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/steps/transform.ts'
-      ),
-    })
-
-    const validateFn = new lambdaNode.NodejsFunction(this, 'ValidateFn', {
-      ...lambdaDefaults,
-      functionName: `${config.envName}-pipeline-validate`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/steps/validate.ts'
-      ),
-    })
-
-    const storeFn = new lambdaNode.NodejsFunction(this, 'StoreFn', {
-      ...lambdaDefaults,
-      functionName: `${config.envName}-pipeline-store`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/steps/store.ts'
-      ),
-      environment: {
-        TABLE_NAME: dataTable.tableName,
-      },
-    })
-
-    dataTable.grantWriteData(storeFn)
-
-    const ingestStep = new tasks.LambdaInvoke(this, 'Ingest', {
-      lambdaFunction: ingestFn,
-      outputPath: '$.Payload',
-      retryOnServiceExceptions: true,
-    })
-
-    const transformStep = new tasks.LambdaInvoke(this, 'Transform', {
-      lambdaFunction: transformFn,
-      outputPath: '$.Payload',
-      retryOnServiceExceptions: true,
-    })
-
-    const validateStep = new tasks.LambdaInvoke(this, 'Validate', {
-      lambdaFunction: validateFn,
-      outputPath: '$.Payload',
-      retryOnServiceExceptions: true,
-    })
-
-    const storeStep = new tasks.LambdaInvoke(this, 'Store', {
-      lambdaFunction: storeFn,
-      outputPath: '$.Payload',
-      retryOnServiceExceptions: true,
-    })
-
-    const failState = new sfn.Fail(this, 'PipelineFailed', {
-      cause: 'Pipeline step encountered an error',
-      error: 'PipelineError',
-    })
-
-    const successState = new sfn.Succeed(this, 'PipelineSucceeded')
-
-    const retryConfig: sfn.RetryProps = {
-      errors: ['States.TaskFailed'],
-      interval: cdk.Duration.seconds(2),
-      maxAttempts: 2,
-      backoffRate: 2,
-    }
-
-    ingestStep.addRetry(retryConfig)
-    transformStep.addRetry(retryConfig)
-    validateStep.addRetry(retryConfig)
-    storeStep.addRetry(retryConfig)
-
-    ingestStep.addCatch(failState, { resultPath: '$.error' })
-    transformStep.addCatch(failState, { resultPath: '$.error' })
-    validateStep.addCatch(failState, { resultPath: '$.error' })
-    storeStep.addCatch(failState, { resultPath: '$.error' })
-
-    const definition = ingestStep
-      .next(transformStep)
-      .next(validateStep)
-      .next(storeStep)
-      .next(successState)
+    const definition = new sfn.Pass(this, 'PassThrough', {
+      result: sfn.Result.fromObject({}),
+    }).next(new sfn.Succeed(this, 'Succeed'))
 
     const logGroup = new logs.LogGroup(this, 'StateMachineLogGroup', {
       logGroupName: `/aws/stepfunctions/${config.envName}-puzzlebottom-tabletop-tools`,
