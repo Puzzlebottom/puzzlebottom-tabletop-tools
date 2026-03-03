@@ -138,11 +138,13 @@ async function notifyAppSync(
   const mutation = `
     mutation NotifyInitiativeUpdated($playTableId: ID!, $order: [InitiativeEntryInput!]!) {
       notifyInitiativeUpdated(playTableId: $playTableId, order: $order) {
-        id
-        characterName
-        value
-        modifier
-        total
+        order {
+          id
+          characterName
+          value
+          modifier
+          total
+        }
       }
     }
   `

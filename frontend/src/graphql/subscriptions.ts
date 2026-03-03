@@ -31,11 +31,13 @@ export const onRollRequestCreatedSubscription = /* GraphQL */ `
 export const onInitiativeUpdatedSubscription = /* GraphQL */ `
   subscription OnInitiativeUpdated($playTableId: ID!) {
     onInitiativeUpdated(playTableId: $playTableId) {
-      id
-      characterName
-      value
-      modifier
-      total
+      order {
+        id
+        characterName
+        value
+        modifier
+        total
+      }
     }
   }
 `

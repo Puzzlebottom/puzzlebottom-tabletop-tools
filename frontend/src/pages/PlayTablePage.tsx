@@ -208,7 +208,7 @@ export function PlayTablePage() {
     ).subscribe({
       next: (payload: unknown) => {
         const order = (payload as { data?: OnInitiativeUpdatedSubscription })
-          .data?.onInitiativeUpdated
+          .data?.onInitiativeUpdated?.order
         if (order) {
           setInitiativeOrder(order)
           setPendingRollRequest(null)

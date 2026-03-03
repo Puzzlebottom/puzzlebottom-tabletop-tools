@@ -59,6 +59,7 @@ export const clearInitiative: AppSyncResolverHandler<
 /**
  * IAM-only: invoked by EventBridge consumers (OrderInitiative step, handlers).
  * Returns order from input; no DB fetch.
+ * Wrapper type required: AppSync subscriptions must return a single object, not a list.
  */
 export const notifyInitiativeUpdated: AppSyncResolverHandler<
   {
@@ -72,14 +73,16 @@ export const notifyInitiativeUpdated: AppSyncResolverHandler<
     }[]
   },
   {
-    id: string
-    characterName: string
-    value: number
-    modifier: number
-    total: number
-  }[]
+    order: {
+      id: string
+      characterName: string
+      value: number
+      modifier: number
+      total: number
+    }[]
+  }
 > = (event) => {
-  return Promise.resolve(event.arguments.order)
+  return Promise.resolve({ order: event.arguments.order })
 }
 
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (

@@ -405,15 +405,17 @@ describe('PlayTablePage', () => {
     act(() => {
       subscriptionHandlers.onInitiativeUpdated?.({
         data: {
-          onInitiativeUpdated: [
-            {
-              id: 'p1',
-              characterName: 'Alice',
-              value: 18,
-              modifier: 2,
-              total: 20,
-            },
-          ],
+          onInitiativeUpdated: {
+            order: [
+              {
+                id: 'p1',
+                characterName: 'Alice',
+                value: 18,
+                modifier: 2,
+                total: 20,
+              },
+            ],
+          },
         },
       })
     })

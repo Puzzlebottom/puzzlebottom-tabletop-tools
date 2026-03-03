@@ -39,6 +39,10 @@ export type InitiativeEntryInput = {
   value: Scalars['Int']['input'];
 };
 
+export type InitiativeOrderUpdated = {
+  order: Array<InitiativeEntry>;
+};
+
 export type JoinPlayTableInput = {
   characterName: Scalars['String']['input'];
   initiativeModifier: Scalars['Int']['input'];
@@ -56,7 +60,7 @@ export type Mutation = {
   fulfillRollRequest: RollDiceResponse;
   joinPlayTable: JoinPlayTableResponse;
   leavePlayTable: Scalars['Boolean']['output'];
-  notifyInitiativeUpdated: Array<InitiativeEntry>;
+  notifyInitiativeUpdated: InitiativeOrderUpdated;
   rollDice: RollDiceResponse;
 };
 
@@ -209,7 +213,7 @@ export type RollerType =
   | 'player';
 
 export type Subscription = {
-  onInitiativeUpdated: Array<InitiativeEntry>;
+  onInitiativeUpdated?: Maybe<InitiativeOrderUpdated>;
   onRollCompleted?: Maybe<RollResult>;
   onRollRequestCreated?: Maybe<RollRequest>;
 };
@@ -328,7 +332,7 @@ export type OnInitiativeUpdatedSubscriptionVariables = Exact<{
 }>;
 
 
-export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> };
+export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated?: { order: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> } | null };
 
 
 type Properties<T> = Required<{
@@ -375,6 +379,13 @@ export function InitiativeEntryInputSchema(): z.ZodObject<Properties<InitiativeE
     modifier: z.number(),
     total: z.number(),
     value: z.number()
+  })
+}
+
+export function InitiativeOrderUpdatedSchema(): z.ZodObject<Properties<InitiativeOrderUpdated>> {
+  return z.object({
+    __typename: z.literal('InitiativeOrderUpdated').optional(),
+    order: z.array(z.lazy(() => InitiativeEntrySchema()))
   })
 }
 

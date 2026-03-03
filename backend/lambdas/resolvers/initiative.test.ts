@@ -85,12 +85,10 @@ describe('initiative resolvers', () => {
           parentTypeName: 'Mutation',
         }
       )
-      const result = (await handler(
-        event,
-        {} as never,
-        vi.fn()
-      )) as typeof order
-      expect(result).toEqual(order)
+      const result = (await handler(event, {} as never, vi.fn())) as {
+        order: typeof order
+      }
+      expect(result).toEqual({ order })
     })
 
     it('throws for unknown resolver', async () => {
@@ -196,7 +194,7 @@ describe('initiative resolvers', () => {
         {} as never,
         vi.fn()
       )
-      expect(result).toEqual(order)
+      expect(result).toEqual({ order })
     })
   })
 })

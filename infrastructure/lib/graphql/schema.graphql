@@ -81,6 +81,10 @@ type InitiativeEntry {
   total: Int!
 }
 
+type InitiativeOrderUpdated {
+  order: [InitiativeEntry!]!
+}
+
 input InitiativeEntryInput {
   id: ID!
   characterName: String!
@@ -149,7 +153,7 @@ type Mutation {
   notifyInitiativeUpdated(
     playTableId: ID!
     order: [InitiativeEntryInput!]!
-  ): [InitiativeEntry!]!
+  ): InitiativeOrderUpdated!
 }
 
 type Subscription {
@@ -157,6 +161,6 @@ type Subscription {
     @aws_subscribe(mutations: ["rollDice", "fulfillRollRequest"])
   onRollRequestCreated(playTableId: ID!): RollRequest
     @aws_subscribe(mutations: ["createRollRequest"])
-  onInitiativeUpdated(playTableId: ID!): [InitiativeEntry!]!
+  onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated
     @aws_subscribe(mutations: ["notifyInitiativeUpdated"])
 }
