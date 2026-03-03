@@ -59,6 +59,12 @@ vi.mock('aws-amplify/api', () => ({
             if (query.includes('RollRequestCreated')) {
               subscriptionHandlers.onRollRequestCreated = handlers.next
             }
+            if (query.includes('RollCompleted')) {
+              subscriptionHandlers.onRollCompleted = handlers.next
+            }
+            if (query.includes('InitiativeUpdated')) {
+              subscriptionHandlers.onInitiativeUpdated = handlers.next
+            }
             return { unsubscribe: vi.fn() }
           },
         }
@@ -95,6 +101,8 @@ describe('PlayTablePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     subscriptionHandlers.onRollRequestCreated = undefined
+    subscriptionHandlers.onRollCompleted = undefined
+    subscriptionHandlers.onInitiativeUpdated = undefined
     mockGraphql.mockResolvedValue({
       data: {
         rollHistory: { items: [], nextToken: null },
@@ -323,6 +331,95 @@ describe('PlayTablePage', () => {
         })
       )
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    })
+  })
+
+  it('updates roll log and settles dice when onRollCompleted delivers matching rollId', async () => {
+    const user = userEvent.setup()
+    mockGetStoredPlayer.mockReturnValue({
+      playerId: 'p1',
+      playTableId: 'table-1',
+    })
+    mockGraphql
+      .mockResolvedValueOnce({
+        data: { rollHistory: { items: [], nextToken: null } },
+      })
+      .mockResolvedValueOnce({
+        data: { rollDice: { rollId: 'r1', accepted: true } },
+      })
+
+    render(
+      <MemoryRouter initialEntries={['/dice/table/table-1']}>
+        <Routes>
+          <Route path="/dice/table/:playTableId" element={<PlayTablePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /roll d20/i })
+      ).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /roll d20/i }))
+
+    act(() => {
+      subscriptionHandlers.onRollCompleted?.({
+        data: {
+          onRollCompleted: {
+            rollId: 'r1',
+            values: [15],
+            modifier: 2,
+            total: 17,
+            visibility: 'all',
+          },
+        },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/Roll r1…: 17/)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /roll d20/i })).toBeEnabled()
+  })
+
+  it('updates initiative order when onInitiativeUpdated fires', async () => {
+    mockGetStoredPlayer.mockReturnValue(null)
+    vi.mocked(getCurrentUser).mockResolvedValue({} as never)
+    mockGraphql.mockResolvedValue({
+      data: { rollHistory: { items: [], nextToken: null } },
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/dice/table/table-1']}>
+        <Routes>
+          <Route path="/dice/table/:playTableId" element={<PlayTablePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Play table (GM)')).toBeInTheDocument()
+    })
+
+    act(() => {
+      subscriptionHandlers.onInitiativeUpdated?.({
+        data: {
+          onInitiativeUpdated: [
+            {
+              id: 'p1',
+              characterName: 'Alice',
+              value: 18,
+              modifier: 2,
+              total: 20,
+            },
+          ],
+        },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/Alice: 20/)).toBeInTheDocument()
     })
   })
 

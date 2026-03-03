@@ -56,6 +56,27 @@ describe('RollLog', () => {
     expect(screen.getByText(/DC 15.*success/)).toBeInTheDocument()
   })
 
+  it('shows DC without success/fail when success is null', () => {
+    const rolls: RollDisplayItem[] = [
+      {
+        id: 'roll-1',
+        rollerId: 'p1',
+        rollerType: 'player',
+        total: 18,
+        values: [15],
+        modifier: 3,
+        dc: 15,
+        success: null,
+        visibility: 'all',
+        createdAt: '2024-01-01T00:00:00Z',
+      },
+    ]
+    render(<RollLog rolls={rolls} />)
+    expect(screen.getByText(/DC 15/)).toBeInTheDocument()
+    expect(screen.queryByText(/success/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/fail/)).not.toBeInTheDocument()
+  })
+
   it('shows DC and fail when success is false', () => {
     const rolls: RollDisplayItem[] = [
       {
@@ -118,6 +139,24 @@ describe('RollLog', () => {
     ]
     render(<RollLog rolls={rolls} viewerIsGm />)
     expect(screen.getByText(/Roll roll-1…: 20/)).toBeInTheDocument()
+  })
+
+  it('shows disadvantage when present', () => {
+    const rolls: RollDisplayItem[] = [
+      {
+        id: 'roll-4',
+        rollerId: 'p1',
+        rollerType: 'player',
+        total: 8,
+        values: [5, 7],
+        modifier: 1,
+        advantage: 'disadvantage',
+        visibility: 'all',
+        createdAt: '2024-01-01T00:00:00Z',
+      },
+    ]
+    render(<RollLog rolls={rolls} />)
+    expect(screen.getByText(/\[disadvantage\]/)).toBeInTheDocument()
   })
 
   it('shows advantage when present', () => {

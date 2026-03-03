@@ -102,6 +102,27 @@ describe('GMRollControls', () => {
     )
   })
 
+  it('calls onAdHocOptionsChange when advantage radio is selected', async () => {
+    const user = userEvent.setup()
+    const onAdHocOptionsChange = vi.fn()
+
+    render(
+      <GMRollControls
+        onRequestInitiative={vi.fn()}
+        onAdHocRoll={vi.fn()}
+        onClearInitiative={vi.fn()}
+        adHocOptions={{}}
+        onAdHocOptionsChange={onAdHocOptionsChange}
+      />
+    )
+
+    const advRadios = screen.getAllByRole('radio', { name: /adv/i })
+    await user.click(advRadios[0])
+    expect(onAdHocOptionsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ advantage: 'advantage' })
+    )
+  })
+
   it('calls onAdHocOptionsChange when DC is changed', () => {
     const onAdHocOptionsChange = vi.fn()
 
@@ -142,6 +163,55 @@ describe('GMRollControls', () => {
     await user.click(privateCheckbox)
     expect(onAdHocOptionsChange).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: 'gm_only' })
+    )
+  })
+
+  it('calls onAdHocOptionsChange with visibility all when private is unchecked', async () => {
+    const user = userEvent.setup()
+    const onAdHocOptionsChange = vi.fn()
+
+    render(
+      <GMRollControls
+        onRequestInitiative={vi.fn()}
+        onAdHocRoll={vi.fn()}
+        onClearInitiative={vi.fn()}
+        adHocOptions={{ visibility: 'gm_only' }}
+        onAdHocOptionsChange={onAdHocOptionsChange}
+      />
+    )
+
+    const privateCheckbox = screen.getByRole('checkbox', {
+      name: /private \(gm only\)/i,
+    })
+    await user.click(privateCheckbox)
+    expect(onAdHocOptionsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: 'all' })
+    )
+  })
+
+  it('calls onRequestInitiative with disadvantage when disadvantage is selected', async () => {
+    const user = userEvent.setup()
+    const onRequestInitiative = vi.fn()
+
+    render(
+      <GMRollControls
+        onRequestInitiative={onRequestInitiative}
+        onAdHocRoll={vi.fn()}
+        onClearInitiative={vi.fn()}
+        adHocOptions={{}}
+        onAdHocOptionsChange={vi.fn()}
+      />
+    )
+
+    const disRadios = screen.getAllByRole('radio', { name: /dis/i })
+    await user.click(disRadios[1])
+
+    await user.click(
+      screen.getByRole('button', { name: /request initiative roll/i })
+    )
+
+    expect(onRequestInitiative).toHaveBeenCalledWith(
+      expect.objectContaining({ advantage: 'disadvantage' })
     )
   })
 
