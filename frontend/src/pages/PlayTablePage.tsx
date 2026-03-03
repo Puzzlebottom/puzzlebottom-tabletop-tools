@@ -1,7 +1,12 @@
 import { Authenticator } from '@aws-amplify/ui-react'
 import type {
   InitiativeEntry,
+  OnInitiativeUpdatedSubscription,
+  OnRollCompletedSubscription,
+  OnRollRequestCreatedSubscription,
+  PlayTableQuery,
   Roll,
+  RollHistoryQuery,
   RollResult,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
 import { generateClient } from 'aws-amplify/api'
@@ -97,14 +102,7 @@ export function PlayTablePage() {
             },
           },
           isPlayer ? { authMode: 'apiKey' as const } : undefined
-        )) as {
-          data: {
-            rollHistory?: {
-              items: Roll[]
-              nextToken?: string | null
-            }
-          }
-        }
+        )) as { data: RollHistoryQuery }
         const conn = result.data.rollHistory
         if (conn) {
           setRolls((prev) =>
@@ -145,8 +143,8 @@ export function PlayTablePage() {
       ) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
-        const result = (payload as { data?: { onRollCompleted?: RollResult } })
-          .data?.onRollCompleted
+        const result = (payload as { data?: OnRollCompletedSubscription }).data
+          ?.onRollCompleted
         if (result) {
           setRolls((prev) => [result as RollDisplayItem, ...prev])
           setRolling(false)
@@ -164,16 +162,8 @@ export function PlayTablePage() {
       ) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
-        const req = (
-          payload as {
-            data?: {
-              onRollRequestCreated?: {
-                id: string
-                targetPlayerIds: string[]
-              }
-            }
-          }
-        ).data?.onRollRequestCreated
+        const req = (payload as { data?: OnRollRequestCreatedSubscription })
+          .data?.onRollRequestCreated
         if (req)
           setPendingRollRequest({
             id: req.id,
@@ -192,9 +182,8 @@ export function PlayTablePage() {
       ) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
-        const order = (
-          payload as { data?: { onInitiativeUpdated?: InitiativeEntry[] } }
-        ).data?.onInitiativeUpdated
+        const order = (payload as { data?: OnInitiativeUpdatedSubscription })
+          .data?.onInitiativeUpdated
         if (order) {
           setInitiativeOrder(order)
           setPendingRollRequest(null)
@@ -283,7 +272,7 @@ export function PlayTablePage() {
       const result = (await client.graphql({
         query: playTableQuery,
         variables: { id: playTableId },
-      })) as { data: { playTable?: { players?: { id: string }[] } } }
+      })) as { data: PlayTableQuery }
       const players = result.data.playTable?.players ?? []
       const targetPlayerIds = players.map((p) => p.id)
       await client.graphql({

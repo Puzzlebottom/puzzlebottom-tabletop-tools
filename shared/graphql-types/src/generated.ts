@@ -31,6 +31,14 @@ export type InitiativeEntry = {
   value: Scalars['Int']['output'];
 };
 
+export type InitiativeEntryInput = {
+  characterName: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
+  modifier: Scalars['Int']['input'];
+  total: Scalars['Int']['input'];
+  value: Scalars['Int']['input'];
+};
+
 export type JoinPlayTableInput = {
   characterName: Scalars['String']['input'];
   initiativeModifier: Scalars['Int']['input'];
@@ -84,7 +92,7 @@ export type MutationLeavePlayTableArgs = {
 
 
 export type MutationNotifyInitiativeUpdatedArgs = {
-  order: Array<InitiativeEntry>;
+  order: Array<InitiativeEntryInput>;
   playTableId: Scalars['ID']['input'];
 };
 
@@ -225,6 +233,103 @@ export type Visibility =
   | 'all'
   | 'gm_only';
 
+export type CreatePlayTableMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CreatePlayTableMutation = { createPlayTable: { id: string, inviteCode: string, createdAt: string } };
+
+export type JoinPlayTableMutationVariables = Exact<{
+  inviteCode: Scalars['String']['input'];
+  input: JoinPlayTableInput;
+}>;
+
+
+export type JoinPlayTableMutation = { joinPlayTable: { id: string, playTableId: string } };
+
+export type LeavePlayTableMutationVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+  playerId: Scalars['String']['input'];
+}>;
+
+
+export type LeavePlayTableMutation = { leavePlayTable: boolean };
+
+export type RollDiceMutationVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+  input: RollDiceInput;
+}>;
+
+
+export type RollDiceMutation = { rollDice: { rollId: string, accepted: boolean } };
+
+export type FulfillRollRequestMutationVariables = Exact<{
+  rollRequestId: Scalars['ID']['input'];
+  playTableId: Scalars['ID']['input'];
+  playerId: Scalars['String']['input'];
+}>;
+
+
+export type FulfillRollRequestMutation = { fulfillRollRequest: { rollId: string, accepted: boolean } };
+
+export type CreateRollRequestMutationVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+  input: CreateRollRequestInput;
+}>;
+
+
+export type CreateRollRequestMutation = { createRollRequest: { id: string, targetPlayerIds: Array<string>, type: RollRequestType, status: string, createdAt: string } };
+
+export type ClearInitiativeMutationVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+}>;
+
+
+export type ClearInitiativeMutation = { clearInitiative: boolean };
+
+export type PlayTableByInviteCodeQueryVariables = Exact<{
+  inviteCode: Scalars['String']['input'];
+}>;
+
+
+export type PlayTableByInviteCodeQuery = { playTableByInviteCode?: { id: string } | null };
+
+export type PlayTableQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type PlayTableQuery = { playTable?: { id: string, inviteCode: string, createdAt: string, players?: Array<{ id: string, characterName: string, initiativeModifier: number }> | null } | null };
+
+export type RollHistoryQueryVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  nextToken?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type RollHistoryQuery = { rollHistory?: { nextToken?: string | null, items: Array<{ id: string, playTableId: string, rollerId: string, rollerType: RollerType, diceType: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility, rollRequestType: RollRequestType, createdAt: string }> } | null };
+
+export type OnRollCompletedSubscriptionVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+}>;
+
+
+export type OnRollCompletedSubscription = { onRollCompleted?: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } | null };
+
+export type OnRollRequestCreatedSubscriptionVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+}>;
+
+
+export type OnRollRequestCreatedSubscription = { onRollRequestCreated?: { id: string, targetPlayerIds: Array<string>, type: RollRequestType, dc?: number | null, advantage?: string | null, isPrivate: boolean, status: string, createdAt: string } | null };
+
+export type OnInitiativeUpdatedSubscriptionVariables = Exact<{
+  playTableId: Scalars['ID']['input'];
+}>;
+
+
+export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> };
+
 
 type Properties<T> = Required<{
   [K in keyof T]: z.ZodType<T[K]>;
@@ -255,6 +360,16 @@ export function CreateRollRequestInputSchema(): z.ZodObject<Properties<CreateRol
 export function InitiativeEntrySchema(): z.ZodObject<Properties<InitiativeEntry>> {
   return z.object({
     __typename: z.literal('InitiativeEntry').optional(),
+    characterName: z.string(),
+    id: z.string(),
+    modifier: z.number(),
+    total: z.number(),
+    value: z.number()
+  })
+}
+
+export function InitiativeEntryInputSchema(): z.ZodObject<Properties<InitiativeEntryInput>> {
+  return z.object({
     characterName: z.string(),
     id: z.string(),
     modifier: z.number(),

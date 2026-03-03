@@ -3,7 +3,7 @@ import type {
   RollResult,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
 
-type RollDisplayItem =
+export type RollDisplayItem =
   | (Pick<
       Roll,
       | 'id'

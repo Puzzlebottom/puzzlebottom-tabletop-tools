@@ -20,7 +20,7 @@ export async function notifyInitiativeUpdated(
 ): Promise<void> {
   const url = new URL(graphqlUrl)
   const mutation = `
-    mutation NotifyInitiativeUpdated($playTableId: ID!, $order: [InitiativeEntry!]!) {
+    mutation NotifyInitiativeUpdated($playTableId: ID!, $order: [InitiativeEntryInput!]!) {
       notifyInitiativeUpdated(playTableId: $playTableId, order: $order) {
         id
         characterName

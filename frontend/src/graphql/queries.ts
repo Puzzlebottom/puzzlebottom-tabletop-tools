@@ -1,3 +1,11 @@
+export const playTableByInviteCodeQuery = /* GraphQL */ `
+  query PlayTableByInviteCode($inviteCode: String!) {
+    playTableByInviteCode(inviteCode: $inviteCode) {
+      id
+    }
+  }
+`
+
 export const playTableQuery = /* GraphQL */ `
   query PlayTable($id: ID!) {
     playTable(id: $id) {
@@ -22,6 +30,7 @@ export const rollHistoryQuery = /* GraphQL */ `
     ) {
       items {
         id
+        playTableId
         rollerId
         rollerType
         diceType

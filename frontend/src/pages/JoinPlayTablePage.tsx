@@ -1,8 +1,13 @@
+import type {
+  JoinPlayTableMutation,
+  PlayTableByInviteCodeQuery,
+} from '@puzzlebottom-tabletop-tools/graphql-types'
 import { generateClient } from 'aws-amplify/api'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { joinPlayTableMutation } from '../graphql/mutations'
+import { playTableByInviteCodeQuery } from '../graphql/queries'
 import { getStoredPlayer, storePlayer } from '../lib/player-storage'
 
 const client = generateClient()
@@ -27,17 +32,11 @@ export function JoinPlayTablePage() {
       try {
         const result = (await client.graphql(
           {
-            query: /* GraphQL */ `
-              query PlayTableByInviteCode($inviteCode: String!) {
-                playTableByInviteCode(inviteCode: $inviteCode) {
-                  id
-                }
-              }
-            `,
+            query: playTableByInviteCodeQuery,
             variables: { inviteCode: inviteCode.trim() },
           },
           { authMode: 'apiKey' }
-        )) as { data: { playTableByInviteCode?: { id: string } } }
+        )) as { data: PlayTableByInviteCodeQuery }
         const playTableId = result.data.playTableByInviteCode?.id
         if (!cancelled && playTableId === stored.playTableId) {
           void navigate(`/dice/table/${playTableId}`, { replace: true })
@@ -79,7 +78,7 @@ export function JoinPlayTablePage() {
           },
         },
         { authMode: 'apiKey' }
-      )) as { data: { joinPlayTable: { id: string; playTableId: string } } }
+      )) as { data: JoinPlayTableMutation }
 
       const { id, playTableId } = result.data.joinPlayTable
       storePlayer(id, playTableId)

@@ -81,6 +81,14 @@ type InitiativeEntry {
   total: Int!
 }
 
+input InitiativeEntryInput {
+  id: ID!
+  characterName: String!
+  value: Int!
+  modifier: Int!
+  total: Int!
+}
+
 type JoinPlayTableResponse {
   id: ID!
   playTableId: ID!
@@ -140,7 +148,7 @@ type Mutation {
   clearInitiative(playTableId: ID!): Boolean!
   notifyInitiativeUpdated(
     playTableId: ID!
-    order: [InitiativeEntry!]!
+    order: [InitiativeEntryInput!]!
   ): [InitiativeEntry!]!
 }
 

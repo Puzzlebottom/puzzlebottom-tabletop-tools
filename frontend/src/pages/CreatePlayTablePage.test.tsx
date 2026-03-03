@@ -109,4 +109,23 @@ describe('CreatePlayTablePage', () => {
 
     expect(await screen.findByText('Network error')).toBeInTheDocument()
   })
+
+  it('shows generic error when createPlayTable rejects with non-Error', async () => {
+    const user = userEvent.setup()
+    mockGraphql.mockRejectedValue('Unknown error')
+
+    render(
+      <MemoryRouter initialEntries={['/dice/create']}>
+        <Routes>
+          <Route path="/dice/create" element={<CreatePlayTablePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await user.click(screen.getByRole('button', { name: /Create play table/ }))
+
+    expect(
+      await screen.findByText('Failed to create play table')
+    ).toBeInTheDocument()
+  })
 })

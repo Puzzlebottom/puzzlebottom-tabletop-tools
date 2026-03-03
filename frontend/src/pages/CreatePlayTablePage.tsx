@@ -1,4 +1,5 @@
 import { Authenticator } from '@aws-amplify/ui-react'
+import type { CreatePlayTableMutation } from '@puzzlebottom-tabletop-tools/graphql-types'
 import { generateClient } from 'aws-amplify/api'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -37,9 +38,7 @@ function CreatePlayTableContent({
     try {
       const result = (await client.graphql({
         query: createPlayTableMutation,
-      })) as {
-        data: { createPlayTable: { id: string; inviteCode: string } }
-      }
+      })) as { data: CreatePlayTableMutation }
       setPlayTable({
         id: result.data.createPlayTable.id,
         inviteCode: result.data.createPlayTable.inviteCode,
