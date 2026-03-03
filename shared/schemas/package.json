@@ -14,6 +14,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@puzzlebottom-tabletop-tools/graphql-types": "*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

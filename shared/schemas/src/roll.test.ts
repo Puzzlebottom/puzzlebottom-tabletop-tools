@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { RollerTypeSchema, RollSchema, VisibilitySchema } from './roll'
-import { RollRequestTypeSchema } from './roll-request'
+import {
+  RollerTypeSchema,
+  RollRequestTypeSchema,
+  RollSchema,
+  VisibilitySchema,
+} from './domain'
 
 describe('RollerTypeSchema', () => {
   it('accepts gm and player', () => {
@@ -99,9 +103,9 @@ describe('RollSchema', () => {
     ).toBe(true)
   })
 
-  it('rejects empty values array', () => {
+  it('accepts empty values array (GraphQL [Int!]! allows empty)', () => {
     expect(RollSchema.safeParse({ ...validRoll, values: [] }).success).toBe(
-      false
+      true
     )
   })
 

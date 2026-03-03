@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PlayTableSchema } from './play-table'
+import { PlayTableSchema } from './domain'
 
 describe('PlayTableSchema', () => {
   const validPlayTable = {

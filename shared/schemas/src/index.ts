@@ -5,6 +5,22 @@ export {
   PayloadSchema,
 } from './data-record'
 export {
+  type Player,
+  PlayerSchema,
+  type PlayTable,
+  PlayTableSchema,
+  type Roll,
+  type RollerType,
+  RollerTypeSchema,
+  type RollRequest,
+  RollRequestSchema,
+  type RollRequestType,
+  RollRequestTypeSchema,
+  RollSchema,
+  type Visibility,
+  VisibilitySchema,
+} from './domain'
+export {
   DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED,
   DETAIL_TYPE_PLAYER_JOINED,
   DETAIL_TYPE_PLAYER_LEFT,
@@ -44,19 +60,3 @@ export {
   type ValidateOutput,
   ValidateOutputSchema,
 } from './pipeline'
-export { type PlayTable, PlayTableSchema } from './play-table'
-export { type Player, PlayerSchema } from './player'
-export {
-  type Roll,
-  type RollerType,
-  RollerTypeSchema,
-  RollSchema,
-  type Visibility,
-  VisibilitySchema,
-} from './roll'
-export {
-  type RollRequest,
-  RollRequestSchema,
-  type RollRequestType,
-  RollRequestTypeSchema,
-} from './roll-request'

@@ -82,10 +82,12 @@ All commits must follow [Conventional Commits](https://www.conventionalcommits.o
 
 When you change `infrastructure/lib/graphql/schema.graphql`:
 
-1. Run `npm run codegen` to regenerate types
+1. Run `npm run codegen` to regenerate TypeScript types and Zod schemas
 2. Commit the updated `shared/graphql-types/src/generated.ts`
 
 Pre-push and CI run `codegen:check` to catch drift.
+
+The GraphQL schema is the single source of truth for domain types. Both TypeScript types and Zod validation schemas derive from it.
 
 ### Runtime Validation (Zod)
 

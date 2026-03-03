@@ -1,3 +1,4 @@
+import * as z from 'zod'
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -222,3 +223,154 @@ export type SubscriptionOnRollRequestCreatedArgs = {
 export type Visibility =
   | 'all'
   | 'gm_only';
+
+
+type Properties<T> = Required<{
+  [K in keyof T]: z.ZodType<T[K]>;
+}>;
+
+type definedNonNullAny = {};
+
+export const isDefinedNonNullAny = (v: any): v is definedNonNullAny => v !== undefined && v !== null;
+
+export const definedNonNullAnySchema = z.any().refine((v) => isDefinedNonNullAny(v));
+
+export const RollRequestTypeSchema = z.enum(['ad_hoc', 'initiative']);
+
+export const RollerTypeSchema = z.enum(['gm', 'player']);
+
+export const VisibilitySchema = z.enum(['all', 'gm_only']);
+
+export function CreateRollRequestInputSchema(): z.ZodObject<Properties<CreateRollRequestInput>> {
+  return z.object({
+    advantage: z.string().nullish(),
+    dc: z.number().nullish(),
+    isPrivate: z.boolean().nullish(),
+    targetPlayerIds: z.array(z.string()),
+    type: RollRequestTypeSchema
+  })
+}
+
+export function InitiativeEntrySchema(): z.ZodObject<Properties<InitiativeEntry>> {
+  return z.object({
+    __typename: z.literal('InitiativeEntry').optional(),
+    characterName: z.string(),
+    id: z.string(),
+    modifier: z.number(),
+    total: z.number(),
+    value: z.number()
+  })
+}
+
+export function JoinPlayTableInputSchema(): z.ZodObject<Properties<JoinPlayTableInput>> {
+  return z.object({
+    characterName: z.string(),
+    initiativeModifier: z.number()
+  })
+}
+
+export function JoinPlayTableResponseSchema(): z.ZodObject<Properties<JoinPlayTableResponse>> {
+  return z.object({
+    __typename: z.literal('JoinPlayTableResponse').optional(),
+    id: z.string(),
+    playTableId: z.string()
+  })
+}
+
+export function PlayTableSchema(): z.ZodObject<Properties<PlayTable>> {
+  return z.object({
+    __typename: z.literal('PlayTable').optional(),
+    createdAt: z.string(),
+    gmUserId: z.string(),
+    id: z.string(),
+    inviteCode: z.string(),
+    players: z.array(z.lazy(() => PlayerSchema())).nullish()
+  })
+}
+
+export function PlayerSchema(): z.ZodObject<Properties<Player>> {
+  return z.object({
+    __typename: z.literal('Player').optional(),
+    characterName: z.string(),
+    id: z.string(),
+    initiativeModifier: z.number()
+  })
+}
+
+export function RollSchema(): z.ZodObject<Properties<Roll>> {
+  return z.object({
+    __typename: z.literal('Roll').optional(),
+    advantage: z.string().nullish(),
+    createdAt: z.string(),
+    dc: z.number().nullish(),
+    diceType: z.string(),
+    id: z.string(),
+    modifier: z.number(),
+    playTableId: z.string(),
+    rollRequestId: z.string().nullish(),
+    rollRequestType: RollRequestTypeSchema,
+    rollerId: z.string(),
+    rollerType: RollerTypeSchema,
+    success: z.boolean().nullish(),
+    total: z.number(),
+    values: z.array(z.number()),
+    visibility: VisibilitySchema
+  })
+}
+
+export function RollConnectionSchema(): z.ZodObject<Properties<RollConnection>> {
+  return z.object({
+    __typename: z.literal('RollConnection').optional(),
+    items: z.array(z.lazy(() => RollSchema())),
+    nextToken: z.string().nullish()
+  })
+}
+
+export function RollDiceInputSchema(): z.ZodObject<Properties<RollDiceInput>> {
+  return z.object({
+    advantage: z.string().nullish(),
+    dc: z.number().nullish(),
+    diceType: z.string(),
+    id: z.string().nullish(),
+    modifier: z.number().nullish(),
+    rollRequestId: z.string().nullish(),
+    visibility: z.string().nullish()
+  })
+}
+
+export function RollDiceResponseSchema(): z.ZodObject<Properties<RollDiceResponse>> {
+  return z.object({
+    __typename: z.literal('RollDiceResponse').optional(),
+    accepted: z.boolean(),
+    rollId: z.string()
+  })
+}
+
+export function RollRequestSchema(): z.ZodObject<Properties<RollRequest>> {
+  return z.object({
+    __typename: z.literal('RollRequest').optional(),
+    advantage: z.string().nullish(),
+    createdAt: z.string(),
+    dc: z.number().nullish(),
+    id: z.string(),
+    isPrivate: z.boolean(),
+    playTableId: z.string(),
+    status: z.string(),
+    targetPlayerIds: z.array(z.string()),
+    type: RollRequestTypeSchema
+  })
+}
+
+export function RollResultSchema(): z.ZodObject<Properties<RollResult>> {
+  return z.object({
+    __typename: z.literal('RollResult').optional(),
+    advantage: z.string().nullish(),
+    dc: z.number().nullish(),
+    modifier: z.number(),
+    rollId: z.string(),
+    success: z.boolean().nullish(),
+    total: z.number(),
+    values: z.array(z.number()),
+    visibility: VisibilitySchema
+  })
+}

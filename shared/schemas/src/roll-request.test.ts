@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { RollRequestSchema } from './roll-request'
+import { RollRequestSchema } from './domain'
 
 describe('RollRequestSchema', () => {
   const validRollRequest = {

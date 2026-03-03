@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PlayerSchema } from './player'
+import { PlayerSchema } from './domain'
 
 describe('PlayerSchema', () => {
   const validPlayer = {
