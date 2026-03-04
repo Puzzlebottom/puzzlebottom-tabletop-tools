@@ -13,7 +13,7 @@ enum RollRequestType {
   initiative
 }
 
-type PlayTable {
+type PlayTable @aws_api_key @aws_cognito_user_pools {
   id: ID!
   gmUserId: String!
   inviteCode: String!
@@ -21,7 +21,7 @@ type PlayTable {
   players: [Player!]
 }
 
-type Player {
+type Player @aws_api_key @aws_cognito_user_pools {
   id: ID!
   characterName: String!
   initiativeModifier: Int!
@@ -93,7 +93,7 @@ input InitiativeEntryInput {
   total: Int!
 }
 
-type JoinPlayTableResponse {
+type JoinPlayTableResponse @aws_api_key @aws_cognito_user_pools {
   id: ID!
   playTableId: ID!
 }
@@ -129,6 +129,8 @@ type RollConnection {
 type Query {
   playTable(id: ID!): PlayTable
   playTableByInviteCode(inviteCode: String!): PlayTable
+    @aws_api_key
+    @aws_cognito_user_pools
   rollHistory(playTableId: ID!, limit: Int, nextToken: String): RollConnection
 }
 
@@ -137,7 +139,7 @@ type Mutation {
   joinPlayTable(
     inviteCode: String!
     input: JoinPlayTableInput!
-  ): JoinPlayTableResponse!
+  ): JoinPlayTableResponse! @aws_api_key @aws_cognito_user_pools
   leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
   rollDice(playTableId: ID!, input: RollDiceInput!): RollResult!
   createRollRequest(

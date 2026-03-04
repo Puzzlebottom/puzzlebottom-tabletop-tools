@@ -14,6 +14,18 @@ const client = generateClient()
 
 const API_KEY = import.meta.env.VITE_GRAPHQL_API_KEY
 
+/** Extract user-facing message from Amplify/AppSync/GraphQL errors. */
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  const o = err as Record<string, unknown>
+  const gqlErrors = o.errors as { message?: string }[] | undefined
+  if (Array.isArray(gqlErrors) && gqlErrors[0]?.message) {
+    return gqlErrors[0].message
+  }
+  if (typeof o.message === 'string') return o.message
+  return 'Failed to join play table'
+}
+
 export function JoinPlayTablePage() {
   const { inviteCode } = useParams<{ inviteCode: string }>()
   const navigate = useNavigate()
@@ -82,13 +94,28 @@ export function JoinPlayTablePage() {
         },
         authMode: 'apiKey',
         apiKey: API_KEY,
-      })) as { data: JoinPlayTableMutation }
+      })) as {
+        data?: JoinPlayTableMutation
+        errors?: { message?: string }[]
+      }
 
-      const { id, playTableId } = result.data.joinPlayTable
+      const gqlErrors = result.errors
+      if (Array.isArray(gqlErrors) && gqlErrors[0]?.message) {
+        setError(gqlErrors[0].message)
+        return
+      }
+
+      const joinResult = result.data?.joinPlayTable
+      if (!joinResult) {
+        setError('Failed to join play table')
+        return
+      }
+
+      const { id, playTableId } = joinResult
       storePlayer(id, playTableId)
       void navigate(`/dice/table/${playTableId}`, { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join play table')
+      setError(extractErrorMessage(err))
     } finally {
       setSubmitting(false)
     }
