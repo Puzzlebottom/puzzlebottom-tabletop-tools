@@ -33,6 +33,7 @@ export class FrontendStack extends cdk.Stack {
     this.amplifyApp = new amplify.App(this, 'AmplifyApp', {
       appName: `${config.envName}-puzzlebottom-tabletop-tools`,
       // Build spec from amplify.yml in repo (single source of truth)
+      customRules: [amplify.CustomRule.SINGLE_PAGE_APPLICATION_REDIRECT],
       environmentVariables: {
         VITE_USER_POOL_ID: userPoolId,
         VITE_USER_POOL_CLIENT_ID: userPoolClientId,

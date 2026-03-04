@@ -55,6 +55,13 @@ describe('FrontendStack', () => {
     template.resourceCountIs('AWS::Amplify::App', 1)
     template.hasResourceProperties('AWS::Amplify::App', {
       Name: `${mockConfig.envName}-puzzlebottom-tabletop-tools`,
+      CustomRules: Match.arrayWith([
+        Match.objectLike({
+          Source: Match.anyValue(),
+          Target: '/index.html',
+          Status: '200',
+        }),
+      ]),
       EnvironmentVariables: Match.arrayWith([
         Match.objectLike({ Name: 'VITE_USER_POOL_ID' }),
         Match.objectLike({ Name: 'VITE_USER_POOL_CLIENT_ID' }),
