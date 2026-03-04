@@ -43,15 +43,19 @@ describe('ApiStack', () => {
     })
   })
 
-  it('exports GraphQLApiUrl and GraphQLApiId', () => {
+  it('exports GraphQLApiUrl, GraphQLApiId, and GraphQLApiKey', () => {
     const stack = createApiStack()
     const template = Template.fromStack(stack)
 
+    template.resourceCountIs('AWS::AppSync::ApiKey', 2) // default + explicit for frontend
     template.hasOutput('*', {
       Export: { Name: `${mockConfig.envName}-graphql-api-url` },
     })
     template.hasOutput('*', {
       Export: { Name: `${mockConfig.envName}-graphql-api-id` },
+    })
+    template.hasOutput('*', {
+      Export: { Name: `${mockConfig.envName}-graphql-api-key` },
     })
   })
 })

@@ -104,8 +104,9 @@ echo "Fetching outputs from ${env_prefix}..."
 user_pool_id="$(get_output "$auth_stack" "UserPoolId")"
 user_pool_client_id="$(get_output "$auth_stack" "UserPoolClientId")"
 graphql_endpoint="$(get_output "$api_stack" "GraphQLApiUrl")"
+graphql_api_key="$(get_output "$api_stack" "GraphQLApiKey")"
 
-if [[ -z "$user_pool_id" || -z "$user_pool_client_id" || -z "$graphql_endpoint" ]]; then
+if [[ -z "$user_pool_id" || -z "$user_pool_client_id" || -z "$graphql_endpoint" || -z "$graphql_api_key" ]]; then
   echo "Error: Could not fetch all required outputs. Check stack outputs."
   exit 1
 fi
@@ -119,6 +120,7 @@ cat > "$env_file" << EOF
 VITE_USER_POOL_ID=${user_pool_id}
 VITE_USER_POOL_CLIENT_ID=${user_pool_client_id}
 VITE_GRAPHQL_ENDPOINT=${graphql_endpoint}
+VITE_GRAPHQL_API_KEY=${graphql_api_key}
 EOF
 
 echo "Wrote ${env_file}"

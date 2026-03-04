@@ -7,6 +7,7 @@ import { type EnvironmentConfig } from '../config/environments.js'
 interface FrontendStackProps extends cdk.StackProps {
   config: EnvironmentConfig
   graphqlApiUrl: string
+  graphqlApiKey: string
   userPoolId: string
   userPoolClientId: string
 }
@@ -17,7 +18,13 @@ export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props)
 
-    const { config, graphqlApiUrl, userPoolId, userPoolClientId } = props
+    const {
+      config,
+      graphqlApiUrl,
+      graphqlApiKey,
+      userPoolId,
+      userPoolClientId,
+    } = props
 
     const githubOwner = this.requireContext('githubOwner')
     const githubRepo = this.requireContext('githubRepo')
@@ -30,6 +37,7 @@ export class FrontendStack extends cdk.Stack {
         VITE_USER_POOL_ID: userPoolId,
         VITE_USER_POOL_CLIENT_ID: userPoolClientId,
         VITE_GRAPHQL_ENDPOINT: graphqlApiUrl,
+        VITE_GRAPHQL_API_KEY: graphqlApiKey,
       },
       platform: amplify.Platform.WEB,
     })

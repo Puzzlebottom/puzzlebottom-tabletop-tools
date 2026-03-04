@@ -40,6 +40,7 @@ function createFrontendStack(config = mockConfig): FrontendStack {
   return new FrontendStack(app, 'TestFrontendStack', {
     config,
     graphqlApiUrl: apiStack.api.graphqlUrl,
+    graphqlApiKey: apiStack.graphqlApiKey,
     userPoolId: authStack.userPool.userPoolId,
     userPoolClientId: authStack.userPoolClient.userPoolClientId,
     env: { account: config.awsAccount, region: config.awsRegion },
@@ -58,6 +59,7 @@ describe('FrontendStack', () => {
         Match.objectLike({ Name: 'VITE_USER_POOL_ID' }),
         Match.objectLike({ Name: 'VITE_USER_POOL_CLIENT_ID' }),
         Match.objectLike({ Name: 'VITE_GRAPHQL_ENDPOINT' }),
+        Match.objectLike({ Name: 'VITE_GRAPHQL_API_KEY' }),
       ]),
     })
   })
@@ -142,6 +144,7 @@ describe('FrontendStack', () => {
         new FrontendStack(app, 'TestFrontendStack', {
           config: mockConfig,
           graphqlApiUrl: apiStack.api.graphqlUrl,
+          graphqlApiKey: apiStack.graphqlApiKey,
           userPoolId: authStack.userPool.userPoolId,
           userPoolClientId: authStack.userPoolClient.userPoolClientId,
           env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },

@@ -340,23 +340,29 @@ cp frontend/.env.example frontend/.env
 
 ### 2. Obtain values from a deployed environment
 
-The frontend requires three variables, which are injected automatically during CI/CD deployment. For local development, you must obtain them from a deployed stack.
+The frontend requires four variables, which are injected automatically during CI/CD deployment. For local development, run `scripts/frontend-dev.sh` (it fetches all four from the deployed stack), or obtain them manually.
 
-| Variable                   | Purpose                                 | Source            |
-| -------------------------- | --------------------------------------- | ----------------- |
-| `VITE_USER_POOL_ID`        | Cognito User Pool ID for authentication | Auth stack output |
-| `VITE_USER_POOL_CLIENT_ID` | Cognito app client ID for the web app   | Auth stack output |
-| `VITE_GRAPHQL_ENDPOINT`    | AppSync GraphQL API URL                 | API stack output  |
+| Variable                   | Purpose                                                    | Source            |
+| -------------------------- | ---------------------------------------------------------- | ----------------- |
+| `VITE_USER_POOL_ID`        | Cognito User Pool ID for authentication                    | Auth stack output |
+| `VITE_USER_POOL_CLIENT_ID` | Cognito app client ID for the web app                      | Auth stack output |
+| `VITE_GRAPHQL_ENDPOINT`    | AppSync GraphQL API URL                                    | API stack output  |
+| `VITE_GRAPHQL_API_KEY`     | API key for unauthenticated operations (player join, etc.) | API stack output  |
 
-**Option A: From CDK deploy output**
+**Option A: Use `scripts/frontend-dev.sh`**
+
+This script fetches all four variables from the deployed stack and writes `frontend/.env` for you.
+
+**Option B: From CDK deploy output**
 
 After deploying (e.g. `ENVIRONMENT=development npx cdk deploy --all`), CDK prints the outputs. Look for:
 
 - `development-AuthStack.UserPoolId`
 - `development-AuthStack.UserPoolClientId`
 - `development-ApiStack.GraphQLApiUrl`
+- `development-ApiStack.GraphQLApiKey`
 
-**Option B: From AWS CloudFormation**
+**Option C: From AWS CloudFormation**
 
 ```bash
 # Replace development with staging, production, or sandbox-<branch-slug>-<dev-hash> for sandboxes
@@ -373,12 +379,16 @@ aws cloudformation describe-stacks \
 aws cloudformation describe-stacks \
   --stack-name ${ENV}-ApiStack \
   --query "Stacks[0].Outputs[?OutputKey=='GraphQLApiUrl'].OutputValue" --output text
+
+aws cloudformation describe-stacks \
+  --stack-name ${ENV}-ApiStack \
+  --query "Stacks[0].Outputs[?OutputKey=='GraphQLApiKey'].OutputValue" --output text
 ```
 
-**Option C: From AWS Console**
+**Option D: From AWS Console**
 
 - **Cognito:** AWS Console → Cognito → User Pools → select the pool (e.g. `development-user-pool`) → copy User pool ID and App client ID from App integration.
-- **AppSync:** AWS Console → AppSync → select the API (e.g. `development-puzzlebottom-tabletop-tools-api`) → copy the GraphQL endpoint URL.
+- **AppSync:** AWS Console → AppSync → select the API (e.g. `development-puzzlebottom-tabletop-tools-api`) → copy the GraphQL endpoint URL and API key (API Keys tab).
 
 ### 3. Edit `frontend/.env`
 
@@ -388,6 +398,7 @@ Fill in the values (no quotes needed):
 VITE_USER_POOL_ID=us-east-1_XXXXXXXXX
 VITE_USER_POOL_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
 VITE_GRAPHQL_ENDPOINT=https://xxxxxxxxxx.appsync-api.us-east-1.amazonaws.com/graphql
+VITE_GRAPHQL_API_KEY=da2-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ### 4. Start the dev server

@@ -19,6 +19,7 @@ interface ApiStackProps extends cdk.StackProps {
 
 export class ApiStack extends cdk.Stack {
   public readonly api: appsync.GraphqlApi
+  public readonly graphqlApiKey: string
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props)
@@ -209,7 +210,15 @@ export class ApiStack extends cdk.Stack {
       fieldName: 'notifyInitiativeUpdated',
     })
 
-    new cdk.CfnOutput(this, 'GraphQLApiUrl', {
+    const apiKey = new appsync.CfnApiKey(this, 'PlayerAccessApiKey', {
+      apiId: this.api.apiId,
+      description:
+        'API key for unauthenticated player access (join table, roll dice)',
+    })
+
+    this.graphqlApiKey = apiKey.attrApiKey
+
+    new cdk.CfnOutput(this, 'GraphQLApiKeyOutput', {
       value: this.api.graphqlUrl,
       exportName: `${config.envName}-graphql-api-url`,
     })
@@ -217,6 +226,13 @@ export class ApiStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'GraphQLApiId', {
       value: this.api.apiId,
       exportName: `${config.envName}-graphql-api-id`,
+    })
+
+    new cdk.CfnOutput(this, 'GraphQLApiKey', {
+      value: apiKey.attrApiKey,
+      exportName: `${config.envName}-graphql-api-key`,
+      description:
+        'API key for unauthenticated GraphQL operations (player join, etc.)',
     })
   }
 }

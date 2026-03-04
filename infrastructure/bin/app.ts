@@ -67,6 +67,7 @@ const frontendStack = new FrontendStack(app, `${prefix}-FrontendStack`, {
   ...stackProps,
   config,
   graphqlApiUrl: apiStack.api.graphqlUrl,
+  graphqlApiKey: apiStack.graphqlApiKey,
   userPoolId: authStack.userPool.userPoolId,
   userPoolClientId: authStack.userPoolClient.userPoolClientId,
 })
