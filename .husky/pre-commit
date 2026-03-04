@@ -3,4 +3,4 @@ npm run format:check
 npm run codegen:check
 npx lint-staged
 npm run typecheck
-HUSKY=1 npm run test
+HUSKY=1 npm run test:fast
