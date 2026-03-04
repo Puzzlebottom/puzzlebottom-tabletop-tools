@@ -12,6 +12,8 @@ import { getStoredPlayer, storePlayer } from '../lib/player-storage'
 
 const client = generateClient()
 
+const API_KEY = import.meta.env.VITE_GRAPHQL_API_KEY
+
 export function JoinPlayTablePage() {
   const { inviteCode } = useParams<{ inviteCode: string }>()
   const navigate = useNavigate()
@@ -22,6 +24,10 @@ export function JoinPlayTablePage() {
   const [checkingRejoin, setCheckingRejoin] = useState(true)
 
   useEffect(() => {
+    if (!API_KEY) {
+      setCheckingRejoin(false)
+      return
+    }
     const stored = getStoredPlayer()
     if (!stored || !inviteCode?.trim()) {
       setCheckingRejoin(false)
@@ -30,13 +36,12 @@ export function JoinPlayTablePage() {
     let cancelled = false
     const check = async () => {
       try {
-        const result = (await client.graphql(
-          {
-            query: playTableByInviteCodeQuery,
-            variables: { inviteCode: inviteCode.trim() },
-          },
-          { authMode: 'apiKey' }
-        )) as { data: PlayTableByInviteCodeQuery }
+        const result = (await client.graphql({
+          query: playTableByInviteCodeQuery,
+          variables: { inviteCode: inviteCode.trim() },
+          authMode: 'apiKey',
+          apiKey: API_KEY,
+        })) as { data: PlayTableByInviteCodeQuery }
         const playTableId = result.data.playTableByInviteCode?.id
         if (!cancelled && playTableId === stored.playTableId) {
           void navigate(`/dice/table/${playTableId}`, { replace: true })
@@ -66,19 +71,18 @@ export function JoinPlayTablePage() {
     setError(null)
     setSubmitting(true)
     try {
-      const result = (await client.graphql(
-        {
-          query: joinPlayTableMutation,
-          variables: {
-            inviteCode: inviteCode.trim(),
-            input: {
-              characterName: characterName.trim(),
-              initiativeModifier,
-            },
+      const result = (await client.graphql({
+        query: joinPlayTableMutation,
+        variables: {
+          inviteCode: inviteCode.trim(),
+          input: {
+            characterName: characterName.trim(),
+            initiativeModifier,
           },
         },
-        { authMode: 'apiKey' }
-      )) as { data: JoinPlayTableMutation }
+        authMode: 'apiKey',
+        apiKey: API_KEY,
+      })) as { data: JoinPlayTableMutation }
 
       const { id, playTableId } = result.data.joinPlayTable
       storePlayer(id, playTableId)
@@ -94,6 +98,18 @@ export function JoinPlayTablePage() {
     return (
       <main style={{ maxWidth: 640, margin: '0 auto', padding: '2rem' }}>
         <p>Checking…</p>
+      </main>
+    )
+  }
+
+  if (!API_KEY) {
+    return (
+      <main style={{ maxWidth: 640, margin: '0 auto', padding: '2rem' }}>
+        <h1>Join play table</h1>
+        <p style={{ color: 'red' }}>
+          This app is misconfigured: the API key for unauthenticated access is
+          missing. Please contact the table host or try again later.
+        </p>
       </main>
     )
   }

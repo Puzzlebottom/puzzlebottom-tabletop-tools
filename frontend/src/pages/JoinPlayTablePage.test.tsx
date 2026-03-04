@@ -98,6 +98,7 @@ describe('JoinPlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /Join/ }))
 
     await waitFor(() => {
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- Vitest matchers */
       expect(mockGraphql).toHaveBeenCalledWith(
         expect.objectContaining({
           variables: {
@@ -107,9 +108,11 @@ describe('JoinPlayTablePage', () => {
               initiativeModifier: 0,
             },
           },
-        }),
-        { authMode: 'apiKey' }
+          authMode: 'apiKey',
+          apiKey: expect.any(String),
+        })
       )
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     })
     await waitFor(() => {
       expect(mockStorePlayer).toHaveBeenCalledWith('player-123', 'table-456')
@@ -280,6 +283,10 @@ describe('JoinPlayTablePage', () => {
             path="/dice/join/:inviteCode"
             element={<JoinPlayTablePage />}
           />
+          <Route
+            path="/dice/table/:playTableId"
+            element={<div>Play table</div>}
+          />
         </Routes>
       </MemoryRouter>
     )
@@ -303,8 +310,9 @@ describe('JoinPlayTablePage', () => {
               initiativeModifier: 0,
             }),
           }),
-        }),
-        expect.anything()
+          authMode: 'apiKey',
+          apiKey: expect.any(String),
+        })
       )
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     })
