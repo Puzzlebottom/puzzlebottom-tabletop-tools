@@ -213,8 +213,8 @@ export type RollerType =
   | 'player';
 
 export type Subscription = {
-  onInitiativeUpdated: InitiativeOrderUpdated;
-  onRollCompleted: RollResult;
+  onInitiativeUpdated?: Maybe<InitiativeOrderUpdated>;
+  onRollCompleted?: Maybe<RollResult>;
   onRollRequestCreated?: Maybe<RollRequest>;
 };
 
@@ -318,7 +318,7 @@ export type OnRollCompletedSubscriptionVariables = Exact<{
 }>;
 
 
-export type OnRollCompletedSubscription = { onRollCompleted: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
+export type OnRollCompletedSubscription = { onRollCompleted?: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } | null };
 
 export type OnRollRequestCreatedSubscriptionVariables = Exact<{
   playTableId: Scalars['ID']['input'];
@@ -332,7 +332,7 @@ export type OnInitiativeUpdatedSubscriptionVariables = Exact<{
 }>;
 
 
-export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated: { order: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> } };
+export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated?: { order: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> } | null };
 
 
 type Properties<T> = Required<{

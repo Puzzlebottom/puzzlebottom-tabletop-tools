@@ -132,6 +132,8 @@ type Query {
     @aws_api_key
     @aws_cognito_user_pools
   rollHistory(playTableId: ID!, limit: Int, nextToken: String): RollConnection
+    @aws_api_key
+    @aws_cognito_user_pools
 }
 
 type Mutation {
@@ -141,7 +143,11 @@ type Mutation {
     input: JoinPlayTableInput!
   ): JoinPlayTableResponse! @aws_api_key @aws_cognito_user_pools
   leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
+    @aws_api_key
+    @aws_cognito_user_pools
   rollDice(playTableId: ID!, input: RollDiceInput!): RollResult!
+    @aws_api_key
+    @aws_cognito_user_pools
   createRollRequest(
     playTableId: ID!
     input: CreateRollRequestInput!
@@ -150,7 +156,7 @@ type Mutation {
     rollRequestId: ID!
     playTableId: ID!
     playerId: String!
-  ): RollResult!
+  ): RollResult! @aws_api_key @aws_cognito_user_pools
   clearInitiative(playTableId: ID!): Boolean!
   notifyInitiativeUpdated(
     playTableId: ID!
@@ -159,10 +165,10 @@ type Mutation {
 }
 
 type Subscription {
-  onRollCompleted(playTableId: ID!): RollResult!
+  onRollCompleted(playTableId: ID!): RollResult
     @aws_subscribe(mutations: ["rollDice", "fulfillRollRequest"])
   onRollRequestCreated(playTableId: ID!): RollRequest
     @aws_subscribe(mutations: ["createRollRequest"])
-  onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated!
+  onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated
     @aws_subscribe(mutations: ["notifyInitiativeUpdated"])
 }
