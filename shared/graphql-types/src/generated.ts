@@ -41,6 +41,7 @@ export type InitiativeEntryInput = {
 
 export type InitiativeOrderUpdated = {
   order: Array<InitiativeEntry>;
+  playTableId: Scalars['ID']['output'];
 };
 
 export type JoinPlayTableInput = {
@@ -201,6 +202,7 @@ export type RollResult = {
   advantage?: Maybe<Scalars['String']['output']>;
   dc?: Maybe<Scalars['Int']['output']>;
   modifier: Scalars['Int']['output'];
+  playTableId: Scalars['ID']['output'];
   rollId: Scalars['ID']['output'];
   success?: Maybe<Scalars['Boolean']['output']>;
   total: Scalars['Int']['output'];
@@ -385,7 +387,8 @@ export function InitiativeEntryInputSchema(): z.ZodObject<Properties<InitiativeE
 export function InitiativeOrderUpdatedSchema(): z.ZodObject<Properties<InitiativeOrderUpdated>> {
   return z.object({
     __typename: z.literal('InitiativeOrderUpdated').optional(),
-    order: z.array(z.lazy(() => InitiativeEntrySchema()))
+    order: z.array(z.lazy(() => InitiativeEntrySchema())),
+    playTableId: z.string()
   })
 }
 
@@ -494,6 +497,7 @@ export function RollResultSchema(): z.ZodObject<Properties<RollResult>> {
     advantage: z.string().nullish(),
     dc: z.number().nullish(),
     modifier: z.number(),
+    playTableId: z.string(),
     rollId: z.string(),
     success: z.boolean().nullish(),
     total: z.number(),

@@ -51,6 +51,7 @@ type RollDiceResponse {
 }
 
 type RollResult {
+  playTableId: ID!
   rollId: ID!
   values: [Int!]!
   modifier: Int!
@@ -82,6 +83,7 @@ type InitiativeEntry {
 }
 
 type InitiativeOrderUpdated {
+  playTableId: ID!
   order: [InitiativeEntry!]!
 }
 

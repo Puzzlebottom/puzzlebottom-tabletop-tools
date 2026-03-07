@@ -98,6 +98,7 @@ async function performRoll(params: {
   rollRequestId?: string | null
   rollRequestType: 'ad_hoc' | 'initiative'
 }): Promise<{
+  playTableId: string
   rollId: string
   values: number[]
   modifier: number
@@ -184,6 +185,7 @@ async function performRoll(params: {
   )
 
   return {
+    playTableId,
     rollId,
     values,
     modifier: modifier ?? 0,
@@ -196,6 +198,7 @@ async function performRoll(params: {
 }
 
 interface RollResult {
+  playTableId: string
   rollId: string
   values: number[]
   modifier: number

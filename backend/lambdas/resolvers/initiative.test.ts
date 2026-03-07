@@ -86,9 +86,10 @@ describe('initiative resolvers', () => {
         }
       )
       const result = (await handler(event, {} as never, vi.fn())) as {
+        playTableId: string
         order: typeof order
       }
-      expect(result).toEqual({ order })
+      expect(result).toEqual({ playTableId: 'pt-1', order })
     })
 
     it('throws for unknown resolver', async () => {
@@ -194,7 +195,7 @@ describe('initiative resolvers', () => {
         {} as never,
         vi.fn()
       )
-      expect(result).toEqual({ order })
+      expect(result).toEqual({ playTableId: 'pt-1', order })
     })
   })
 })

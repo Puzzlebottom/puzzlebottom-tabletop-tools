@@ -73,6 +73,7 @@ export const notifyInitiativeUpdated: AppSyncResolverHandler<
     }[]
   },
   {
+    playTableId: string
     order: {
       id: string
       characterName: string
@@ -82,7 +83,10 @@ export const notifyInitiativeUpdated: AppSyncResolverHandler<
     }[]
   }
 > = (event) => {
-  return Promise.resolve({ order: event.arguments.order })
+  return Promise.resolve({
+    playTableId: event.arguments.playTableId,
+    order: event.arguments.order,
+  })
 }
 
 /** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
