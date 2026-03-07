@@ -61,6 +61,7 @@ const stepFunctionStack = new StepFunctionStack(
     eventBus: eventStack.eventBus,
     pipelineQueue: eventStack.pipelineQueue,
     graphqlApi: apiStack.api,
+    graphqlUrl: apiStack.api.graphqlUrl,
   }
 )
 

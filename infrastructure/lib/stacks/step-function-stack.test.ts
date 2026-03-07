@@ -35,6 +35,7 @@ function createStepFunctionStack(): StepFunctionStack {
     eventBus: eventStack.eventBus,
     pipelineQueue: eventStack.pipelineQueue,
     graphqlApi: apiStack.api,
+    graphqlUrl: apiStack.api.graphqlUrl,
     env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
   })
 }

@@ -21,6 +21,7 @@ interface StepFunctionStackProps extends cdk.StackProps {
   eventBus: events.IEventBus
   pipelineQueue: sqs.Queue
   graphqlApi: appsync.IGraphqlApi
+  graphqlUrl: string
 }
 
 export class StepFunctionStack extends cdk.Stack {
@@ -30,7 +31,7 @@ export class StepFunctionStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StepFunctionStackProps) {
     super(scope, id, props)
 
-    const { config, pipelineQueue, graphqlApi } = props
+    const { config, pipelineQueue, graphqlApi, graphqlUrl } = props
 
     const lambdaDefaults: lambdaNode.NodejsFunctionProps = {
       runtime: lambda.Runtime.NODEJS_24_X,
@@ -75,7 +76,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
+          APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
@@ -146,7 +147,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
+          APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
@@ -178,7 +179,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
+          APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
@@ -210,7 +211,7 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
+          APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
@@ -292,7 +293,7 @@ export class StepFunctionStack extends cdk.Stack {
           '../../../backend/lambdas/steps/notify-roll-completed.ts'
         ),
         environment: {
-          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
+          APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
