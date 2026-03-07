@@ -182,6 +182,7 @@ type Mutation {
 type Subscription {
   onRollCompleted(playTableId: ID!): RollResult
     @aws_subscribe(mutations: ["notifyRollCompleted"])
+    @aws_iam
     @aws_api_key
     @aws_cognito_user_pools
   onRollRequestCreated(playTableId: ID!): RollRequest
@@ -190,6 +191,7 @@ type Subscription {
     @aws_cognito_user_pools
   onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated
     @aws_subscribe(mutations: ["notifyInitiativeUpdated"])
+    @aws_iam
     @aws_api_key
     @aws_cognito_user_pools
 }

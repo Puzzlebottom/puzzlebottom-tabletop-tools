@@ -321,6 +321,7 @@ export class StepFunctionStack extends cdk.Stack {
       {
         lambdaFunction: notifyRollCompletedFn,
         payloadResponseOnly: true,
+        resultPath: sfn.JsonPath.DISCARD,
       }
     )
 

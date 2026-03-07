@@ -43,10 +43,20 @@ async function callAppSync(
     body,
   })
 
+  const responseBody = await response.text()
+
   if (!response.ok) {
-    const text = await response.text()
     throw new Error(
-      `AppSync ${operationName} failed: ${response.status} ${text}`
+      `AppSync ${operationName} failed: ${response.status} ${responseBody}`
+    )
+  }
+
+  const parsed = JSON.parse(responseBody) as {
+    errors?: { message: string }[]
+  }
+  if (parsed.errors?.length) {
+    throw new Error(
+      `AppSync ${operationName} GraphQL errors: ${JSON.stringify(parsed.errors)}`
     )
   }
 }
