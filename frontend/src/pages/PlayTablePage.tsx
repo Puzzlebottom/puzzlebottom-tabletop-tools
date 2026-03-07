@@ -38,6 +38,11 @@ import {
 import { clearStoredPlayer, getStoredPlayer } from '../lib/player-storage'
 
 const client = generateClient()
+const API_KEY = import.meta.env.VITE_GRAPHQL_API_KEY
+
+function playerAuth() {
+  return { authMode: 'apiKey' as const, apiKey: API_KEY }
+}
 
 type RollDisplayItem =
   | Roll
@@ -112,7 +117,7 @@ export function PlayTablePage() {
               nextToken: nextToken ?? undefined,
             },
           },
-          isPlayer ? { authMode: 'apiKey' as const } : undefined
+          isPlayer ? playerAuth() : undefined
         )) as { data: RollHistoryQuery }
         const conn = result.data.rollHistory
         if (conn) {
@@ -232,7 +237,7 @@ export function PlayTablePage() {
           query: leavePlayTableMutation,
           variables: { playTableId, playerId: stored.playerId },
         },
-        { authMode: 'apiKey' as const }
+        playerAuth()
       )
       clearStoredPlayer()
       // eslint-disable-next-line @typescript-eslint/no-floating-promises -- navigate may return Promise; we intentionally fire-and-forget
@@ -290,7 +295,7 @@ export function PlayTablePage() {
             playerId: playerIdRef.current,
           },
         },
-        { authMode: 'apiKey' as const }
+        playerAuth()
       )) as { data?: { fulfillRollRequest: { rollId: string } } }
       const rollId = result.data?.fulfillRollRequest?.rollId
       if (rollId) setPendingRollId(rollId)
