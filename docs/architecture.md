@@ -1,160 +1,210 @@
 # Architecture & Flow
 
-Visual documentation of the Puzzlebottom's Tabletop Tools Suite application flow.
+Visual documentation of the Puzzlebottom's Tabletop Tools Suite application flow. The first tool is the **Dice Roller** — a shared play table where GMs and players roll d20s, with initiative ordering and real-time updates.
 
 **Color scheme:** Gradient along the data flow (blue → indigo → purple → green). Error paths (Fail, DLQ) use red.
 
-## Detailed Data Flow (Mermaid)
+## Dice Roller Data Flow (Mermaid)
 
 ```mermaid
 flowchart TB
     subgraph Frontend["Frontend"]
         User[User]
-        Form[SubmitDataForm]
         Auth[Cognito Auth]
+        DiceLanding[Dice Landing]
+        CreateTable[Create Play Table]
+        JoinTable[Join Play Table]
+        PlayTable[Play Table Page]
+        DiceRoller[DiceRoller 3D]
+        RollLog[Roll Log]
+        InitiativeList[Initiative List]
         User --> Auth
-        Auth --> Form
+        Auth --> DiceLanding
+        DiceLanding --> CreateTable
+        DiceLanding --> JoinTable
+        CreateTable --> PlayTable
+        JoinTable --> PlayTable
+        PlayTable --> DiceRoller
+        PlayTable --> RollLog
+        PlayTable --> InitiativeList
     end
 
     subgraph API["API Layer"]
         AppSync[AppSync GraphQL]
-        Form -->|submitData mutation| AppSync
+        Subscriptions[Subscriptions]
+        DiceRoller -->|rollDice mutation| AppSync
+        PlayTable -->|createRollRequest, fulfillRollRequest| AppSync
+        PlayTable -->|playTable, rollHistory queries| AppSync
+        AppSync --> Subscriptions
+        Subscriptions -.->|onRollCompleted, onRollRequestCreated, onInitiativeUpdated| PlayTable
+    end
+
+    subgraph Resolvers["Resolvers"]
+        RollDice[roll-dice Lambda]
+        PlayTableRes[play-table Lambda]
+        RollRequest[roll-request Lambda]
+        Initiative[initiative Lambda]
+        AppSync --> RollDice
+        AppSync --> PlayTableRes
+        AppSync --> RollRequest
+        AppSync --> Initiative
     end
 
     subgraph Eventing["Eventing"]
         EB[EventBridge]
-        Rule[Rule: source=puzzlebottom-tabletop-tools<br/>detailType=DataSubmitted]
+        RuleIRR[Rule: InitiativeRollRequestCreated]
+        RuleRC[Rule: RollCompleted]
+        RulePL[Rule: PlayerLeft]
+        RulePJ[Rule: PlayerJoined]
         SQS[SQS Pipeline Queue]
         DLQ[Dead Letter Queue]
-        EB --> Rule
-        Rule --> SQS
+        EB --> RuleIRR
+        EB --> RuleRC
+        EB --> RulePL
+        EB --> RulePJ
+        RuleIRR --> SQS
+        RuleRC --> SQS
+        RulePL --> SQS
+        RulePJ --> SQS
         SQS -.->|after 3 failures| DLQ
     end
 
-    subgraph Resolvers["Resolvers"]
-        SubmitData[submit-data Lambda]
-        AppSync --> SubmitData
-        SubmitData -->|PutEvents| EB
+    subgraph Trigger["Trigger & Handlers"]
+        TriggerFn[trigger Lambda]
+        RollCompletedHandler[roll-completed Lambda]
+        PlayerLeftHandler[player-left Lambda]
+        PlayerJoinedHandler[player-joined Lambda]
+        SQS -->|batch| TriggerFn
+        TriggerFn -->|initiative: StartExecution| SF
+        TriggerFn -->|initiative RollCompleted: Invoke| RollCompletedHandler
+        TriggerFn -->|PlayerLeft: Invoke| PlayerLeftHandler
+        TriggerFn -->|PlayerJoined: Invoke| PlayerJoinedHandler
     end
 
-    subgraph Pipeline["Step Function Pipeline"]
-        Trigger[trigger Lambda]
+    subgraph Pipeline["Initiative Step Function"]
         SF[State Machine]
-        Ingest[Ingest]
-        Transform[Transform]
-        Validate[Validate]
-        Store[Store]
-        Success[Success]
-        Fail[Fail]
-
-        SQS -->|batch trigger| Trigger
-        Trigger -->|StartExecution| SF
-        SF --> Ingest --> Transform --> Validate --> Store --> Success
-        Ingest --> Fail
-        Transform --> Fail
-        Validate --> Fail
-        Store --> Fail
+        CreatePending[CreateInitiativePending]
+        OrderInitiative[OrderInitiative]
+        SF --> CreatePending
+        CreatePending -->|wait for players| OrderInitiative
+        RollCompletedHandler -.->|SendTaskSuccess| CreatePending
     end
 
     subgraph Storage["Storage"]
         DynamoDB[(DynamoDB)]
-        Store --> DynamoDB
+        RollDice --> DynamoDB
+        PlayTableRes --> DynamoDB
+        RollRequest --> DynamoDB
+        Initiative --> DynamoDB
+        RollCompletedHandler --> DynamoDB
+        CreatePending --> DynamoDB
+        OrderInitiative --> DynamoDB
     end
 
+    RollDice -->|PutEvents RollCompleted| EB
+    RollRequest -->|PutEvents InitiativeRollRequestCreated| EB
+
     style User fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    style Form fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    style Auth fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style DiceRoller fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style PlayTable fill:#3b82f6,stroke:#1d4ed8,color:#fff
     style AppSync fill:#4f46e5,stroke:#4338ca,color:#fff
     style EB fill:#6366f1,stroke:#4f46e5,color:#fff
-    style Rule fill:#6366f1,stroke:#4f46e5,color:#fff
     style SQS fill:#7c3aed,stroke:#6d28d9,color:#fff
     style DLQ fill:#dc2626,stroke:#b91c1c,color:#fff
-    style SubmitData fill:#4f46e5,stroke:#4338ca,color:#fff
-    style Trigger fill:#7c3aed,stroke:#6d28d9,color:#fff
+    style RollDice fill:#4f46e5,stroke:#4338ca,color:#fff
+    style TriggerFn fill:#7c3aed,stroke:#6d28d9,color:#fff
     style SF fill:#7c3aed,stroke:#6d28d9,color:#fff
-    style Ingest fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    style Transform fill:#6366f1,stroke:#4f46e5,color:#fff
-    style Validate fill:#7c3aed,stroke:#6d28d9,color:#fff
-    style Store fill:#22c55e,stroke:#16a34a,color:#fff
-    style Success fill:#22c55e,stroke:#16a34a,color:#fff
+    style CreatePending fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style OrderInitiative fill:#22c55e,stroke:#16a34a,color:#fff
     style DynamoDB fill:#22c55e,stroke:#16a34a,color:#fff
-    style Fail fill:#dc2626,stroke:#b91c1c,color:#fff
 ```
 
-## Step Function Pipeline Detail
+## Initiative Step Function Detail
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Ingest: SQS message triggers<br/>trigger Lambda starts execution
+    [*] --> CreateInitiativePending: InitiativeRollRequestCreated event<br/>trigger Lambda starts execution
 
-    Ingest: Validate StepInput<br/>Check payload size (max 1MB)<br/>Add ingested flag
+    CreateInitiativePending: Create INITIATIVE_PENDING item<br/>expectedPlayerKeys, completedPlayerKeys<br/>Wait for task token
 
-    Transform: Normalize keys<br/>trim, lowercase, replace spaces
+    state "Players roll (fulfillRollRequest)" as Players
+    CreateInitiativePending --> Players: Task token stored
+    Players --> CreateInitiativePending: roll-completed handler<br/>SendTaskSuccess when all done
 
-    Validate: Check id, source<br/>Ensure payload not empty
+    OrderInitiative: Read roll results from DynamoDB<br/>Sort by total desc, value, modifier<br/>Write INITIATIVE item<br/>notifyInitiativeUpdated → AppSync
 
-    Store: Write to DynamoDB<br/>PK = RECORD#id, SK = PIPELINE#pipelineId
+    CreateInitiativePending --> OrderInitiative: All players rolled
+    OrderInitiative --> [*]: Success
 
-    Ingest --> Transform: IngestOutput
-    Transform --> Validate: TransformOutput
-    Validate --> Store: ValidateOutput
-    Store --> [*]: Success
-
-    Ingest --> [*]: Fail (retry 2x)
-    Transform --> [*]: Fail (retry 2x)
-    Validate --> [*]: Fail (retry 2x)
-    Store --> [*]: Fail (retry 2x)
-
-    style Ingest fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    style Transform fill:#6366f1,stroke:#4f46e5,color:#fff
-    style Validate fill:#7c3aed,stroke:#6d28d9,color:#fff
-    style Store fill:#22c55e,stroke:#16a34a,color:#fff
+    style CreateInitiativePending fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style OrderInitiative fill:#22c55e,stroke:#16a34a,color:#fff
 ```
 
 ## Component Summary
 
-| Component         | Technology              | Responsibility                                              |
-| ----------------- | ----------------------- | ----------------------------------------------------------- |
-| **Frontend**      | React, Vite, Amplify UI | Submit form, Cognito auth, GraphQL client                   |
-| **AppSync**       | AWS AppSync             | GraphQL API, auth (Cognito/IAM), subscriptions              |
-| **submit-data**   | Lambda                  | Validate payload, create DataRecord, publish to EventBridge |
-| **EventBridge**   | AWS EventBridge         | Decouple submission from processing                         |
-| **SQS**           | AWS SQS                 | Queue for pipeline trigger, DLQ for failures                |
-| **trigger**       | Lambda                  | Parse SQS, start Step Function execution                    |
-| **Step Function** | AWS Step Functions      | Orchestrate Ingest → Transform → Validate → Store           |
-| **DynamoDB**      | AWS DynamoDB            | Persist processed records                                   |
+| Component          | Technology              | Responsibility                                                        |
+| ------------------ | ----------------------- | --------------------------------------------------------------------- |
+| **Frontend**       | React, Vite, Amplify UI | Dice roller UI, Cognito auth, 3D dice (Three.js), GraphQL client      |
+| **AppSync**        | AWS AppSync             | GraphQL API, auth (Cognito/API key), real-time subscriptions          |
+| **roll-dice**      | Lambda                  | Perform roll, write to DynamoDB, publish RollCompleted to EventBridge |
+| **play-table**     | Lambda                  | Create/join play tables, leave, query play table and roll history     |
+| **roll-request**   | Lambda                  | Create roll requests (ad hoc, initiative), publish to EventBridge     |
+| **initiative**     | Lambda                  | clearInitiative, notifyInitiativeUpdated                              |
+| **EventBridge**    | AWS EventBridge         | Decouple mutations from async processing                              |
+| **SQS**            | AWS SQS                 | Queue for trigger Lambda, DLQ for failures                            |
+| **trigger**        | Lambda                  | Route events: start Step Function or invoke handlers                  |
+| **roll-completed** | Lambda                  | Update initiative order when initiative rolls complete                |
+| **Step Function**  | AWS Step Functions      | Orchestrate initiative: CreateInitiativePending → OrderInitiative     |
+| **DynamoDB**       | AWS DynamoDB            | PlayTable, Player, Roll, RollRequest, Initiative                      |
 
-## Event & Data Shapes
+## Event Types
 
-### DataRecord (submit-data → EventBridge → SQS → trigger)
+| detailType                   | Source                      | Publisher           | Consumer                                   |
+| ---------------------------- | --------------------------- | ------------------- | ------------------------------------------ |
+| InitiativeRollRequestCreated | puzzlebottom-tabletop-tools | roll-request Lambda | trigger → Step Function                    |
+| RollCompleted                | puzzlebottom-tabletop-tools | roll-dice Lambda    | trigger → roll-completed (initiative only) |
+| PlayerLeft                   | puzzlebottom-tabletop-tools | play-table Lambda   | trigger → player-left Lambda               |
+| PlayerJoined                 | puzzlebottom-tabletop-tools | play-table Lambda   | trigger → player-joined Lambda             |
+
+## Data Shapes
+
+### RollCompleted (roll-dice → EventBridge)
 
 ```ts
 {
-  id: string,           // UUID
-  source: string,       // e.g. "sensor-data"
-  payload: object,      // JSON object
-  submittedAt: string,  // ISO timestamp
-  submittedBy: string   // Cognito sub or "anonymous"
+  playTableId: string,
+  rollId: string,
+  rollRequestId?: string,
+  rollRequestType: 'ad_hoc' | 'initiative',
+  rollerId: string,
+  rollerType: 'gm' | 'player',
+  values: number[],
+  modifier: number,
+  total: number,
+  advantage?: string | null,
+  dc?: number | null,
+  success?: boolean | null
 }
 ```
 
-### StepInput (trigger → Step Function)
+### InitiativeRollRequestCreated (roll-request → EventBridge)
 
 ```ts
 {
-  record: DataRecord,
-  pipelineId: string,   // UUID for execution
-  timestamp: string     // ISO timestamp
+  playTableId: string,
+  rollRequestId: string,
+  targetPlayerIds: string[],
+  expectedCount: number
 }
 ```
 
-### DynamoDB Item (store output)
+### DynamoDB Items (dice roller)
 
-| Attribute   | Description                                   |
-| ----------- | --------------------------------------------- |
-| PK          | `RECORD#<recordId>`                           |
-| SK          | `PIPELINE#<pipelineId>`                       |
-| GSI1PK      | `SOURCE#<source>`                             |
-| GSI1SK      | `submittedAt`                                 |
-| payload     | Normalized payload (keys trimmed, lowercased) |
-| processedAt | ISO timestamp                                 |
+| Entity            | PK               | SK                   | Description                          |
+| ----------------- | ---------------- | -------------------- | ------------------------------------ |
+| PlayTable         | `PLAYTABLE#<id>` | `METADATA`           | GM, invite code, createdAt           |
+| Player            | `PLAYTABLE#<id>` | `PLAYER#<playerId>`  | characterName, initiativeModifier    |
+| Roll              | `PLAYTABLE#<id>` | `ROLL#<rollId>`      | values, modifier, total, visibility  |
+| RollRequest       | `PLAYTABLE#<id>` | `ROLLREQUEST#<id>`   | targetPlayerIds, type, dc, advantage |
+| Initiative        | `PLAYTABLE#<id>` | `INITIATIVE`         | order: InitiativeEntry[]             |
+| InitiativePending | `PLAYTABLE#<id>` | `INITIATIVE_PENDING` | taskToken, expectedPlayerKeys        |
