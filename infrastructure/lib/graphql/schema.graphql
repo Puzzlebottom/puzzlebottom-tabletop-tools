@@ -50,7 +50,7 @@ type RollDiceResponse @aws_api_key @aws_cognito_user_pools {
   accepted: Boolean!
 }
 
-type RollResult @aws_api_key @aws_cognito_user_pools {
+type RollResult @aws_iam @aws_api_key @aws_cognito_user_pools {
   playTableId: ID!
   rollId: ID!
   values: [Int!]!
