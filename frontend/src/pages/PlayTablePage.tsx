@@ -70,7 +70,7 @@ export function PlayTablePage() {
     isPrivate?: boolean
   } | null>(null)
   const [rolling, setRolling] = useState(false)
-  const [, setPendingRollId] = useState<string | null>(null)
+  const pendingRollIdRef = useRef<string | null>(null)
   const [diceSettledValue, setDiceSettledValue] = useState<number | undefined>()
   const [diceCocked, setDiceCocked] = useState(false)
   const [requestingInitiative, setRequestingInitiative] = useState(false)
@@ -159,18 +159,13 @@ export function PlayTablePage() {
           ?.onRollCompleted
         if (result) {
           setRolls((prev) => [result as RollDisplayItem, ...prev])
-          setPendingRollId((prev) => {
-            if (prev === result.rollId) {
-              setRolling(false)
-              const d20 =
-                result.values.length > 0
-                  ? Math.max(...result.values)
-                  : undefined
-              setDiceSettledValue(d20)
-              return null
-            }
-            return prev
-          })
+          if (pendingRollIdRef.current === result.rollId) {
+            setRolling(false)
+            const d20 =
+              result.values.length > 0 ? Math.max(...result.values) : undefined
+            setDiceSettledValue(d20)
+            pendingRollIdRef.current = null
+          }
         }
       },
     })
@@ -257,7 +252,7 @@ export function PlayTablePage() {
         ...(isPlayer ? playerAuth() : {}),
       })) as { data?: { rollDice: { rollId: string } } }
       const rollId = result.data?.rollDice?.rollId
-      if (rollId) setPendingRollId(rollId)
+      if (rollId) pendingRollIdRef.current = rollId
     } catch {
       setRolling(false)
       setDiceCocked(true)
@@ -284,7 +279,7 @@ export function PlayTablePage() {
         ...playerAuth(),
       })) as { data?: { fulfillRollRequest: { rollId: string } } }
       const rollId = result.data?.fulfillRollRequest?.rollId
-      if (rollId) setPendingRollId(rollId)
+      if (rollId) pendingRollIdRef.current = rollId
     } catch {
       setRolling(false)
       setDiceCocked(true)
@@ -340,7 +335,7 @@ export function PlayTablePage() {
         },
       })) as { data?: { rollDice: { rollId: string } } }
       const rollId = result.data?.rollDice?.rollId
-      if (rollId) setPendingRollId(rollId)
+      if (rollId) pendingRollIdRef.current = rollId
     } catch {
       setRolling(false)
       setDiceCocked(true)
