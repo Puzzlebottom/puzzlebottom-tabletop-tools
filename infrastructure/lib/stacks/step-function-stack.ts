@@ -39,6 +39,8 @@ export class StepFunctionStack extends cdk.Stack {
       memorySize: 256,
       bundling: {
         format: lambdaNode.OutputFormat.ESM,
+        banner:
+          "import { createRequire } from 'module';const require = createRequire(import.meta.url);",
         minify: true,
         sourceMap: true,
       },
