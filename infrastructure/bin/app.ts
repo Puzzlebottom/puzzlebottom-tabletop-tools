@@ -64,12 +64,6 @@ const stepFunctionStack = new StepFunctionStack(
   }
 )
 
-stepFunctionStack.rollStateMachine.grantStartExecution(apiStack.rollDiceFn)
-apiStack.rollDiceFn.addEnvironment(
-  'ROLL_STATE_MACHINE_ARN',
-  stepFunctionStack.rollStateMachine.stateMachineArn
-)
-
 const frontendStack = new FrontendStack(app, `${prefix}-FrontendStack`, {
   ...stackProps,
   config,

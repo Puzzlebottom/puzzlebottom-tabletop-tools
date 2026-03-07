@@ -3,6 +3,7 @@ import * as appsync from 'aws-cdk-lib/aws-appsync'
 import type * as cognito from 'aws-cdk-lib/aws-cognito'
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import type * as events from 'aws-cdk-lib/aws-events'
+import * as iam from 'aws-cdk-lib/aws-iam'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as lambdaNode from 'aws-cdk-lib/aws-lambda-nodejs'
 import { type Construct } from 'constructs'
@@ -20,7 +21,7 @@ interface ApiStackProps extends cdk.StackProps {
 export class ApiStack extends cdk.Stack {
   public readonly api: appsync.GraphqlApi
   public readonly graphqlApiKey: string
-  public readonly rollDiceFn: lambdaNode.NodejsFunction
+  private readonly rollDiceFn: lambdaNode.NodejsFunction
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props)
@@ -104,6 +105,8 @@ export class ApiStack extends cdk.Stack {
       fieldName: 'rollHistory',
     })
 
+    const rollStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-roll-pipeline`
+
     this.rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
       functionName: `${config.envName}-roll-dice-resolver`,
       entry: path.join(
@@ -117,6 +120,7 @@ export class ApiStack extends cdk.Stack {
       memorySize: 256,
       environment: {
         TABLE_NAME: dataTable.tableName,
+        ROLL_STATE_MACHINE_ARN: rollStateMachineArn,
       },
       bundling: {
         format: lambdaNode.OutputFormat.ESM,
@@ -126,6 +130,12 @@ export class ApiStack extends cdk.Stack {
     })
 
     dataTable.grantReadWriteData(this.rollDiceFn)
+    this.rollDiceFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['states:StartExecution'],
+        resources: [rollStateMachineArn],
+      })
+    )
 
     const rollDiceDs = this.api.addLambdaDataSource(
       'RollDiceDataSource',
