@@ -312,6 +312,14 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
       const e = event as AppSyncResolverEvent<{ inviteCode: string }>
       return playTableByInviteCode(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
+    if (fieldName === 'rollHistory') {
+      const e = event as AppSyncResolverEvent<{
+        playTableId: string
+        limit?: number | null
+        nextToken?: string | null
+      }>
+      return rollHistory(e, NOOP_CONTEXT, NOOP_CALLBACK)
+    }
   }
 
   if (parentType === 'Mutation') {
@@ -336,6 +344,97 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
   }
 
   throw new Error(`Unknown resolver: ${parentType}.${fieldName}`)
+}
+
+interface RollItem {
+  id: string
+  playTableId: string
+  rollerId: string
+  rollerType: string
+  diceType: string
+  values: number[]
+  modifier: number
+  total: number
+  advantage: string | null
+  dc: number | null
+  success: boolean | null
+  visibility: string
+  rollRequestType: string
+  rollRequestId: string | null
+  createdAt: string
+}
+
+export const rollHistory: AppSyncResolverHandler<
+  { playTableId: string; limit?: number | null; nextToken?: string | null },
+  { items: RollItem[]; nextToken: string | null }
+> = async (event) => {
+  const { playTableId, limit, nextToken } = event.arguments
+  const pageSize = Math.min(Math.max(limit ?? 20, 1), 100)
+
+  const baseParams = {
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+    ExpressionAttributeValues: marshall({
+      ':pk': `PLAYTABLE#${playTableId}`,
+      ':sk': 'ROLL#',
+    }),
+  }
+
+  const allItems: Record<string, unknown>[] = []
+  let exclusiveStartKey: Record<string, { S: string }> | undefined
+
+  do {
+    const queryResult = await dynamo.send(
+      new QueryCommand({
+        ...baseParams,
+        ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
+      })
+    )
+    allItems.push(...(queryResult.Items ?? []).map((i) => unmarshall(i)))
+    exclusiveStartKey = queryResult.LastEvaluatedKey as
+      | Record<string, { S: string }>
+      | undefined
+  } while (exclusiveStartKey)
+
+  allItems.sort((a, b) =>
+    (b.createdAt as string).localeCompare(a.createdAt as string)
+  )
+
+  let startIndex = 0
+  if (nextToken) {
+    const cursor = JSON.parse(Buffer.from(nextToken, 'base64').toString()) as {
+      offset: number
+    }
+    startIndex = cursor.offset
+  }
+
+  const pageItems = allItems.slice(startIndex, startIndex + pageSize)
+  const hasMore = startIndex + pageSize < allItems.length
+
+  return {
+    items: pageItems.map((r) => ({
+      id: r.id as string,
+      playTableId: r.playTableId as string,
+      rollerId: r.rollerId as string,
+      rollerType: r.rollerType as string,
+      diceType: r.diceType as string,
+      values: r.values as number[],
+      modifier: r.modifier as number,
+      total: r.total as number,
+      advantage: (r.advantage as string) ?? null,
+      dc: (r.dc as number) ?? null,
+      success: (r.success as boolean) ?? null,
+      visibility: r.visibility as string,
+      rollRequestType: r.rollRequestType as string,
+      rollRequestId: (r.rollRequestId as string) ?? null,
+      createdAt: r.createdAt as string,
+    })),
+    nextToken: hasMore
+      ? Buffer.from(JSON.stringify({ offset: startIndex + pageSize })).toString(
+          'base64'
+        )
+      : null,
+  }
 }
 
 export const playTableByInviteCode: AppSyncResolverHandler<

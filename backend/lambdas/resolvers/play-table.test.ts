@@ -9,6 +9,7 @@ import {
   leavePlayTable,
   playTable,
   playTableByInviteCode,
+  rollHistory,
 } from './play-table'
 
 const { mockSend } = vi.hoisted(() => {
@@ -122,6 +123,25 @@ describe('play-table resolvers', () => {
         gmUserId: 'gm-1',
         inviteCode: 'ABC123',
         players: [],
+      })
+    })
+
+    it('routes rollHistory to rollHistory resolver', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [] })
+      const event = createEvent(
+        { playTableId: 'pt-1' },
+        {
+          fieldName: 'rollHistory',
+          parentTypeName: 'Query',
+        }
+      )
+      const result = (await handler(event, {} as never, vi.fn())) as {
+        items: unknown[]
+        nextToken: string | null
+      }
+      expect(result).toMatchObject({
+        items: [],
+        nextToken: null,
       })
     })
 
@@ -384,6 +404,115 @@ describe('play-table resolvers', () => {
         players?: unknown[]
       } | null
       expect(result).toBeNull()
+    })
+  })
+
+  describe('rollHistory', () => {
+    const rollItem = (id: string, createdAt: string) => ({
+      PK: { S: 'PLAYTABLE#pt-1' },
+      SK: { S: `ROLL#${id}` },
+      id: { S: id },
+      playTableId: { S: 'pt-1' },
+      rollerId: { S: 'player-1' },
+      rollerType: { S: 'player' },
+      diceType: { S: 'd20' },
+      values: { L: [{ N: '15' }] },
+      modifier: { N: '2' },
+      total: { N: '17' },
+      advantage: { NULL: true },
+      dc: { NULL: true },
+      success: { NULL: true },
+      visibility: { S: 'all' },
+      rollRequestType: { S: 'ad_hoc' },
+      rollRequestId: { NULL: true },
+      createdAt: { S: createdAt },
+    })
+
+    it('returns rolls sorted by createdAt descending', async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          rollItem('roll-1', '2025-01-01T00:00:00.000Z'),
+          rollItem('roll-2', '2025-01-02T00:00:00.000Z'),
+          rollItem('roll-3', '2025-01-01T12:00:00.000Z'),
+        ],
+      })
+      const event = createEvent(
+        { playTableId: 'pt-1' },
+        { fieldName: 'rollHistory', parentTypeName: 'Query' }
+      )
+      const result = (await rollHistory(
+        event as Parameters<typeof rollHistory>[0],
+        {} as never,
+        vi.fn()
+      )) as { items: { id: string }[]; nextToken: string | null }
+      expect(result.items).toHaveLength(3)
+      expect(result.items[0].id).toBe('roll-2')
+      expect(result.items[1].id).toBe('roll-3')
+      expect(result.items[2].id).toBe('roll-1')
+      expect(result.nextToken).toBeNull()
+    })
+
+    it('respects limit and returns nextToken when more items exist', async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          rollItem('roll-1', '2025-01-01T00:00:00.000Z'),
+          rollItem('roll-2', '2025-01-02T00:00:00.000Z'),
+          rollItem('roll-3', '2025-01-03T00:00:00.000Z'),
+        ],
+      })
+      const event = createEvent(
+        { playTableId: 'pt-1', limit: 2 },
+        { fieldName: 'rollHistory', parentTypeName: 'Query' }
+      )
+      const result = (await rollHistory(
+        event as Parameters<typeof rollHistory>[0],
+        {} as never,
+        vi.fn()
+      )) as { items: { id: string }[]; nextToken: string | null }
+      expect(result.items).toHaveLength(2)
+      expect(result.items[0].id).toBe('roll-3')
+      expect(result.items[1].id).toBe('roll-2')
+      expect(result.nextToken).not.toBeNull()
+    })
+
+    it('uses nextToken to return subsequent pages', async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          rollItem('roll-1', '2025-01-01T00:00:00.000Z'),
+          rollItem('roll-2', '2025-01-02T00:00:00.000Z'),
+          rollItem('roll-3', '2025-01-03T00:00:00.000Z'),
+        ],
+      })
+      const nextToken = Buffer.from(JSON.stringify({ offset: 2 })).toString(
+        'base64'
+      )
+      const event = createEvent(
+        { playTableId: 'pt-1', limit: 2, nextToken },
+        { fieldName: 'rollHistory', parentTypeName: 'Query' }
+      )
+      const result = (await rollHistory(
+        event as Parameters<typeof rollHistory>[0],
+        {} as never,
+        vi.fn()
+      )) as { items: { id: string }[]; nextToken: string | null }
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0].id).toBe('roll-1')
+      expect(result.nextToken).toBeNull()
+    })
+
+    it('returns empty items when no rolls exist', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [] })
+      const event = createEvent(
+        { playTableId: 'pt-1' },
+        { fieldName: 'rollHistory', parentTypeName: 'Query' }
+      )
+      const result = (await rollHistory(
+        event as Parameters<typeof rollHistory>[0],
+        {} as never,
+        vi.fn()
+      )) as { items: unknown[]; nextToken: string | null }
+      expect(result.items).toHaveLength(0)
+      expect(result.nextToken).toBeNull()
     })
   })
 

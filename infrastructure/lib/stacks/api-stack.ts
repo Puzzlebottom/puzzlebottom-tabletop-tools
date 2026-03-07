@@ -98,6 +98,10 @@ export class ApiStack extends cdk.Stack {
       typeName: 'Query',
       fieldName: 'playTableByInviteCode',
     })
+    playTableDs.createResolver('RollHistoryResolver', {
+      typeName: 'Query',
+      fieldName: 'rollHistory',
+    })
 
     const rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
       functionName: `${config.envName}-roll-dice-resolver`,
