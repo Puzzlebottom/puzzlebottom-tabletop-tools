@@ -1,0 +1,8 @@
+---
+description: When to investigate AWS CloudWatch logs
+alwaysApply: true
+---
+
+# AWS Logs Investigation
+
+**Unknown errors suspected of originating from AWS** (e.g. GraphQL failures, pipeline stalls, auth issues, timeouts) **must prompt an investigation of CloudWatch logs.** Do not assume the cause without checking logs.

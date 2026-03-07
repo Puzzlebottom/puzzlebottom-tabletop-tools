@@ -1,0 +1,14 @@
+---
+description: Monitor deploys until they succeed or fail when user requests deployment
+alwaysApply: true
+---
+
+# Deploy Monitoring
+
+When the user asks you to deploy:
+
+1. **Run the deploy command** — Execute whatever deploy script or command the project uses.
+2. **Monitor until completion** — Do not return until the deploy either succeeds or fails.
+3. **Report the outcome** — Tell the user whether the deploy succeeded or failed, and surface any relevant output or errors.
+
+Do not start a deploy and then hand off without waiting for the result.
