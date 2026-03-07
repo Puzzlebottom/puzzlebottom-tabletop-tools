@@ -1,6 +1,7 @@
 export const onRollCompletedSubscription = /* GraphQL */ `
   subscription OnRollCompleted($playTableId: ID!) {
     onRollCompleted(playTableId: $playTableId) {
+      playTableId
       rollId
       values
       modifier
@@ -31,6 +32,7 @@ export const onRollRequestCreatedSubscription = /* GraphQL */ `
 export const onInitiativeUpdatedSubscription = /* GraphQL */ `
   subscription OnInitiativeUpdated($playTableId: ID!) {
     onInitiativeUpdated(playTableId: $playTableId) {
+      playTableId
       order {
         id
         characterName

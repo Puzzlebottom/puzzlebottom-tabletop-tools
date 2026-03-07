@@ -108,17 +108,15 @@ export function PlayTablePage() {
       if (!playTableId) return
       setRollsLoading(true)
       try {
-        const result = (await client.graphql(
-          {
-            query: rollHistoryQuery,
-            variables: {
-              playTableId,
-              limit: 20,
-              nextToken: nextToken ?? undefined,
-            },
+        const result = (await client.graphql({
+          query: rollHistoryQuery,
+          variables: {
+            playTableId,
+            limit: 20,
+            nextToken: nextToken ?? undefined,
           },
-          isPlayer ? playerAuth() : undefined
-        )) as { data: RollHistoryQuery }
+          ...(isPlayer ? playerAuth() : {}),
+        })) as { data: RollHistoryQuery }
         const conn = result.data.rollHistory
         if (conn) {
           setRolls((prev) =>
@@ -150,13 +148,11 @@ export function PlayTablePage() {
     }
 
     const subRoll = (
-      client.graphql(
-        {
-          query: onRollCompletedSubscription,
-          variables: { playTableId },
-        },
-        isPlayer ? { authMode: 'apiKey' as const } : undefined
-      ) as unknown as SubscriptionClient
+      client.graphql({
+        query: onRollCompletedSubscription,
+        variables: { playTableId },
+        ...(isPlayer ? playerAuth() : {}),
+      }) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
         const result = (payload as { data?: OnRollCompletedSubscription }).data
@@ -180,13 +176,11 @@ export function PlayTablePage() {
     })
 
     const subRequest = (
-      client.graphql(
-        {
-          query: onRollRequestCreatedSubscription,
-          variables: { playTableId },
-        },
-        isPlayer ? { authMode: 'apiKey' as const } : undefined
-      ) as unknown as SubscriptionClient
+      client.graphql({
+        query: onRollRequestCreatedSubscription,
+        variables: { playTableId },
+        ...(isPlayer ? playerAuth() : {}),
+      }) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
         const req = (payload as { data?: OnRollRequestCreatedSubscription })
@@ -203,13 +197,11 @@ export function PlayTablePage() {
     })
 
     const subInitiative = (
-      client.graphql(
-        {
-          query: onInitiativeUpdatedSubscription,
-          variables: { playTableId },
-        },
-        isPlayer ? { authMode: 'apiKey' as const } : undefined
-      ) as unknown as SubscriptionClient
+      client.graphql({
+        query: onInitiativeUpdatedSubscription,
+        variables: { playTableId },
+        ...(isPlayer ? playerAuth() : {}),
+      }) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
         const order = (payload as { data?: OnInitiativeUpdatedSubscription })
@@ -232,13 +224,11 @@ export function PlayTablePage() {
     if (!playTableId || !stored?.playerId) return
     setLeaving(true)
     try {
-      await client.graphql(
-        {
-          query: leavePlayTableMutation,
-          variables: { playTableId, playerId: stored.playerId },
-        },
-        playerAuth()
-      )
+      await client.graphql({
+        query: leavePlayTableMutation,
+        variables: { playTableId, playerId: stored.playerId },
+        ...playerAuth(),
+      })
       clearStoredPlayer()
       // eslint-disable-next-line @typescript-eslint/no-floating-promises -- navigate may return Promise; we intentionally fire-and-forget
       navigate('/dice', { replace: true })
@@ -253,21 +243,19 @@ export function PlayTablePage() {
     setDiceCocked(false)
     setDiceSettledValue(undefined)
     try {
-      const result = (await client.graphql(
-        {
-          query: rollDiceMutation,
-          variables: {
-            playTableId,
-            input: {
-              diceType: 'd20',
-              ...(isPlayer && playerIdRef.current
-                ? { id: playerIdRef.current }
-                : {}),
-            },
+      const result = (await client.graphql({
+        query: rollDiceMutation,
+        variables: {
+          playTableId,
+          input: {
+            diceType: 'd20',
+            ...(isPlayer && playerIdRef.current
+              ? { id: playerIdRef.current }
+              : {}),
           },
         },
-        isPlayer ? { authMode: 'apiKey' as const } : undefined
-      )) as { data?: { rollDice: { rollId: string } } }
+        ...(isPlayer ? playerAuth() : {}),
+      })) as { data?: { rollDice: { rollId: string } } }
       const rollId = result.data?.rollDice?.rollId
       if (rollId) setPendingRollId(rollId)
     } catch {
@@ -286,17 +274,15 @@ export function PlayTablePage() {
     setDiceCocked(false)
     setDiceSettledValue(undefined)
     try {
-      const result = (await client.graphql(
-        {
-          query: fulfillRollRequestMutation,
-          variables: {
-            rollRequestId: pendingRollRequest.id,
-            playTableId,
-            playerId: playerIdRef.current,
-          },
+      const result = (await client.graphql({
+        query: fulfillRollRequestMutation,
+        variables: {
+          rollRequestId: pendingRollRequest.id,
+          playTableId,
+          playerId: playerIdRef.current,
         },
-        playerAuth()
-      )) as { data?: { fulfillRollRequest: { rollId: string } } }
+        ...playerAuth(),
+      })) as { data?: { fulfillRollRequest: { rollId: string } } }
       const rollId = result.data?.fulfillRollRequest?.rollId
       if (rollId) setPendingRollId(rollId)
     } catch {

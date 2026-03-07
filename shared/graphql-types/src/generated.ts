@@ -266,7 +266,7 @@ export type RollDiceMutationVariables = Exact<{
 }>;
 
 
-export type RollDiceMutation = { rollDice: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
+export type RollDiceMutation = { rollDice: { playTableId: string, rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
 
 export type FulfillRollRequestMutationVariables = Exact<{
   rollRequestId: Scalars['ID']['input'];
@@ -275,7 +275,7 @@ export type FulfillRollRequestMutationVariables = Exact<{
 }>;
 
 
-export type FulfillRollRequestMutation = { fulfillRollRequest: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
+export type FulfillRollRequestMutation = { fulfillRollRequest: { playTableId: string, rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
 
 export type CreateRollRequestMutationVariables = Exact<{
   playTableId: Scalars['ID']['input'];
@@ -320,7 +320,7 @@ export type OnRollCompletedSubscriptionVariables = Exact<{
 }>;
 
 
-export type OnRollCompletedSubscription = { onRollCompleted?: { rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } | null };
+export type OnRollCompletedSubscription = { onRollCompleted?: { playTableId: string, rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } | null };
 
 export type OnRollRequestCreatedSubscriptionVariables = Exact<{
   playTableId: Scalars['ID']['input'];
@@ -334,7 +334,7 @@ export type OnInitiativeUpdatedSubscriptionVariables = Exact<{
 }>;
 
 
-export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated?: { order: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> } | null };
+export type OnInitiativeUpdatedSubscription = { onInitiativeUpdated?: { playTableId: string, order: Array<{ id: string, characterName: string, value: number, modifier: number, total: number }> } | null };
 
 
 type Properties<T> = Required<{
