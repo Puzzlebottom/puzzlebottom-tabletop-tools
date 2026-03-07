@@ -107,6 +107,40 @@ export interface RollResultPayload {
   visibility: string
 }
 
+export interface RollRequestPayload {
+  id: string
+  playTableId: string
+  targetPlayerIds: string[]
+  type: string
+  dc?: number | null
+  advantage?: string | null
+  isPrivate: boolean
+  status: string
+  createdAt: string
+}
+
+export async function notifyRollRequestCreated(
+  graphqlUrl: string,
+  input: RollRequestPayload
+): Promise<void> {
+  const mutation = `
+    mutation NotifyRollRequestCreated($input: NotifyRollRequestInput!) {
+      notifyRollRequestCreated(input: $input) {
+        id
+        playTableId
+        targetPlayerIds
+        type
+        dc
+        advantage
+        isPrivate
+        status
+        createdAt
+      }
+    }
+  `
+  await callAppSync(graphqlUrl, mutation, { input }, 'NotifyRollRequestCreated')
+}
+
 export async function notifyRollCompleted(
   graphqlUrl: string,
   input: RollResultPayload

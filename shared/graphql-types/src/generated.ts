@@ -63,6 +63,7 @@ export type Mutation = {
   leavePlayTable: Scalars['Boolean']['output'];
   notifyInitiativeUpdated: InitiativeOrderUpdated;
   notifyRollCompleted: RollResult;
+  notifyRollRequestCreated: RollRequest;
   rollDice: RollDiceResponse;
 };
 
@@ -108,9 +109,26 @@ export type MutationNotifyRollCompletedArgs = {
 };
 
 
+export type MutationNotifyRollRequestCreatedArgs = {
+  input: NotifyRollRequestInput;
+};
+
+
 export type MutationRollDiceArgs = {
   input: RollDiceInput;
   playTableId: Scalars['ID']['input'];
+};
+
+export type NotifyRollRequestInput = {
+  advantage?: InputMaybe<Scalars['String']['input']>;
+  createdAt: Scalars['String']['input'];
+  dc?: InputMaybe<Scalars['Int']['input']>;
+  id: Scalars['ID']['input'];
+  isPrivate: Scalars['Boolean']['input'];
+  playTableId: Scalars['ID']['input'];
+  status: Scalars['String']['input'];
+  targetPlayerIds: Array<Scalars['String']['input']>;
+  type: RollRequestType;
 };
 
 export type PlayTable = {
@@ -422,6 +440,20 @@ export function JoinPlayTableResponseSchema(): z.ZodObject<Properties<JoinPlayTa
     __typename: z.literal('JoinPlayTableResponse').optional(),
     id: z.string(),
     playTableId: z.string()
+  })
+}
+
+export function NotifyRollRequestInputSchema(): z.ZodObject<Properties<NotifyRollRequestInput>> {
+  return z.object({
+    advantage: z.string().nullish(),
+    createdAt: z.string(),
+    dc: z.number().nullish(),
+    id: z.string(),
+    isPrivate: z.boolean(),
+    playTableId: z.string(),
+    status: z.string(),
+    targetPlayerIds: z.array(z.string()),
+    type: RollRequestTypeSchema
   })
 }
 

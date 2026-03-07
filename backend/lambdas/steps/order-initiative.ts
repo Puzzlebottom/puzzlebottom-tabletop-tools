@@ -1,24 +1,21 @@
-import { Sha256 } from '@aws-crypto/sha256-js'
 import {
   DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
   QueryCommand,
 } from '@aws-sdk/client-dynamodb'
-import { defaultProvider } from '@aws-sdk/credential-provider-node'
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 import {
   type InitiativeRollRequestCreatedDetail,
   InitiativeRollRequestCreatedDetailSchema,
 } from '@puzzlebottom-tabletop-tools/schemas'
-import { HttpRequest } from '@smithy/protocol-http'
-import { SignatureV4 } from '@smithy/signature-v4'
 import type { Handler } from 'aws-lambda'
+
+import { notifyInitiativeUpdated } from '../handlers/shared/notify-appsync.js'
 
 const dynamo = new DynamoDBClient({})
 const TABLE_NAME = process.env.TABLE_NAME!
 const APPSYNC_GRAPHQL_URL = process.env.APPSYNC_GRAPHQL_URL!
-const AWS_REGION = process.env.AWS_REGION ?? 'us-east-1'
 
 interface InitiativeEntry {
   id: string
@@ -127,66 +124,5 @@ export const handler: Handler<
     })
   )
 
-  await notifyAppSync(playTableId, order)
-}
-
-async function notifyAppSync(
-  playTableId: string,
-  order: InitiativeEntry[]
-): Promise<void> {
-  const url = new URL(APPSYNC_GRAPHQL_URL)
-  const mutation = `
-    mutation NotifyInitiativeUpdated($playTableId: ID!, $order: [InitiativeEntryInput!]!) {
-      notifyInitiativeUpdated(playTableId: $playTableId, order: $order) {
-        order {
-          id
-          characterName
-          value
-          modifier
-          total
-        }
-      }
-    }
-  `
-  const body = JSON.stringify({
-    query: mutation,
-    variables: { playTableId, order },
-    operationName: 'NotifyInitiativeUpdated',
-  })
-
-  const request = new HttpRequest({
-    method: 'POST',
-    protocol: url.protocol,
-    hostname: url.hostname,
-    port: url.port ? parseInt(url.port, 10) : 443,
-    path: url.pathname,
-    headers: {
-      'Content-Type': 'application/json',
-      host: url.host,
-    },
-    body,
-  })
-
-  const signer = new SignatureV4({
-    credentials: defaultProvider(),
-    region: AWS_REGION,
-    service: 'appsync',
-    sha256: Sha256,
-  })
-
-  const signedRequest = await signer.sign(request)
-
-  const headers = signedRequest.headers as Record<string, string>
-  const response = await fetch(APPSYNC_GRAPHQL_URL, {
-    method: signedRequest.method,
-    headers,
-    body: body,
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(
-      `AppSync notifyInitiativeUpdated failed: ${response.status} ${text}`
-    )
-  }
+  await notifyInitiativeUpdated(APPSYNC_GRAPHQL_URL, playTableId, order)
 }

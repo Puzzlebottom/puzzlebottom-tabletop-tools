@@ -62,7 +62,7 @@ type RollResult @aws_iam @aws_api_key @aws_cognito_user_pools {
   visibility: Visibility!
 }
 
-type RollRequest @aws_api_key @aws_cognito_user_pools {
+type RollRequest @aws_iam @aws_api_key @aws_cognito_user_pools {
   id: ID!
   playTableId: ID!
   targetPlayerIds: [String!]!
@@ -74,7 +74,7 @@ type RollRequest @aws_api_key @aws_cognito_user_pools {
   createdAt: String!
 }
 
-type InitiativeEntry @aws_api_key @aws_cognito_user_pools {
+type InitiativeEntry @aws_iam @aws_api_key @aws_cognito_user_pools {
   id: ID!
   characterName: String!
   value: Int!
@@ -82,7 +82,7 @@ type InitiativeEntry @aws_api_key @aws_cognito_user_pools {
   total: Int!
 }
 
-type InitiativeOrderUpdated @aws_api_key @aws_cognito_user_pools {
+type InitiativeOrderUpdated @aws_iam @aws_api_key @aws_cognito_user_pools {
   playTableId: ID!
   order: [InitiativeEntry!]!
 }
@@ -121,6 +121,18 @@ input CreateRollRequestInput {
   dc: Int
   advantage: String
   isPrivate: Boolean
+}
+
+input NotifyRollRequestInput {
+  id: ID!
+  playTableId: ID!
+  targetPlayerIds: [String!]!
+  type: RollRequestType!
+  dc: Int
+  advantage: String
+  isPrivate: Boolean!
+  status: String!
+  createdAt: String!
 }
 
 input RollResultInput {
@@ -173,6 +185,8 @@ type Mutation {
   ): RollDiceResponse! @aws_api_key @aws_cognito_user_pools
   clearInitiative(playTableId: ID!): Boolean!
   notifyRollCompleted(input: RollResultInput!): RollResult! @aws_iam
+  notifyRollRequestCreated(input: NotifyRollRequestInput!): RollRequest!
+    @aws_iam
   notifyInitiativeUpdated(
     playTableId: ID!
     order: [InitiativeEntryInput!]!
@@ -186,7 +200,8 @@ type Subscription {
     @aws_api_key
     @aws_cognito_user_pools
   onRollRequestCreated(playTableId: ID!): RollRequest
-    @aws_subscribe(mutations: ["createRollRequest"])
+    @aws_subscribe(mutations: ["notifyRollRequestCreated"])
+    @aws_iam
     @aws_api_key
     @aws_cognito_user_pools
   onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated

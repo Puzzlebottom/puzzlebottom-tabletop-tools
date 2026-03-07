@@ -242,7 +242,7 @@ describe('order-initiative handler', () => {
       .mockResolvedValueOnce({})
       .mockResolvedValue({})
 
-    mockFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('') })
+    mockFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('{}') })
 
     await handler(
       {
@@ -321,6 +321,6 @@ describe('order-initiative handler', () => {
         MINIMAL_CONTEXT,
         vi.fn()
       )
-    ).rejects.toThrow('AppSync notifyInitiativeUpdated failed')
+    ).rejects.toThrow('NotifyInitiativeUpdated')
   })
 })

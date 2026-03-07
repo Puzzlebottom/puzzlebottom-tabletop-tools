@@ -144,7 +144,7 @@ flowchart TB
 stateDiagram-v2
     [*] --> CreateInitiativePending: InitiativeRollRequestCreated event<br/>trigger Lambda starts execution
 
-    CreateInitiativePending: Create INITIATIVE_PENDING item<br/>expectedPlayerKeys, completedPlayerKeys<br/>Wait for task token
+    CreateInitiativePending: Create INITIATIVE_PENDING item<br/>notifyRollRequestCreated → AppSync<br/>Wait for task token
 
     state "Players roll (fulfillRollRequest)" as Players
     CreateInitiativePending --> Players: Task token stored
@@ -183,6 +183,19 @@ The roll-dice Lambda is a thin entry point — it handles validation (play table
 
 EventBridge publication (`RollCompleted` event) is a separate, secondary concern for inter-module communication — not part of the roll notification flow.
 
+## Initiative Roll Request Notification Flow
+
+The `onRollRequestCreated` subscription is the sole source of truth for roll request UI updates. The `createRollRequest` mutation returns the RollRequest to the caller but does not trigger the subscription. Instead, the pipeline triggers it:
+
+1. GM calls `createRollRequest` mutation (Cognito auth)
+2. roll-request Lambda creates RollRequest in DynamoDB, publishes `InitiativeRollRequestCreated` to EventBridge, returns RollRequest
+3. Trigger Lambda starts Initiative Step Function
+4. CreateInitiativePending step: creates INITIATIVE_PENDING, reads RollRequest from DynamoDB, calls `notifyRollRequestCreated` mutation (IAM auth)
+5. AppSync pushes to all `onRollRequestCreated` subscribers
+6. Players receive the roll request and can fulfill it
+
+This mirrors the roll flow: the pipeline (Step Function) is the source of UI updates via IAM-authed notify mutations. Future ad hoc roll requests will use the same pattern.
+
 ## Component Summary
 
 | Component          | Technology              | Responsibility                                                                                                              |
@@ -193,7 +206,7 @@ EventBridge publication (`RollCompleted` event) is a separate, secondary concern
 | **Roll SF**        | Step Function           | Generate roll result, store in DynamoDB, notify subscribers via `notifyRollCompleted`, publish RollCompleted to EventBridge |
 | **play-table**     | Lambda                  | Create/join play tables, leave, query play table and roll history                                                           |
 | **roll-request**   | Lambda                  | Create roll requests (ad hoc, initiative), publish to EventBridge                                                           |
-| **initiative**     | Lambda                  | clearInitiative, notifyInitiativeUpdated                                                                                    |
+| **initiative**     | Lambda                  | clearInitiative, notifyRollRequestCreated, notifyInitiativeUpdated                                                          |
 | **EventBridge**    | AWS EventBridge         | Decouple mutations from async processing                                                                                    |
 | **SQS**            | AWS SQS                 | Queue for trigger Lambda, DLQ for failures                                                                                  |
 | **trigger**        | Lambda                  | Route events: start Step Function or invoke handlers                                                                        |

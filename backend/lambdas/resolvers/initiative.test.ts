@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createAppSyncEvent } from '../../test/appsync-event.js'
-import { clearInitiative, handler, notifyInitiativeUpdated } from './initiative'
+import {
+  clearInitiative,
+  handler,
+  notifyInitiativeUpdated,
+  notifyRollRequestCreated,
+} from './initiative'
 
 const { mockSend } = vi.hoisted(() => {
   const fn = vi.fn()
@@ -66,6 +71,33 @@ describe('initiative resolvers', () => {
       )
       const result = await handler(event, {} as never, vi.fn())
       expect(result).toBe(true)
+    })
+
+    it('routes notifyRollRequestCreated to notifyRollRequestCreated resolver', async () => {
+      const input = {
+        id: 'rr-1',
+        playTableId: 'pt-1',
+        targetPlayerIds: ['p1', 'p2'],
+        type: 'initiative',
+        dc: null,
+        advantage: null,
+        isPrivate: false,
+        status: 'pending',
+        createdAt: '2024-01-01T00:00:00Z',
+      }
+      const event = createEvent(
+        { input },
+        {
+          fieldName: 'notifyRollRequestCreated',
+          parentTypeName: 'Mutation',
+        }
+      )
+      const result = (await handler(
+        event,
+        {} as never,
+        vi.fn()
+      )) as typeof input
+      expect(result).toEqual(input)
     })
 
     it('routes notifyInitiativeUpdated to notifyInitiativeUpdated resolver', async () => {
@@ -169,6 +201,35 @@ describe('initiative resolvers', () => {
       await expect(
         clearInitiative(event as never, {} as never, vi.fn())
       ).rejects.toThrow('Play table not found')
+    })
+  })
+
+  describe('notifyRollRequestCreated', () => {
+    it('returns input as pass-through', async () => {
+      const input = {
+        id: 'rr-1',
+        playTableId: 'pt-1',
+        targetPlayerIds: ['p1'],
+        type: 'initiative',
+        dc: 15,
+        advantage: 'advantage',
+        isPrivate: false,
+        status: 'pending',
+        createdAt: '2024-01-01T00:00:00Z',
+      }
+      const event = createEvent(
+        { input },
+        {
+          fieldName: 'notifyRollRequestCreated',
+          parentTypeName: 'Mutation',
+        }
+      )
+      const result = await notifyRollRequestCreated(
+        event as Parameters<typeof notifyRollRequestCreated>[0],
+        {} as never,
+        vi.fn()
+      )
+      expect(result).toEqual(input)
     })
   })
 

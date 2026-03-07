@@ -218,6 +218,10 @@ export class ApiStack extends cdk.Stack {
       typeName: 'Mutation',
       fieldName: 'clearInitiative',
     })
+    initiativeDs.createResolver('NotifyRollRequestCreatedResolver', {
+      typeName: 'Mutation',
+      fieldName: 'notifyRollRequestCreated',
+    })
     initiativeDs.createResolver('NotifyInitiativeUpdatedResolver', {
       typeName: 'Mutation',
       fieldName: 'notifyInitiativeUpdated',

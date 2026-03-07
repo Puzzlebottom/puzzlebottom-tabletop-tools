@@ -56,6 +56,29 @@ export const clearInitiative: AppSyncResolverHandler<
   return true
 }
 
+interface NotifyRollRequestInput {
+  id: string
+  playTableId: string
+  targetPlayerIds: string[]
+  type: string
+  dc?: number | null
+  advantage?: string | null
+  isPrivate: boolean
+  status: string
+  createdAt: string
+}
+
+/**
+ * IAM-only: invoked by CreateInitiativePending step after creating INITIATIVE_PENDING.
+ * Pass-through — returns the input so AppSync pushes it to onRollRequestCreated subscribers.
+ */
+export const notifyRollRequestCreated: AppSyncResolverHandler<
+  { input: NotifyRollRequestInput },
+  NotifyRollRequestInput
+> = (event) => {
+  return Promise.resolve(event.arguments.input)
+}
+
 /**
  * IAM-only: invoked by EventBridge consumers (OrderInitiative step, handlers).
  * Returns order from input; no DB fetch.
@@ -148,6 +171,10 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
     if (fieldName === 'notifyRollCompleted') {
       const e = event as AppSyncResolverEvent<RollResultArgs>
       return notifyRollCompleted(e, NOOP_CONTEXT, NOOP_CALLBACK)
+    }
+    if (fieldName === 'notifyRollRequestCreated') {
+      const e = event as AppSyncResolverEvent<{ input: NotifyRollRequestInput }>
+      return notifyRollRequestCreated(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
     if (fieldName === 'notifyInitiativeUpdated') {
       const e = event as AppSyncResolverEvent<{

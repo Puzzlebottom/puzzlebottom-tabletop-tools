@@ -59,10 +59,19 @@ export class StepFunctionStack extends cdk.Stack {
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
+          APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
     props.dataTable.grantReadWriteData(createInitiativePendingFn)
+    createInitiativePendingFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [
+          `arn:aws:appsync:${config.awsRegion}:${config.awsAccount}:apis/${graphqlApi.apiId}/*`,
+        ],
+      })
+    )
 
     const orderInitiativeFn = new lambdaNode.NodejsFunction(
       this,
