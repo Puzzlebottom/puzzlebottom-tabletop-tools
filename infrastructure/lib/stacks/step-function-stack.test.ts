@@ -32,6 +32,7 @@ function createStepFunctionStack(): StepFunctionStack {
   return new StepFunctionStack(app, 'TestStepFunctionStack', {
     config: mockConfig,
     dataTable: databaseStack.dataTable,
+    eventBus: eventStack.eventBus,
     pipelineQueue: eventStack.pipelineQueue,
     graphqlApi: apiStack.api,
     env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
@@ -39,13 +40,17 @@ function createStepFunctionStack(): StepFunctionStack {
 }
 
 describe('StepFunctionStack', () => {
-  it('synthesizes a Step Functions state machine', () => {
+  it('synthesizes the initiative and roll Step Functions state machines', () => {
     const stack = createStepFunctionStack()
     const template = Template.fromStack(stack)
 
-    template.resourceCountIs('AWS::StepFunctions::StateMachine', 1)
+    template.resourceCountIs('AWS::StepFunctions::StateMachine', 2)
     template.hasResourceProperties('AWS::StepFunctions::StateMachine', {
       StateMachineName: `${mockConfig.envName}-puzzlebottom-tabletop-tools`,
+      TracingConfiguration: { Enabled: true },
+    })
+    template.hasResourceProperties('AWS::StepFunctions::StateMachine', {
+      StateMachineName: `${mockConfig.envName}-roll-pipeline`,
       TracingConfiguration: { Enabled: true },
     })
   }, 15000)
@@ -68,12 +73,36 @@ describe('StepFunctionStack', () => {
     })
   }, 15000)
 
-  it('exports StateMachineArn', () => {
+  it('exports StateMachineArn and RollStateMachineArn', () => {
     const stack = createStepFunctionStack()
     const template = Template.fromStack(stack)
 
     template.hasOutput('*', {
       Export: { Name: `${mockConfig.envName}-state-machine-arn` },
+    })
+    template.hasOutput('*', {
+      Export: { Name: `${mockConfig.envName}-roll-state-machine-arn` },
+    })
+  }, 15000)
+
+  it('creates Roll Step Function log group', () => {
+    const stack = createStepFunctionStack()
+    const template = Template.fromStack(stack)
+
+    template.hasResourceProperties('AWS::Logs::LogGroup', {
+      LogGroupName: `/aws/stepfunctions/${mockConfig.envName}-roll-pipeline`,
+    })
+  }, 15000)
+
+  it('creates generate-and-store-roll and notify-roll-completed Lambdas', () => {
+    const stack = createStepFunctionStack()
+    const template = Template.fromStack(stack)
+
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: `${mockConfig.envName}-generate-and-store-roll`,
+    })
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: `${mockConfig.envName}-notify-roll-completed`,
     })
   }, 15000)
 })

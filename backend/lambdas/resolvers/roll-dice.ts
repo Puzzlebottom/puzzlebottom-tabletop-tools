@@ -1,18 +1,6 @@
-import {
-  DynamoDBClient,
-  GetItemCommand,
-  PutItemCommand,
-} from '@aws-sdk/client-dynamodb'
-import {
-  EventBridgeClient,
-  PutEventsCommand,
-} from '@aws-sdk/client-eventbridge'
+import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
+import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
-import {
-  DETAIL_TYPE_ROLL_COMPLETED,
-  EVENT_SOURCE,
-  RollCompletedDetailSchema,
-} from '@puzzlebottom-tabletop-tools/schemas'
 import type {
   AppSyncResolverEvent,
   AppSyncResolverHandler,
@@ -22,37 +10,17 @@ import type {
 import { randomUUID } from 'crypto'
 
 const dynamo = new DynamoDBClient({})
+const sfnClient = new SFNClient({})
 const TABLE_NAME = process.env.TABLE_NAME!
-const EVENT_BUS_NAME = process.env.EVENT_BUS_NAME!
+const ROLL_STATE_MACHINE_ARN = process.env.ROLL_STATE_MACHINE_ARN!
 
 type RollerIdentity =
   | { type: 'gm'; rollerId: string }
   | { type: 'player'; rollerId: string }
 
-function parseVisibility(v: string | null | undefined): 'all' | 'gm_only' {
-  if (v === 'gm_only') return 'gm_only'
-  return 'all'
-}
-
-function rollD20(advantage?: string | null): {
-  values: number[]
-  used: number
-} {
-  const roll = () => Math.floor(Math.random() * 20) + 1
-  if (advantage === 'advantage') {
-    const a = roll()
-    const b = roll()
-    const used = Math.max(a, b)
-    return { values: [a, b], used }
-  }
-  if (advantage === 'disadvantage') {
-    const a = roll()
-    const b = roll()
-    const used = Math.min(a, b)
-    return { values: [a, b], used }
-  }
-  const v = roll()
-  return { values: [v], used: v }
+interface RollDiceResponse {
+  rollId: string
+  accepted: boolean
 }
 
 async function resolveActor(
@@ -87,7 +55,8 @@ async function resolveActor(
   )
 }
 
-async function performRoll(params: {
+async function startRollExecution(params: {
+  rollId: string
   playTableId: string
   roller: RollerIdentity
   diceType: string
@@ -97,116 +66,14 @@ async function performRoll(params: {
   visibility?: string | null
   rollRequestId?: string | null
   rollRequestType: 'ad_hoc' | 'initiative'
-}): Promise<{
-  playTableId: string
-  rollId: string
-  values: number[]
-  modifier: number
-  total: number
-  advantage: string | null
-  dc: number | null
-  success: boolean | null
-  visibility: 'all' | 'gm_only'
-}> {
-  const {
-    playTableId,
-    roller,
-    diceType,
-    advantage,
-    modifier = 0,
-    dc,
-    visibility,
-    rollRequestId,
-    rollRequestType,
-  } = params
-
-  const { values, used } = rollD20(advantage)
-  const total = used + (modifier ?? 0)
-  const success = dc !== undefined && dc !== null ? total >= dc : null
-
-  const rollId = randomUUID()
-  const createdAt = new Date().toISOString()
-  const vis = parseVisibility(visibility)
-
-  const rollItem = {
-    PK: `PLAYTABLE#${playTableId}`,
-    SK: `ROLL#${rollId}`,
-    id: rollId,
-    playTableId,
-    rollerId: roller.rollerId,
-    rollerType: roller.type,
-    diceType,
-    values,
-    modifier,
-    total,
-    advantage: advantage ?? null,
-    dc: dc ?? null,
-    success: success ?? null,
-    visibility: vis,
-    rollRequestType,
-    rollRequestId: rollRequestId ?? null,
-    createdAt,
-  }
-
-  await dynamo.send(
-    new PutItemCommand({
-      TableName: TABLE_NAME,
-      Item: marshall(rollItem, { removeUndefinedValues: true }),
+}): Promise<void> {
+  await sfnClient.send(
+    new StartExecutionCommand({
+      stateMachineArn: ROLL_STATE_MACHINE_ARN,
+      name: `roll-${params.rollId}`,
+      input: JSON.stringify(params),
     })
   )
-
-  const detail = RollCompletedDetailSchema.parse({
-    playTableId,
-    rollId,
-    rollRequestId: rollRequestId ?? undefined,
-    rollRequestType,
-    rollerId: roller.rollerId,
-    rollerType: roller.type,
-    values,
-    modifier,
-    total,
-    advantage: advantage ?? null,
-    dc: dc ?? null,
-    success: success ?? null,
-  })
-
-  const eb = new EventBridgeClient({})
-  await eb.send(
-    new PutEventsCommand({
-      Entries: [
-        {
-          Source: EVENT_SOURCE,
-          DetailType: DETAIL_TYPE_ROLL_COMPLETED,
-          Detail: JSON.stringify(detail),
-          EventBusName: EVENT_BUS_NAME,
-        },
-      ],
-    })
-  )
-
-  return {
-    playTableId,
-    rollId,
-    values,
-    modifier: modifier ?? 0,
-    total,
-    advantage: advantage ?? null,
-    dc: dc ?? null,
-    success: success ?? null,
-    visibility: vis,
-  }
-}
-
-interface RollResult {
-  playTableId: string
-  rollId: string
-  values: number[]
-  modifier: number
-  total: number
-  advantage: string | null
-  dc: number | null
-  success: boolean | null
-  visibility: 'all' | 'gm_only'
 }
 
 export const rollDice: AppSyncResolverHandler<
@@ -222,7 +89,7 @@ export const rollDice: AppSyncResolverHandler<
       rollRequestId?: string | null
     }
   },
-  RollResult
+  RollDiceResponse
 > = async (event) => {
   const { playTableId, input } = event.arguments
   const identity = event.identity
@@ -242,7 +109,10 @@ export const rollDice: AppSyncResolverHandler<
     throw new Error('Play table not found')
   }
 
-  return performRoll({
+  const rollId = randomUUID()
+
+  await startRollExecution({
+    rollId,
     playTableId,
     roller,
     diceType: input.diceType,
@@ -253,6 +123,8 @@ export const rollDice: AppSyncResolverHandler<
     rollRequestId: input.rollRequestId,
     rollRequestType: input.rollRequestId ? 'initiative' : 'ad_hoc',
   })
+
+  return { rollId, accepted: true }
 }
 
 export const fulfillRollRequest: AppSyncResolverHandler<
@@ -261,7 +133,7 @@ export const fulfillRollRequest: AppSyncResolverHandler<
     playTableId: string
     playerId: string
   },
-  RollResult
+  RollDiceResponse
 > = async (event) => {
   const { rollRequestId, playTableId, playerId } = event.arguments
 
@@ -310,8 +182,10 @@ export const fulfillRollRequest: AppSyncResolverHandler<
   }
 
   const roller: RollerIdentity = { type: 'player', rollerId: playerId }
+  const rollId = randomUUID()
 
-  return performRoll({
+  await startRollExecution({
+    rollId,
     playTableId,
     roller,
     diceType: 'd20',
@@ -322,16 +196,13 @@ export const fulfillRollRequest: AppSyncResolverHandler<
     rollRequestId,
     rollRequestType: rollRequest.type as 'ad_hoc' | 'initiative',
   })
+
+  return { rollId, accepted: true }
 }
 
-/** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
 const NOOP_CONTEXT = {} as Context
 const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
 
-/**
- * Main handler that routes AppSync invocations to rollDice or fulfillRollRequest.
- * Uses async/await (no callback param) for Node.js 24+ compatibility.
- */
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
   event: AppSyncResolverEvent<unknown>
 ) => {

@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib'
 import type * as appsync from 'aws-cdk-lib/aws-appsync'
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import type * as events from 'aws-cdk-lib/aws-events'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources'
@@ -17,12 +18,14 @@ import { type EnvironmentConfig } from '../config/environments.js'
 interface StepFunctionStackProps extends cdk.StackProps {
   config: EnvironmentConfig
   dataTable: dynamodb.Table
+  eventBus: events.IEventBus
   pipelineQueue: sqs.Queue
   graphqlApi: appsync.IGraphqlApi
 }
 
 export class StepFunctionStack extends cdk.Stack {
   public readonly stateMachine: sfn.StateMachine
+  public readonly rollStateMachine: sfn.StateMachine
 
   constructor(scope: Construct, id: string, props: StepFunctionStackProps) {
     super(scope, id, props)
@@ -255,6 +258,109 @@ export class StepFunctionStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'StateMachineArn', {
       value: this.stateMachine.stateMachineArn,
       exportName: `${config.envName}-state-machine-arn`,
+    })
+
+    // --- Roll Step Function ---
+
+    const generateAndStoreRollFn = new lambdaNode.NodejsFunction(
+      this,
+      'GenerateAndStoreRollFn',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-generate-and-store-roll`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/steps/generate-and-store-roll.ts'
+        ),
+        environment: {
+          TABLE_NAME: props.dataTable.tableName,
+        },
+      }
+    )
+    props.dataTable.grantReadWriteData(generateAndStoreRollFn)
+
+    const notifyRollCompletedFn = new lambdaNode.NodejsFunction(
+      this,
+      'NotifyRollCompletedFn',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-notify-roll-completed`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/steps/notify-roll-completed.ts'
+        ),
+        environment: {
+          APPSYNC_GRAPHQL_URL: `https://${graphqlApi.apiId}.appsync-api.${config.awsRegion}.amazonaws.com/graphql`,
+        },
+      }
+    )
+    notifyRollCompletedFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [
+          `arn:aws:appsync:${config.awsRegion}:${config.awsAccount}:apis/${graphqlApi.apiId}/*`,
+        ],
+      })
+    )
+
+    const generateAndStoreRollTask = new sfnTasks.LambdaInvoke(
+      this,
+      'GenerateAndStoreRoll',
+      {
+        lambdaFunction: generateAndStoreRollFn,
+        payloadResponseOnly: true,
+      }
+    )
+
+    const notifyRollCompletedTask = new sfnTasks.LambdaInvoke(
+      this,
+      'NotifyRollCompleted',
+      {
+        lambdaFunction: notifyRollCompletedFn,
+        payloadResponseOnly: true,
+      }
+    )
+
+    const publishRollEventTask = new sfnTasks.EventBridgePutEvents(
+      this,
+      'PublishRollEvent',
+      {
+        entries: [
+          {
+            source: 'puzzlebottom-tabletop-tools',
+            detailType: 'RollCompleted',
+            detail: sfn.TaskInput.fromJsonPathAt('$'),
+            eventBus: props.eventBus,
+          },
+        ],
+      }
+    )
+
+    const rollDefinition = generateAndStoreRollTask
+      .next(notifyRollCompletedTask)
+      .next(publishRollEventTask)
+
+    const rollLogGroup = new logs.LogGroup(this, 'RollStateMachineLogGroup', {
+      logGroupName: `/aws/stepfunctions/${config.envName}-roll-pipeline`,
+      retention: config.logRetention,
+      removalPolicy: config.removalPolicy,
+    })
+
+    this.rollStateMachine = new sfn.StateMachine(this, 'RollPipeline', {
+      stateMachineName: `${config.envName}-roll-pipeline`,
+      definitionBody: sfn.DefinitionBody.fromChainable(rollDefinition),
+      timeout: cdk.Duration.seconds(30),
+      tracingEnabled: true,
+      logs: {
+        destination: rollLogGroup,
+        level: sfn.LogLevel.ALL,
+        includeExecutionData: true,
+      },
+    })
+
+    new cdk.CfnOutput(this, 'RollStateMachineArn', {
+      value: this.rollStateMachine.stateMachineArn,
+      exportName: `${config.envName}-roll-state-machine-arn`,
     })
   }
 }

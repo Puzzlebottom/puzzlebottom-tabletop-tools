@@ -20,6 +20,7 @@ interface ApiStackProps extends cdk.StackProps {
 export class ApiStack extends cdk.Stack {
   public readonly api: appsync.GraphqlApi
   public readonly graphqlApiKey: string
+  public readonly rollDiceFn: lambdaNode.NodejsFunction
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props)
@@ -103,7 +104,7 @@ export class ApiStack extends cdk.Stack {
       fieldName: 'rollHistory',
     })
 
-    const rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
+    this.rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
       functionName: `${config.envName}-roll-dice-resolver`,
       entry: path.join(
         import.meta.dirname,
@@ -116,7 +117,6 @@ export class ApiStack extends cdk.Stack {
       memorySize: 256,
       environment: {
         TABLE_NAME: dataTable.tableName,
-        EVENT_BUS_NAME: eventBus.eventBusName,
       },
       bundling: {
         format: lambdaNode.OutputFormat.ESM,
@@ -125,12 +125,11 @@ export class ApiStack extends cdk.Stack {
       },
     })
 
-    dataTable.grantReadWriteData(rollDiceFn)
-    eventBus.grantPutEventsTo(rollDiceFn)
+    dataTable.grantReadWriteData(this.rollDiceFn)
 
     const rollDiceDs = this.api.addLambdaDataSource(
       'RollDiceDataSource',
-      rollDiceFn
+      this.rollDiceFn
     )
 
     rollDiceDs.createResolver('RollDiceResolver', {
@@ -212,6 +211,10 @@ export class ApiStack extends cdk.Stack {
     initiativeDs.createResolver('NotifyInitiativeUpdatedResolver', {
       typeName: 'Mutation',
       fieldName: 'notifyInitiativeUpdated',
+    })
+    initiativeDs.createResolver('NotifyRollCompletedResolver', {
+      typeName: 'Mutation',
+      fieldName: 'notifyRollCompleted',
     })
 
     const apiKey = new appsync.CfnApiKey(this, 'PlayerAccessApiKey', {

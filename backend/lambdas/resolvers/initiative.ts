@@ -89,6 +89,43 @@ export const notifyInitiativeUpdated: AppSyncResolverHandler<
   })
 }
 
+interface RollResultArgs {
+  input: {
+    playTableId: string
+    rollId: string
+    values: number[]
+    modifier: number
+    total: number
+    advantage?: string | null
+    dc?: number | null
+    success?: boolean | null
+    visibility: string
+  }
+}
+
+interface RollResult {
+  playTableId: string
+  rollId: string
+  values: number[]
+  modifier: number
+  total: number
+  advantage?: string | null
+  dc?: number | null
+  success?: boolean | null
+  visibility: string
+}
+
+/**
+ * IAM-only: invoked by the Roll Step Function's notify step.
+ * Pass-through — returns the input so AppSync pushes it to onRollCompleted subscribers.
+ */
+export const notifyRollCompleted: AppSyncResolverHandler<
+  RollResultArgs,
+  RollResult
+> = (event) => {
+  return Promise.resolve(event.arguments.input)
+}
+
 /** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
 const NOOP_CONTEXT = {} as Context
 const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
@@ -107,6 +144,10 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
     if (fieldName === 'clearInitiative') {
       const e = event as AppSyncResolverEvent<{ playTableId: string }>
       return clearInitiative(e, NOOP_CONTEXT, NOOP_CALLBACK)
+    }
+    if (fieldName === 'notifyRollCompleted') {
+      const e = event as AppSyncResolverEvent<RollResultArgs>
+      return notifyRollCompleted(e, NOOP_CONTEXT, NOOP_CALLBACK)
     }
     if (fieldName === 'notifyInitiativeUpdated') {
       const e = event as AppSyncResolverEvent<{

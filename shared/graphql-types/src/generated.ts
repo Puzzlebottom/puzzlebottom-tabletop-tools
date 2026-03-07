@@ -58,11 +58,12 @@ export type Mutation = {
   clearInitiative: Scalars['Boolean']['output'];
   createPlayTable: PlayTable;
   createRollRequest: RollRequest;
-  fulfillRollRequest: RollResult;
+  fulfillRollRequest: RollDiceResponse;
   joinPlayTable: JoinPlayTableResponse;
   leavePlayTable: Scalars['Boolean']['output'];
   notifyInitiativeUpdated: InitiativeOrderUpdated;
-  rollDice: RollResult;
+  notifyRollCompleted: RollResult;
+  rollDice: RollDiceResponse;
 };
 
 
@@ -99,6 +100,11 @@ export type MutationLeavePlayTableArgs = {
 export type MutationNotifyInitiativeUpdatedArgs = {
   order: Array<InitiativeEntryInput>;
   playTableId: Scalars['ID']['input'];
+};
+
+
+export type MutationNotifyRollCompletedArgs = {
+  input: RollResultInput;
 };
 
 
@@ -210,6 +216,18 @@ export type RollResult = {
   visibility: Visibility;
 };
 
+export type RollResultInput = {
+  advantage?: InputMaybe<Scalars['String']['input']>;
+  dc?: InputMaybe<Scalars['Int']['input']>;
+  modifier: Scalars['Int']['input'];
+  playTableId: Scalars['ID']['input'];
+  rollId: Scalars['ID']['input'];
+  success?: InputMaybe<Scalars['Boolean']['input']>;
+  total: Scalars['Int']['input'];
+  values: Array<Scalars['Int']['input']>;
+  visibility: Visibility;
+};
+
 export type RollerType =
   | 'gm'
   | 'player';
@@ -266,7 +284,7 @@ export type RollDiceMutationVariables = Exact<{
 }>;
 
 
-export type RollDiceMutation = { rollDice: { playTableId: string, rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
+export type RollDiceMutation = { rollDice: { rollId: string, accepted: boolean } };
 
 export type FulfillRollRequestMutationVariables = Exact<{
   rollRequestId: Scalars['ID']['input'];
@@ -275,7 +293,7 @@ export type FulfillRollRequestMutationVariables = Exact<{
 }>;
 
 
-export type FulfillRollRequestMutation = { fulfillRollRequest: { playTableId: string, rollId: string, values: Array<number>, modifier: number, total: number, advantage?: string | null, dc?: number | null, success?: boolean | null, visibility: Visibility } };
+export type FulfillRollRequestMutation = { fulfillRollRequest: { rollId: string, accepted: boolean } };
 
 export type CreateRollRequestMutationVariables = Exact<{
   playTableId: Scalars['ID']['input'];
@@ -494,6 +512,20 @@ export function RollRequestSchema(): z.ZodObject<Properties<RollRequest>> {
 export function RollResultSchema(): z.ZodObject<Properties<RollResult>> {
   return z.object({
     __typename: z.literal('RollResult').optional(),
+    advantage: z.string().nullish(),
+    dc: z.number().nullish(),
+    modifier: z.number(),
+    playTableId: z.string(),
+    rollId: z.string(),
+    success: z.boolean().nullish(),
+    total: z.number(),
+    values: z.array(z.number()),
+    visibility: VisibilitySchema
+  })
+}
+
+export function RollResultInputSchema(): z.ZodObject<Properties<RollResultInput>> {
+  return z.object({
     advantage: z.string().nullish(),
     dc: z.number().nullish(),
     modifier: z.number(),

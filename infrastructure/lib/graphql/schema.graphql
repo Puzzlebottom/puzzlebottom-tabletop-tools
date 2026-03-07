@@ -123,6 +123,18 @@ input CreateRollRequestInput {
   isPrivate: Boolean
 }
 
+input RollResultInput {
+  playTableId: ID!
+  rollId: ID!
+  values: [Int!]!
+  modifier: Int!
+  total: Int!
+  advantage: String
+  dc: Int
+  success: Boolean
+  visibility: Visibility!
+}
+
 type RollConnection @aws_api_key @aws_cognito_user_pools {
   items: [Roll!]!
   nextToken: String
@@ -147,7 +159,7 @@ type Mutation {
   leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
     @aws_api_key
     @aws_cognito_user_pools
-  rollDice(playTableId: ID!, input: RollDiceInput!): RollResult!
+  rollDice(playTableId: ID!, input: RollDiceInput!): RollDiceResponse!
     @aws_api_key
     @aws_cognito_user_pools
   createRollRequest(
@@ -158,8 +170,9 @@ type Mutation {
     rollRequestId: ID!
     playTableId: ID!
     playerId: String!
-  ): RollResult! @aws_api_key @aws_cognito_user_pools
+  ): RollDiceResponse! @aws_api_key @aws_cognito_user_pools
   clearInitiative(playTableId: ID!): Boolean!
+  notifyRollCompleted(input: RollResultInput!): RollResult! @aws_iam
   notifyInitiativeUpdated(
     playTableId: ID!
     order: [InitiativeEntryInput!]!
@@ -168,7 +181,7 @@ type Mutation {
 
 type Subscription {
   onRollCompleted(playTableId: ID!): RollResult
-    @aws_subscribe(mutations: ["rollDice", "fulfillRollRequest"])
+    @aws_subscribe(mutations: ["notifyRollCompleted"])
     @aws_api_key
     @aws_cognito_user_pools
   onRollRequestCreated(playTableId: ID!): RollRequest

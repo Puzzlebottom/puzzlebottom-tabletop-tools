@@ -302,16 +302,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          rollDice: {
-            rollId: 'r1',
-            values: [15],
-            modifier: 0,
-            total: 15,
-            advantage: null,
-            dc: null,
-            success: null,
-            visibility: 'all',
-          },
+          rollDice: { rollId: 'r1', accepted: true },
         },
       })
 
@@ -345,7 +336,7 @@ describe('PlayTablePage', () => {
     })
   })
 
-  it('updates roll log and settles dice when onRollCompleted delivers matching rollId', async () => {
+  it('settles dice from subscription when rollId matches pending roll', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue({
       playerId: 'p1',
@@ -357,16 +348,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          rollDice: {
-            rollId: 'r1',
-            values: [15],
-            modifier: 0,
-            total: 15,
-            advantage: null,
-            dc: null,
-            success: null,
-            visibility: 'all',
-          },
+          rollDice: { rollId: 'r1', accepted: true },
         },
       })
 
@@ -385,6 +367,10 @@ describe('PlayTablePage', () => {
     })
     await user.click(screen.getByRole('button', { name: /roll d20/i }))
 
+    await waitFor(() => {
+      expect(mockGraphql).toHaveBeenCalledTimes(2)
+    })
+
     act(() => {
       subscriptionHandlers.onRollCompleted?.({
         data: {
@@ -400,9 +386,64 @@ describe('PlayTablePage', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/Roll r1…: 17/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /roll d20/i })).toBeEnabled()
     })
-    expect(screen.getByRole('button', { name: /roll d20/i })).toBeEnabled()
+    expect(screen.getByText(/Roll r1…: 17/)).toBeInTheDocument()
+  })
+
+  it('adds to roll log but does not settle dice for non-matching rollId', async () => {
+    const user = userEvent.setup()
+    mockGetStoredPlayer.mockReturnValue({
+      playerId: 'p1',
+      playTableId: 'table-1',
+    })
+    mockGraphql
+      .mockResolvedValueOnce({
+        data: { rollHistory: { items: [], nextToken: null } },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          rollDice: { rollId: 'r1', accepted: true },
+        },
+      })
+
+    render(
+      <MemoryRouter initialEntries={['/dice/table/table-1']}>
+        <Routes>
+          <Route path="/dice/table/:playTableId" element={<PlayTablePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /roll d20/i })
+      ).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /roll d20/i }))
+
+    await waitFor(() => {
+      expect(mockGraphql).toHaveBeenCalledTimes(2)
+    })
+
+    act(() => {
+      subscriptionHandlers.onRollCompleted?.({
+        data: {
+          onRollCompleted: {
+            rollId: 'other-roll',
+            values: [10],
+            modifier: 0,
+            total: 10,
+            visibility: 'all',
+          },
+        },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/Roll other-ro…: 10/)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /rolling/i })).toBeInTheDocument()
   })
 
   it('updates initiative order when onInitiativeUpdated fires', async () => {
@@ -558,16 +599,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          rollDice: {
-            rollId: 'r1',
-            values: [15],
-            modifier: 0,
-            total: 15,
-            advantage: null,
-            dc: null,
-            success: null,
-            visibility: 'all',
-          },
+          rollDice: { rollId: 'r1', accepted: true },
         },
       })
 
@@ -738,16 +770,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          fulfillRollRequest: {
-            rollId: 'r1',
-            values: [15],
-            modifier: 0,
-            total: 15,
-            advantage: null,
-            dc: null,
-            success: null,
-            visibility: 'all',
-          },
+          fulfillRollRequest: { rollId: 'r1', accepted: true },
         },
       })
 

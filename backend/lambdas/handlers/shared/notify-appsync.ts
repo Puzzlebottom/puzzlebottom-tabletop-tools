@@ -5,38 +5,14 @@ import { SignatureV4 } from '@smithy/signature-v4'
 
 const AWS_REGION = process.env.AWS_REGION ?? 'us-east-1'
 
-interface InitiativeEntry {
-  id: string
-  characterName: string
-  value: number
-  modifier: number
-  total: number
-}
-
-export async function notifyInitiativeUpdated(
+async function callAppSync(
   graphqlUrl: string,
-  playTableId: string,
-  order: InitiativeEntry[]
+  query: string,
+  variables: Record<string, unknown>,
+  operationName: string
 ): Promise<void> {
   const url = new URL(graphqlUrl)
-  const mutation = `
-    mutation NotifyInitiativeUpdated($playTableId: ID!, $order: [InitiativeEntryInput!]!) {
-      notifyInitiativeUpdated(playTableId: $playTableId, order: $order) {
-        order {
-          id
-          characterName
-          value
-          modifier
-          total
-        }
-      }
-    }
-  `
-  const body = JSON.stringify({
-    query: mutation,
-    variables: { playTableId, order },
-    operationName: 'NotifyInitiativeUpdated',
-  })
+  const body = JSON.stringify({ query, variables, operationName })
 
   const request = new HttpRequest({
     method: 'POST',
@@ -70,7 +46,75 @@ export async function notifyInitiativeUpdated(
   if (!response.ok) {
     const text = await response.text()
     throw new Error(
-      `AppSync notifyInitiativeUpdated failed: ${response.status} ${text}`
+      `AppSync ${operationName} failed: ${response.status} ${text}`
     )
   }
+}
+
+interface InitiativeEntry {
+  id: string
+  characterName: string
+  value: number
+  modifier: number
+  total: number
+}
+
+export async function notifyInitiativeUpdated(
+  graphqlUrl: string,
+  playTableId: string,
+  order: InitiativeEntry[]
+): Promise<void> {
+  const mutation = `
+    mutation NotifyInitiativeUpdated($playTableId: ID!, $order: [InitiativeEntryInput!]!) {
+      notifyInitiativeUpdated(playTableId: $playTableId, order: $order) {
+        order {
+          id
+          characterName
+          value
+          modifier
+          total
+        }
+      }
+    }
+  `
+  await callAppSync(
+    graphqlUrl,
+    mutation,
+    { playTableId, order },
+    'NotifyInitiativeUpdated'
+  )
+}
+
+export interface RollResultPayload {
+  playTableId: string
+  rollId: string
+  values: number[]
+  modifier: number
+  total: number
+  advantage?: string | null
+  dc?: number | null
+  success?: boolean | null
+  visibility: string
+}
+
+export async function notifyRollCompleted(
+  graphqlUrl: string,
+  input: RollResultPayload
+): Promise<void> {
+  const mutation = `
+    mutation NotifyRollCompleted($input: RollResultInput!) {
+      notifyRollCompleted(input: $input) {
+        playTableId
+        rollId
+        values
+        modifier
+        total
+        advantage
+        dc
+        success
+        visibility
+      }
+    }
+  `
+  await callAppSync(graphqlUrl, mutation, { input }, 'NotifyRollCompleted')
 }

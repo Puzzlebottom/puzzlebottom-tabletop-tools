@@ -26,15 +26,8 @@ export const leavePlayTableMutation = /* GraphQL */ `
 export const rollDiceMutation = /* GraphQL */ `
   mutation RollDice($playTableId: ID!, $input: RollDiceInput!) {
     rollDice(playTableId: $playTableId, input: $input) {
-      playTableId
       rollId
-      values
-      modifier
-      total
-      advantage
-      dc
-      success
-      visibility
+      accepted
     }
   }
 `
@@ -50,15 +43,8 @@ export const fulfillRollRequestMutation = /* GraphQL */ `
       playTableId: $playTableId
       playerId: $playerId
     ) {
-      playTableId
       rollId
-      values
-      modifier
-      total
-      advantage
-      dc
-      success
-      visibility
+      accepted
     }
   }
 `

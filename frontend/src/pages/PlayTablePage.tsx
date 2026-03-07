@@ -70,7 +70,6 @@ export function PlayTablePage() {
     isPrivate?: boolean
   } | null>(null)
   const [rolling, setRolling] = useState(false)
-  const pendingRollIdRef = useRef<string | null>(null)
   const [diceSettledValue, setDiceSettledValue] = useState<number | undefined>()
   const [diceCocked, setDiceCocked] = useState(false)
   const [requestingInitiative, setRequestingInitiative] = useState(false)
@@ -78,6 +77,7 @@ export function PlayTablePage() {
   const [leaving, setLeaving] = useState(false)
   const [adHocOptions, setAdHocOptions] = useState<AdHocRollOptions>({})
   const playerIdRef = useRef<string | null>(null)
+  const pendingRollIdRef = useRef<string | null>(null)
 
   const stored = getStoredPlayer()
   const isPlayer = Boolean(
@@ -159,11 +159,14 @@ export function PlayTablePage() {
           ?.onRollCompleted
         if (result) {
           setRolls((prev) => [result as RollDisplayItem, ...prev])
-          if (pendingRollIdRef.current === result.rollId) {
-            setRolling(false)
+          if (
+            pendingRollIdRef.current &&
+            result.rollId === pendingRollIdRef.current
+          ) {
             const d20 =
               result.values.length > 0 ? Math.max(...result.values) : undefined
             setDiceSettledValue(d20)
+            setRolling(false)
             pendingRollIdRef.current = null
           }
         }
@@ -250,9 +253,11 @@ export function PlayTablePage() {
           },
         },
         ...(isPlayer ? playerAuth() : {}),
-      })) as { data?: { rollDice: { rollId: string } } }
+      })) as { data?: { rollDice: { rollId: string; accepted: boolean } } }
       const rollId = result.data?.rollDice?.rollId
-      if (rollId) pendingRollIdRef.current = rollId
+      if (rollId) {
+        pendingRollIdRef.current = rollId
+      }
     } catch {
       setRolling(false)
       setDiceCocked(true)
@@ -277,9 +282,13 @@ export function PlayTablePage() {
           playerId: playerIdRef.current,
         },
         ...playerAuth(),
-      })) as { data?: { fulfillRollRequest: { rollId: string } } }
+      })) as {
+        data?: { fulfillRollRequest: { rollId: string; accepted: boolean } }
+      }
       const rollId = result.data?.fulfillRollRequest?.rollId
-      if (rollId) pendingRollIdRef.current = rollId
+      if (rollId) {
+        pendingRollIdRef.current = rollId
+      }
     } catch {
       setRolling(false)
       setDiceCocked(true)
@@ -333,9 +342,11 @@ export function PlayTablePage() {
             visibility: options.visibility ?? 'all',
           },
         },
-      })) as { data?: { rollDice: { rollId: string } } }
+      })) as { data?: { rollDice: { rollId: string; accepted: boolean } } }
       const rollId = result.data?.rollDice?.rollId
-      if (rollId) pendingRollIdRef.current = rollId
+      if (rollId) {
+        pendingRollIdRef.current = rollId
+      }
     } catch {
       setRolling(false)
       setDiceCocked(true)

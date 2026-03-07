@@ -4,29 +4,34 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAppSyncEvent } from '../../test/appsync-event.js'
 import { fulfillRollRequest, handler, rollDice } from './roll-dice'
 
-const { mockSend } = vi.hoisted(() => {
-  const fn = vi.fn()
+const { mockDynamoSend, mockSfnSend } = vi.hoisted(() => {
+  const dynamoFn = vi.fn()
+  const sfnFn = vi.fn()
   ;(
-    globalThis as { __rollDiceMockSend?: ReturnType<typeof vi.fn> }
-  ).__rollDiceMockSend = fn
-  return { mockSend: fn }
+    globalThis as { __rollDiceMockDynamoSend?: ReturnType<typeof vi.fn> }
+  ).__rollDiceMockDynamoSend = dynamoFn
+  ;(
+    globalThis as { __rollDiceMockSfnSend?: ReturnType<typeof vi.fn> }
+  ).__rollDiceMockSfnSend = sfnFn
+  return { mockDynamoSend: dynamoFn, mockSfnSend: sfnFn }
 })
 
 vi.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: class MockDynamoDBClient {
-    send = (globalThis as { __rollDiceMockSend?: ReturnType<typeof vi.fn> })
-      .__rollDiceMockSend!
+    send = (
+      globalThis as { __rollDiceMockDynamoSend?: ReturnType<typeof vi.fn> }
+    ).__rollDiceMockDynamoSend!
   },
   GetItemCommand: class {},
   PutItemCommand: class {},
 }))
 
-vi.mock('@aws-sdk/client-eventbridge', () => ({
-  EventBridgeClient: class MockEventBridgeClient {
-    send = (globalThis as { __rollDiceMockSend?: ReturnType<typeof vi.fn> })
-      .__rollDiceMockSend!
+vi.mock('@aws-sdk/client-sfn', () => ({
+  SFNClient: class MockSFNClient {
+    send = (globalThis as { __rollDiceMockSfnSend?: ReturnType<typeof vi.fn> })
+      .__rollDiceMockSfnSend!
   },
-  PutEventsCommand: class {},
+  StartExecutionCommand: class {},
 }))
 
 function createEvent<T>(
@@ -51,17 +56,19 @@ function createEvent<T>(
 
 describe('roll-dice resolvers', () => {
   beforeEach(() => {
-    mockSend.mockReset()
+    mockDynamoSend.mockReset()
+    mockSfnSend.mockReset()
     process.env.TABLE_NAME = 'test-table'
-    process.env.EVENT_BUS_NAME = 'test-bus'
+    process.env.ROLL_STATE_MACHINE_ARN =
+      'arn:aws:states:us-east-1:123456789012:stateMachine:test-roll-pipeline'
   })
 
   describe('handler', () => {
     it('routes rollDice to rollDice resolver', async () => {
-      mockSend.mockResolvedValueOnce({ Item: { PK: { S: 'x' } } })
-      mockSend.mockResolvedValueOnce({ Item: { PK: { S: 'x' } } })
-      mockSend.mockResolvedValueOnce({})
-      mockSend.mockResolvedValueOnce({})
+      mockDynamoSend.mockResolvedValueOnce({
+        Item: { PK: { S: 'x' } },
+      })
+      mockSfnSend.mockResolvedValueOnce({})
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -75,22 +82,16 @@ describe('roll-dice resolvers', () => {
       )
       const result = (await handler(event, {} as never, vi.fn())) as {
         rollId: string
-        values: number[]
-        modifier: number
-        total: number
-        visibility: string
+        accepted: boolean
       }
       expect(result).toMatchObject({
         rollId: expect.any(String),
-        values: expect.any(Array),
-        modifier: expect.any(Number),
-        total: expect.any(Number),
-        visibility: 'all',
+        accepted: true,
       })
     })
 
     it('routes fulfillRollRequest to fulfillRollRequest resolver', async () => {
-      mockSend
+      mockDynamoSend
         .mockResolvedValueOnce({
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
@@ -107,8 +108,7 @@ describe('roll-dice resolvers', () => {
             SK: { S: 'PLAYER#p1' },
           },
         })
-        .mockResolvedValueOnce({})
-        .mockResolvedValueOnce({})
+      mockSfnSend.mockResolvedValueOnce({})
       const event = createEvent(
         {
           rollRequestId: 'rr-1',
@@ -122,17 +122,11 @@ describe('roll-dice resolvers', () => {
       )
       const result = (await handler(event, {} as never, vi.fn())) as {
         rollId: string
-        values: number[]
-        modifier: number
-        total: number
-        visibility: string
+        accepted: boolean
       }
       expect(result).toMatchObject({
         rollId: expect.any(String),
-        values: expect.any(Array),
-        modifier: expect.any(Number),
-        total: expect.any(Number),
-        visibility: 'all',
+        accepted: true,
       })
     })
 
@@ -151,15 +145,14 @@ describe('roll-dice resolvers', () => {
   })
 
   describe('rollDice', () => {
-    it('rolls as GM and returns rollId', async () => {
-      mockSend.mockResolvedValueOnce({
+    it('validates, generates rollId, starts SF, and returns acknowledgment', async () => {
+      mockDynamoSend.mockResolvedValueOnce({
         Item: {
           PK: { S: 'PLAYTABLE#pt-1' },
           SK: { S: 'METADATA' },
         },
       })
-      mockSend.mockResolvedValueOnce({})
-      mockSend.mockResolvedValueOnce({})
+      mockSfnSend.mockResolvedValueOnce({})
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -177,22 +170,19 @@ describe('roll-dice resolvers', () => {
         vi.fn()
       )) as {
         rollId: string
-        values: number[]
-        total: number
-        visibility: string
+        accepted: boolean
       }
       expect(result).toMatchObject({
         rollId: expect.stringMatching(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
         ),
-        values: expect.any(Array),
-        total: expect.any(Number),
-        visibility: 'all',
+        accepted: true,
       })
+      expect(mockSfnSend).toHaveBeenCalledOnce()
     })
 
     it('rolls as player when id provided', async () => {
-      mockSend
+      mockDynamoSend
         .mockResolvedValueOnce({
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
@@ -205,8 +195,7 @@ describe('roll-dice resolvers', () => {
             SK: { S: 'METADATA' },
           },
         })
-        .mockResolvedValueOnce({})
-        .mockResolvedValueOnce({})
+      mockSfnSend.mockResolvedValueOnce({})
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -221,10 +210,10 @@ describe('roll-dice resolvers', () => {
         event as Parameters<typeof rollDice>[0],
         {} as never,
         vi.fn()
-      )) as { rollId: string; values: number[]; total: number }
+      )) as { rollId: string; accepted: boolean }
       expect(result.rollId).toBeDefined()
-      expect(result.values).toBeDefined()
-      expect(result.total).toBeDefined()
+      expect(result.accepted).toBe(true)
+      expect(mockSfnSend).toHaveBeenCalledOnce()
     })
 
     it('throws when neither GM nor player', async () => {
@@ -247,7 +236,7 @@ describe('roll-dice resolvers', () => {
     })
 
     it('throws when player not in play table', async () => {
-      mockSend.mockResolvedValueOnce({})
+      mockDynamoSend.mockResolvedValueOnce({})
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -263,68 +252,8 @@ describe('roll-dice resolvers', () => {
       ).rejects.toThrow('Player not found in play table')
     })
 
-    it('rolls with advantage when specified', async () => {
-      mockSend.mockResolvedValueOnce({
-        Item: {
-          PK: { S: 'PLAYTABLE#pt-1' },
-          SK: { S: 'METADATA' },
-        },
-      })
-      mockSend.mockResolvedValueOnce({})
-      mockSend.mockResolvedValueOnce({})
-      const event = createEvent(
-        {
-          playTableId: 'pt-1',
-          input: { diceType: 'd20', advantage: 'advantage' },
-        },
-        {
-          fieldName: 'rollDice',
-          parentTypeName: 'Mutation',
-          identity: { sub: 'gm-123' },
-        }
-      )
-      const result = (await rollDice(
-        event as Parameters<typeof rollDice>[0],
-        {} as never,
-        vi.fn()
-      )) as { rollId: string; values: number[]; total: number }
-      expect(result.rollId).toBeDefined()
-      expect(result.values).toBeDefined()
-      expect(result.total).toBeDefined()
-    })
-
-    it('rolls with disadvantage when specified', async () => {
-      mockSend.mockResolvedValueOnce({
-        Item: {
-          PK: { S: 'PLAYTABLE#pt-1' },
-          SK: { S: 'METADATA' },
-        },
-      })
-      mockSend.mockResolvedValueOnce({})
-      mockSend.mockResolvedValueOnce({})
-      const event = createEvent(
-        {
-          playTableId: 'pt-1',
-          input: { diceType: 'd20', advantage: 'disadvantage' },
-        },
-        {
-          fieldName: 'rollDice',
-          parentTypeName: 'Mutation',
-          identity: { sub: 'gm-123' },
-        }
-      )
-      const result = (await rollDice(
-        event as Parameters<typeof rollDice>[0],
-        {} as never,
-        vi.fn()
-      )) as { rollId: string; values: number[]; total: number }
-      expect(result.rollId).toBeDefined()
-      expect(result.values).toBeDefined()
-      expect(result.total).toBeDefined()
-    })
-
     it('throws when play table not found', async () => {
-      mockSend.mockResolvedValueOnce({})
+      mockDynamoSend.mockResolvedValueOnce({})
       const event = createEvent(
         {
           playTableId: 'nonexistent',
@@ -343,8 +272,8 @@ describe('roll-dice resolvers', () => {
   })
 
   describe('fulfillRollRequest', () => {
-    it('fulfills and returns rollId', async () => {
-      mockSend
+    it('fulfills and returns rollId with accepted', async () => {
+      mockDynamoSend
         .mockResolvedValueOnce({
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
@@ -361,8 +290,7 @@ describe('roll-dice resolvers', () => {
             SK: { S: 'PLAYER#p1' },
           },
         })
-        .mockResolvedValueOnce({})
-        .mockResolvedValueOnce({})
+      mockSfnSend.mockResolvedValueOnce({})
       const event = createEvent(
         {
           rollRequestId: 'rr-1',
@@ -377,20 +305,17 @@ describe('roll-dice resolvers', () => {
         vi.fn()
       )) as {
         rollId: string
-        values: number[]
-        total: number
-        visibility: string
+        accepted: boolean
       }
       expect(result).toMatchObject({
         rollId: expect.any(String),
-        values: expect.any(Array),
-        total: expect.any(Number),
-        visibility: 'all',
+        accepted: true,
       })
+      expect(mockSfnSend).toHaveBeenCalledOnce()
     })
 
     it('throws when roll request not found', async () => {
-      mockSend.mockResolvedValueOnce({}).mockResolvedValueOnce({
+      mockDynamoSend.mockResolvedValueOnce({}).mockResolvedValueOnce({
         Item: {
           PK: { S: 'PLAYTABLE#pt-1' },
           SK: { S: 'PLAYER#p1' },
@@ -410,7 +335,7 @@ describe('roll-dice resolvers', () => {
     })
 
     it('throws when player not a target', async () => {
-      mockSend
+      mockDynamoSend
         .mockResolvedValueOnce({
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
@@ -441,7 +366,7 @@ describe('roll-dice resolvers', () => {
     })
 
     it('throws when roll request not pending', async () => {
-      mockSend
+      mockDynamoSend
         .mockResolvedValueOnce({
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
