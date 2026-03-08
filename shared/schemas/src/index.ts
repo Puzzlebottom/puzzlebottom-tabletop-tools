@@ -25,6 +25,7 @@ export {
   DETAIL_TYPE_PLAYER_JOINED,
   DETAIL_TYPE_PLAYER_LEFT,
   DETAIL_TYPE_ROLL_COMPLETED,
+  DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
   EVENT_SOURCE,
   type EventBridgeEnvelope,
   EventBridgeEnvelopeSchema,
@@ -43,6 +44,8 @@ export {
   PlayerLeftDetailSchema,
   type RollCompletedDetail,
   RollCompletedDetailSchema,
+  type RollRequestCompletedDetail,
+  RollRequestCompletedDetailSchema,
 } from './events'
 export {
   type IngestOutput,

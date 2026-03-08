@@ -23,6 +23,11 @@ export type CreateRollRequestInput = {
   type: RollRequestType;
 };
 
+export type CreateRollRequestResponse = {
+  accepted: Scalars['Boolean']['output'];
+  rollRequestId: Scalars['ID']['output'];
+};
+
 export type InitiativeEntry = {
   characterName: Scalars['String']['output'];
   id: Scalars['ID']['output'];
@@ -57,7 +62,7 @@ export type JoinPlayTableResponse = {
 export type Mutation = {
   clearInitiative: Scalars['Boolean']['output'];
   createPlayTable: PlayTable;
-  createRollRequest: RollRequest;
+  createRollRequest: CreateRollRequestResponse;
   fulfillRollRequest: RollDiceResponse;
   joinPlayTable: JoinPlayTableResponse;
   leavePlayTable: Scalars['Boolean']['output'];
@@ -319,7 +324,7 @@ export type CreateRollRequestMutationVariables = Exact<{
 }>;
 
 
-export type CreateRollRequestMutation = { createRollRequest: { id: string, targetPlayerIds: Array<string>, type: RollRequestType, status: string, createdAt: string } };
+export type CreateRollRequestMutation = { createRollRequest: { rollRequestId: string, accepted: boolean } };
 
 export type ClearInitiativeMutationVariables = Exact<{
   playTableId: Scalars['ID']['input'];
@@ -396,6 +401,14 @@ export function CreateRollRequestInputSchema(): z.ZodObject<Properties<CreateRol
     isPrivate: z.boolean().nullish(),
     targetPlayerIds: z.array(z.string()),
     type: RollRequestTypeSchema
+  })
+}
+
+export function CreateRollRequestResponseSchema(): z.ZodObject<Properties<CreateRollRequestResponse>> {
+  return z.object({
+    __typename: z.literal('CreateRollRequestResponse').optional(),
+    accepted: z.boolean(),
+    rollRequestId: z.string()
   })
 }
 

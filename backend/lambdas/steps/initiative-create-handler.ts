@@ -1,27 +1,29 @@
 import {
   DynamoDBClient,
   GetItemCommand,
-  PutItemCommand,
+  UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb'
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
-import {
-  type InitiativeRollRequestCreatedDetail,
-  InitiativeRollRequestCreatedDetailSchema,
-} from '@puzzlebottom-tabletop-tools/schemas'
 import type { Handler } from 'aws-lambda'
 import { z } from 'zod'
 
 import { notifyRollRequestCreated } from '../handlers/shared/notify-appsync.js'
 
-const PayloadSchema = InitiativeRollRequestCreatedDetailSchema.extend({
+const PayloadSchema = z.object({
   taskToken: z.string(),
+  playTableId: z.string(),
+  rollRequestId: z.string(),
+  targetPlayerIds: z.array(z.string()),
+  type: z.enum(['initiative']),
+  dc: z.number().nullable().optional(),
+  advantage: z.string().nullable().optional(),
+  isPrivate: z.boolean(),
+  status: z.string(),
+  createdAt: z.string(),
+  initiatedBy: z.string(),
 })
 
 type Payload = z.infer<typeof PayloadSchema>
-
-const dynamo = new DynamoDBClient({})
-const TABLE_NAME = process.env.TABLE_NAME!
-const APPSYNC_GRAPHQL_URL = process.env.APPSYNC_GRAPHQL_URL!
 
 interface RollRequestItem {
   id: string
@@ -35,26 +37,24 @@ interface RollRequestItem {
   createdAt: string
 }
 
+const dynamo = new DynamoDBClient({})
+const TABLE_NAME = process.env.TABLE_NAME!
+const APPSYNC_GRAPHQL_URL = process.env.APPSYNC_GRAPHQL_URL!
+
 export const handler: Handler<Payload, void> = async (event) => {
   const payload = PayloadSchema.parse(event)
 
-  const { playTableId, rollRequestId, targetPlayerIds, taskToken } =
-    payload as Payload & InitiativeRollRequestCreatedDetail
-
-  const item = {
-    PK: `PLAYTABLE#${playTableId}`,
-    SK: 'INITIATIVE_PENDING',
-    taskToken,
-    rollRequestId,
-    expectedPlayerKeys: targetPlayerIds,
-    completedPlayerKeys: [] as string[],
-    createdAt: new Date().toISOString(),
-  }
+  const { playTableId, rollRequestId, taskToken } = payload
 
   await dynamo.send(
-    new PutItemCommand({
+    new UpdateItemCommand({
       TableName: TABLE_NAME,
-      Item: marshall(item, { removeUndefinedValues: true }),
+      Key: marshall({
+        PK: `PLAYTABLE#${playTableId}`,
+        SK: `ROLLREQUEST#${rollRequestId}`,
+      }),
+      UpdateExpression: 'SET taskToken = :t',
+      ExpressionAttributeValues: marshall({ ':t': taskToken }),
     })
   )
 

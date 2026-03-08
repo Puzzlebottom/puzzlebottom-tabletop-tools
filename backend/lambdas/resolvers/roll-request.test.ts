@@ -17,15 +17,14 @@ vi.mock('@aws-sdk/client-dynamodb', () => ({
       .__rollRequestMockSend!
   },
   GetItemCommand: class {},
-  PutItemCommand: class {},
 }))
 
-vi.mock('@aws-sdk/client-eventbridge', () => ({
-  EventBridgeClient: class MockEventBridgeClient {
+vi.mock('@aws-sdk/client-sfn', () => ({
+  SFNClient: class MockSFNClient {
     send = (globalThis as { __rollRequestMockSend?: ReturnType<typeof vi.fn> })
       .__rollRequestMockSend!
   },
-  PutEventsCommand: class {},
+  StartExecutionCommand: class {},
 }))
 
 function createEvent<T>(
@@ -52,7 +51,8 @@ describe('roll-request resolvers', () => {
   beforeEach(() => {
     mockSend.mockReset()
     process.env.TABLE_NAME = 'test-table'
-    process.env.EVENT_BUS_NAME = 'test-bus'
+    process.env.ROLL_REQUEST_STATE_MACHINE_ARN =
+      'arn:aws:states:us-east-1:123:stateMachine:test-roll-request'
   })
 
   describe('handler', () => {
@@ -62,9 +62,9 @@ describe('roll-request resolvers', () => {
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
             SK: { S: 'METADATA' },
+            gmUserId: { S: 'gm-123' },
           },
         })
-        .mockResolvedValueOnce({})
         .mockResolvedValueOnce({})
       const event = createEvent(
         {
@@ -81,18 +81,13 @@ describe('roll-request resolvers', () => {
         }
       )
       const result = (await handler(event, {} as never, vi.fn())) as {
-        id: string
-        playTableId: string
-        targetPlayerIds: string[]
-        type: string
-        status: string
+        rollRequestId: string
+        accepted: boolean
       }
       expect(result).toMatchObject({
-        playTableId: 'pt-1',
-        targetPlayerIds: ['p1'],
-        type: 'initiative',
-        status: 'pending',
+        accepted: true,
       })
+      expect(result.rollRequestId).toBeDefined()
     })
 
     it('throws for unknown resolver', async () => {
@@ -107,15 +102,15 @@ describe('roll-request resolvers', () => {
   })
 
   describe('createRollRequest', () => {
-    it('creates RollRequest and publishes InitiativeRollRequestCreated when type is initiative', async () => {
+    it('starts Roll Request Step Function when type is initiative', async () => {
       mockSend
         .mockResolvedValueOnce({
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
             SK: { S: 'METADATA' },
+            gmUserId: { S: 'gm-123' },
           },
         })
-        .mockResolvedValueOnce({})
         .mockResolvedValueOnce({})
       const event = createEvent(
         {
@@ -136,19 +131,14 @@ describe('roll-request resolvers', () => {
         {} as never,
         vi.fn()
       )) as {
-        id: string
-        playTableId: string
-        targetPlayerIds: string[]
-        type: string
-        status: string
+        rollRequestId: string
+        accepted: boolean
       }
       expect(result).toMatchObject({
-        playTableId: 'pt-1',
-        targetPlayerIds: ['p1', 'p2'],
-        type: 'initiative',
-        status: 'pending',
+        accepted: true,
       })
-      expect(mockSend).toHaveBeenCalledTimes(3)
+      expect(result.rollRequestId).toBeDefined()
+      expect(mockSend).toHaveBeenCalledTimes(2)
     })
 
     it('throws when identity is missing', async () => {
@@ -173,6 +163,33 @@ describe('roll-request resolvers', () => {
       )
     })
 
+    it('throws when GM does not own play table', async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: { S: 'PLAYTABLE#pt-1' },
+          SK: { S: 'METADATA' },
+          gmUserId: { S: 'other-gm' },
+        },
+      })
+      const event = createEvent(
+        {
+          playTableId: 'pt-1',
+          input: {
+            targetPlayerIds: ['p1'],
+            type: 'initiative',
+          },
+        },
+        {
+          fieldName: 'createRollRequest',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'gm-123' },
+        }
+      )
+      await expect(
+        createRollRequest(event as never, {} as never, vi.fn())
+      ).rejects.toThrow('Only the GM can create roll requests')
+    })
+
     it('throws when play table not found', async () => {
       mockSend.mockResolvedValueOnce({})
       const event = createEvent(
@@ -194,15 +211,14 @@ describe('roll-request resolvers', () => {
       ).rejects.toThrow('Play table not found')
     })
 
-    it('creates ad_hoc RollRequest without publishing EventBridge', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Item: {
-            PK: { S: 'PLAYTABLE#pt-1' },
-            SK: { S: 'METADATA' },
-          },
-        })
-        .mockResolvedValueOnce({})
+    it('throws for unsupported roll request type', async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: { S: 'PLAYTABLE#pt-1' },
+          SK: { S: 'METADATA' },
+          gmUserId: { S: 'gm-123' },
+        },
+      })
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -217,21 +233,22 @@ describe('roll-request resolvers', () => {
           identity: { sub: 'gm-123' },
         }
       )
-      const result = (await createRollRequest(
-        event as Parameters<typeof createRollRequest>[0],
-        {} as never,
-        vi.fn()
-      )) as { type: string }
-      expect(result.type).toBe('ad_hoc')
-      expect(mockSend).toHaveBeenCalledTimes(2)
+      await expect(
+        createRollRequest(
+          event as Parameters<typeof createRollRequest>[0],
+          {} as never,
+          vi.fn()
+        )
+      ).rejects.toThrow('Unsupported roll request type: ad_hoc')
     })
 
-    it('creates RollRequest with empty targetPlayerIds', async () => {
+    it('starts Step Function with empty targetPlayerIds for initiative', async () => {
       mockSend
         .mockResolvedValueOnce({
           Item: {
             PK: { S: 'PLAYTABLE#pt-1' },
             SK: { S: 'METADATA' },
+            gmUserId: { S: 'gm-123' },
           },
         })
         .mockResolvedValueOnce({})
@@ -240,7 +257,7 @@ describe('roll-request resolvers', () => {
           playTableId: 'pt-1',
           input: {
             targetPlayerIds: [],
-            type: 'ad_hoc',
+            type: 'initiative',
           },
         },
         {
@@ -253,8 +270,9 @@ describe('roll-request resolvers', () => {
         event as Parameters<typeof createRollRequest>[0],
         {} as never,
         vi.fn()
-      )) as { targetPlayerIds: string[] }
-      expect(result.targetPlayerIds).toEqual([])
+      )) as { rollRequestId: string; accepted: boolean }
+      expect(result.accepted).toBe(true)
+      expect(result.rollRequestId).toBeDefined()
     })
   })
 })

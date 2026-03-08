@@ -106,6 +106,7 @@ export class ApiStack extends cdk.Stack {
     })
 
     const rollStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-roll-pipeline`
+    const rollRequestStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-puzzlebottom-tabletop-tools`
 
     this.rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
       functionName: `${config.envName}-roll-dice-resolver`,
@@ -164,7 +165,7 @@ export class ApiStack extends cdk.Stack {
       memorySize: 256,
       environment: {
         TABLE_NAME: dataTable.tableName,
-        EVENT_BUS_NAME: eventBus.eventBusName,
+        ROLL_REQUEST_STATE_MACHINE_ARN: rollRequestStateMachineArn,
       },
       bundling: {
         format: lambdaNode.OutputFormat.ESM,
@@ -173,8 +174,13 @@ export class ApiStack extends cdk.Stack {
       },
     })
 
-    dataTable.grantReadWriteData(rollRequestFn)
-    eventBus.grantPutEventsTo(rollRequestFn)
+    dataTable.grantReadData(rollRequestFn)
+    rollRequestFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['states:StartExecution'],
+        resources: [rollRequestStateMachineArn],
+      })
+    )
 
     const rollRequestDs = this.api.addLambdaDataSource(
       'RollRequestDataSource',

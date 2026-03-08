@@ -4,9 +4,7 @@ import { MINIMAL_CONTEXT } from '../../test/lambda-context.js'
 import { createSqsEvent } from '../../test/sqs-event.js'
 import { handler } from './trigger'
 
-const { mockSfnSend, mockLambdaSend, mockInvokeCommand } = vi.hoisted(() => {
-  process.env.STATE_MACHINE_ARN =
-    'arn:aws:states:us-east-1:123:stateMachine:test'
+const { mockLambdaSend, mockInvokeCommand } = vi.hoisted(() => {
   process.env.ROLL_COMPLETED_HANDLER_ARN =
     'arn:aws:lambda:us-east-1:123:function:roll-completed'
   process.env.PLAYER_LEFT_HANDLER_ARN =
@@ -14,7 +12,6 @@ const { mockSfnSend, mockLambdaSend, mockInvokeCommand } = vi.hoisted(() => {
   process.env.PLAYER_JOINED_HANDLER_ARN =
     'arn:aws:lambda:us-east-1:123:function:player-joined'
   return {
-    mockSfnSend: vi.fn(),
     mockLambdaSend: vi.fn(),
     mockInvokeCommand: vi.fn().mockImplementation(function (
       params: Record<string, unknown>
@@ -23,19 +20,6 @@ const { mockSfnSend, mockLambdaSend, mockInvokeCommand } = vi.hoisted(() => {
     }),
   }
 })
-
-vi.mock('@aws-sdk/client-sfn', () => ({
-  SFNClient: vi.fn(function () {
-    return { send: mockSfnSend }
-  }),
-  StartExecutionCommand: class MockStartExecutionCommand {
-    input: Record<string, unknown>
-
-    constructor(params: Record<string, unknown>) {
-      this.input = params
-    }
-  },
-}))
 
 vi.mock('@aws-sdk/client-lambda', () => ({
   LambdaClient: vi.fn(function () {
@@ -47,30 +31,33 @@ vi.mock('@aws-sdk/client-lambda', () => ({
 describe('trigger handler (dispatcher)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    process.env.STATE_MACHINE_ARN =
-      'arn:aws:states:us-east-1:123:stateMachine:test'
     process.env.ROLL_COMPLETED_HANDLER_ARN =
       'arn:aws:lambda:us-east-1:123:function:roll-completed'
     process.env.PLAYER_LEFT_HANDLER_ARN =
       'arn:aws:lambda:us-east-1:123:function:player-left'
     process.env.PLAYER_JOINED_HANDLER_ARN =
       'arn:aws:lambda:us-east-1:123:function:player-joined'
-    mockSfnSend.mockResolvedValue({ executionArn: 'arn:aws:...' })
     mockLambdaSend.mockResolvedValue({})
   })
 
-  it('starts Step Function for InitiativeRollRequestCreated', async () => {
+  it('handles RollRequestCompleted (persist only, no handler invocation)', async () => {
     const detail = {
       playTableId: 'pt-1',
       rollRequestId: 'rr-1',
-      targetPlayerIds: ['p1', 'p2'],
-      expectedCount: 2,
+      type: 'initiative' as const,
+      timestamps: {
+        createdAt: '2024-01-01T00:00:00Z',
+        completedAt: '2024-01-01T00:01:00Z',
+      },
+      playerIds: ['p1', 'p2'],
+      rollIds: ['roll-1', 'roll-2'],
+      initiatedBy: 'gm-sub',
     }
     const event = createSqsEvent([
       JSON.stringify({
         version: '0',
         id: 'evt-123',
-        'detail-type': 'InitiativeRollRequestCreated',
+        'detail-type': 'RollRequestCompleted',
         source: 'puzzlebottom-tabletop-tools',
         detail,
       }),
@@ -78,14 +65,6 @@ describe('trigger handler (dispatcher)', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockSfnSend).toHaveBeenCalledTimes(1)
-    const [command] = mockSfnSend.mock.calls[0] as [unknown]
-    const params =
-      (command as { input?: Record<string, unknown> }).input ??
-      (command as Record<string, unknown>)
-    expect(params.stateMachineArn ?? params.input).toBeDefined()
-    expect(params.input).toBe(JSON.stringify(detail))
-    expect(params.name).toBe('rr-1')
     expect(mockLambdaSend).not.toHaveBeenCalled()
   })
 
@@ -121,7 +100,6 @@ describe('trigger handler (dispatcher)', () => {
       'arn:aws:lambda:us-east-1:123:function:roll-completed'
     )
     expect(JSON.parse(invokeParams?.Payload as string)).toEqual(detail)
-    expect(mockSfnSend).not.toHaveBeenCalled()
   })
 
   it('skips ad_hoc RollCompleted (no handler invocation)', async () => {
@@ -148,7 +126,6 @@ describe('trigger handler (dispatcher)', () => {
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
     expect(mockLambdaSend).not.toHaveBeenCalled()
-    expect(mockSfnSend).not.toHaveBeenCalled()
   })
 
   it('invokes player-left handler for PlayerLeft', async () => {
@@ -211,7 +188,6 @@ describe('trigger handler (dispatcher)', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockSfnSend).not.toHaveBeenCalled()
     expect(mockLambdaSend).not.toHaveBeenCalled()
   })
 
@@ -220,7 +196,6 @@ describe('trigger handler (dispatcher)', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockSfnSend).not.toHaveBeenCalled()
     expect(mockLambdaSend).not.toHaveBeenCalled()
   })
 
@@ -237,16 +212,15 @@ describe('trigger handler (dispatcher)', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockSfnSend).not.toHaveBeenCalled()
     expect(mockLambdaSend).not.toHaveBeenCalled()
   })
 
-  it('skips InitiativeRollRequestCreated with invalid detail', async () => {
+  it('skips RollRequestCompleted with invalid detail', async () => {
     const event = createSqsEvent([
       JSON.stringify({
         version: '0',
         id: 'evt-123',
-        'detail-type': 'InitiativeRollRequestCreated',
+        'detail-type': 'RollRequestCompleted',
         source: 'puzzlebottom-tabletop-tools',
         detail: null,
       }),
@@ -254,7 +228,7 @@ describe('trigger handler (dispatcher)', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockSfnSend).not.toHaveBeenCalled()
+    expect(mockLambdaSend).not.toHaveBeenCalled()
   })
 
   it('skips RollCompleted with invalid detail', async () => {

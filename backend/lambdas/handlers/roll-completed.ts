@@ -1,152 +1,128 @@
 import {
   DynamoDBClient,
   GetItemCommand,
-  PutItemCommand,
+  QueryCommand,
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb'
 import { SendTaskSuccessCommand, SFNClient } from '@aws-sdk/client-sfn'
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
-import { RollCompletedDetailSchema } from '@puzzlebottom-tabletop-tools/schemas'
+import type { RollRequestCompletedDetail } from '@puzzlebottom-tabletop-tools/schemas'
+import {
+  RollCompletedDetailSchema,
+  RollRequestCompletedDetailSchema,
+} from '@puzzlebottom-tabletop-tools/schemas'
 import type { Handler } from 'aws-lambda'
-
-import { notifyInitiativeUpdated } from './shared/notify-appsync.js'
 
 const dynamo = new DynamoDBClient({})
 const sfn = new SFNClient({})
 const TABLE_NAME = process.env.TABLE_NAME!
-const APPSYNC_GRAPHQL_URL = process.env.APPSYNC_GRAPHQL_URL!
 
-interface InitiativePendingItem {
+interface RollRequestItem {
   taskToken: string
-  rollRequestId: string
-  expectedPlayerKeys: string[]
+  targetPlayerIds: string[]
   completedPlayerKeys: string[]
+  createdAt: string
+  initiatedBy: string
+  type: string
 }
 
-interface InitiativeItem {
-  rollRequestId?: string
-  order: {
-    id: string
-    characterName: string
-    value: number
-    modifier: number
-    total: number
-  }[]
-}
-
-interface PlayerItem {
-  characterName: string
+interface RollItem {
+  id: string
+  rollerId: string
+  rollRequestId: string | null
 }
 
 export const handler: Handler<unknown, void> = async (event) => {
   const detail = RollCompletedDetailSchema.parse(event)
-  const { playTableId, rollRequestId, rollerId, values, modifier, total } =
-    detail
+  const { playTableId, rollRequestId, rollerId } = detail
+
+  if (!rollRequestId) {
+    return
+  }
 
   const pk = `PLAYTABLE#${playTableId}`
 
-  const pendingResult = await dynamo.send(
+  const rollRequestResult = await dynamo.send(
     new GetItemCommand({
       TableName: TABLE_NAME,
-      Key: marshall({ PK: pk, SK: 'INITIATIVE_PENDING' }),
+      Key: marshall({
+        PK: pk,
+        SK: `ROLLREQUEST#${rollRequestId}`,
+      }),
     })
   )
 
-  if (pendingResult.Item) {
-    const pending = unmarshall(pendingResult.Item) as InitiativePendingItem
-    if (rollRequestId && pending.rollRequestId !== rollRequestId) {
-      return
-    }
-    if (!pending.expectedPlayerKeys.includes(rollerId)) {
-      return
-    }
-    const completedSet = new Set(pending.completedPlayerKeys)
-    if (completedSet.has(rollerId)) {
-      return
-    }
-    completedSet.add(rollerId)
-    const completedPlayerKeys = Array.from(completedSet)
-
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: TABLE_NAME,
-        Key: marshall({ PK: pk, SK: 'INITIATIVE_PENDING' }),
-        UpdateExpression: 'SET completedPlayerKeys = :c',
-        ExpressionAttributeValues: marshall({ ':c': completedPlayerKeys }),
-      })
-    )
-
-    if (completedPlayerKeys.length >= pending.expectedPlayerKeys.length) {
-      await sfn.send(
-        new SendTaskSuccessCommand({
-          taskToken: pending.taskToken,
-          output: JSON.stringify({ playTableId, rollRequestId }),
-        })
-      )
-    }
+  if (!rollRequestResult.Item) {
     return
   }
 
-  const initiativeResult = await dynamo.send(
-    new GetItemCommand({
-      TableName: TABLE_NAME,
-      Key: marshall({ PK: pk, SK: 'INITIATIVE' }),
-    })
-  )
+  const rollRequest = unmarshall(rollRequestResult.Item) as RollRequestItem
 
-  if (!initiativeResult.Item) {
+  if (!rollRequest.taskToken) {
     return
   }
 
-  const initiative = unmarshall(initiativeResult.Item) as InitiativeItem
-  if (rollRequestId && initiative.rollRequestId !== rollRequestId) {
-    return
-  }
-  if (initiative.order.some((e) => e.id === rollerId)) {
+  if (!rollRequest.targetPlayerIds.includes(rollerId)) {
     return
   }
 
-  const playerResult = await dynamo.send(
-    new GetItemCommand({
-      TableName: TABLE_NAME,
-      Key: marshall({ PK: pk, SK: `PLAYER#${rollerId}` }),
-    })
-  )
-  const player = playerResult.Item
-    ? (unmarshall(playerResult.Item) as PlayerItem)
-    : null
-  const characterName = player?.characterName ?? 'Unknown'
-  const d20Value = values[0] ?? total - modifier
-
-  const newEntry = {
-    id: rollerId,
-    characterName,
-    value: d20Value,
-    modifier,
-    total,
+  const completedSet = new Set(rollRequest.completedPlayerKeys ?? [])
+  if (completedSet.has(rollerId)) {
+    return
   }
-
-  const updatedOrder = [...initiative.order, newEntry].sort((a, b) => {
-    if (b.total !== a.total) return b.total - a.total
-    if (b.value !== a.value) return b.value - a.value
-    return b.modifier - a.modifier
-  })
+  completedSet.add(rollerId)
+  const completedPlayerKeys = Array.from(completedSet)
 
   await dynamo.send(
-    new PutItemCommand({
+    new UpdateItemCommand({
       TableName: TABLE_NAME,
-      Item: marshall(
-        {
-          PK: pk,
-          SK: 'INITIATIVE',
-          rollRequestId: initiative.rollRequestId,
-          order: updatedOrder,
-          updatedAt: new Date().toISOString(),
-        },
-        { removeUndefinedValues: true }
-      ),
+      Key: marshall({
+        PK: pk,
+        SK: `ROLLREQUEST#${rollRequestId}`,
+      }),
+      UpdateExpression: 'SET completedPlayerKeys = :c',
+      ExpressionAttributeValues: marshall({ ':c': completedPlayerKeys }),
     })
   )
 
-  await notifyInitiativeUpdated(APPSYNC_GRAPHQL_URL, playTableId, updatedOrder)
+  if (completedPlayerKeys.length < rollRequest.targetPlayerIds.length) {
+    return
+  }
+
+  const queryResult = await dynamo.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: marshall({
+        ':pk': pk,
+        ':sk': 'ROLL#',
+      }),
+    })
+  )
+
+  const rolls = queryResult.Items?.map((i) => unmarshall(i) as RollItem) ?? []
+  const rollsForRequest = rolls.filter((r) => r.rollRequestId === rollRequestId)
+  const rollIds = rollsForRequest.map((r) => r.id).sort()
+  const playerIds = completedPlayerKeys.sort()
+
+  const payload: RollRequestCompletedDetail =
+    RollRequestCompletedDetailSchema.parse({
+      playTableId,
+      rollRequestId,
+      type: rollRequest.type as 'initiative',
+      timestamps: {
+        createdAt: rollRequest.createdAt,
+        completedAt: new Date().toISOString(),
+      },
+      playerIds,
+      rollIds,
+      initiatedBy: rollRequest.initiatedBy,
+    })
+
+  await sfn.send(
+    new SendTaskSuccessCommand({
+      taskToken: rollRequest.taskToken,
+      output: JSON.stringify(payload),
+    })
+  )
 }

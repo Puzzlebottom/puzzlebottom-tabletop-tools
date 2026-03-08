@@ -43,17 +43,6 @@ export class EventStack extends cdk.Stack {
 
     const eventSource = 'puzzlebottom-tabletop-tools'
 
-    new events.Rule(this, 'InitiativeRollRequestCreatedRule', {
-      eventBus: this.eventBus,
-      ruleName: `${config.envName}-initiative-roll-request-created`,
-      description: 'Route InitiativeRollRequestCreated to pipeline',
-      eventPattern: {
-        source: [eventSource],
-        detailType: ['InitiativeRollRequestCreated'],
-      },
-      targets: [new eventsTargets.SqsQueue(this.pipelineQueue)],
-    })
-
     new events.Rule(this, 'RollCompletedRule', {
       eventBus: this.eventBus,
       ruleName: `${config.envName}-roll-completed`,
@@ -61,6 +50,17 @@ export class EventStack extends cdk.Stack {
       eventPattern: {
         source: [eventSource],
         detailType: ['RollCompleted'],
+      },
+      targets: [new eventsTargets.SqsQueue(this.pipelineQueue)],
+    })
+
+    new events.Rule(this, 'RollRequestCompletedRule', {
+      eventBus: this.eventBus,
+      ruleName: `${config.envName}-roll-request-completed`,
+      description: 'Route RollRequestCompleted to pipeline',
+      eventPattern: {
+        source: [eventSource],
+        detailType: ['RollRequestCompleted'],
       },
       targets: [new eventsTargets.SqsQueue(this.pipelineQueue)],
     })

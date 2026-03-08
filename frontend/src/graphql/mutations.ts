@@ -55,11 +55,8 @@ export const createRollRequestMutation = /* GraphQL */ `
     $input: CreateRollRequestInput!
   ) {
     createRollRequest(playTableId: $playTableId, input: $input) {
-      id
-      targetPlayerIds
-      type
-      status
-      createdAt
+      rollRequestId
+      accepted
     }
   }
 `

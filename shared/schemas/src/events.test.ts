@@ -5,6 +5,7 @@ import {
   DETAIL_TYPE_PLAYER_JOINED,
   DETAIL_TYPE_PLAYER_LEFT,
   DETAIL_TYPE_ROLL_COMPLETED,
+  DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
   EventBridgeEnvelopeSchema,
   EventDetailSchema,
   InitiativeRollRequestCreatedDetailSchema,
@@ -12,6 +13,7 @@ import {
   PlayerJoinedDetailSchema,
   PlayerLeftDetailSchema,
   RollCompletedDetailSchema,
+  RollRequestCompletedDetailSchema,
 } from './events'
 
 describe('EventBridgeEnvelopeSchema', () => {
@@ -161,6 +163,56 @@ describe('RollCompletedDetailSchema', () => {
   })
 })
 
+describe('RollRequestCompletedDetailSchema', () => {
+  it('accepts valid detail', () => {
+    const detail = {
+      playTableId: 'pt-1',
+      rollRequestId: 'rr-1',
+      type: 'initiative' as const,
+      timestamps: {
+        createdAt: '2024-01-01T00:00:00Z',
+        completedAt: '2024-01-01T00:01:00Z',
+      },
+      playerIds: ['pk-1', 'pk-2'],
+      rollIds: ['roll-1', 'roll-2'],
+      initiatedBy: 'gm-sub',
+    }
+    expect(RollRequestCompletedDetailSchema.safeParse(detail).success).toBe(
+      true
+    )
+  })
+
+  it('rejects invalid type', () => {
+    expect(
+      RollRequestCompletedDetailSchema.safeParse({
+        playTableId: 'pt-1',
+        rollRequestId: 'rr-1',
+        type: 'attack',
+        timestamps: {
+          createdAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+        playerIds: ['pk-1'],
+        rollIds: ['roll-1'],
+        initiatedBy: 'gm-sub',
+      }).success
+    ).toBe(false)
+  })
+
+  it('rejects missing timestamps', () => {
+    expect(
+      RollRequestCompletedDetailSchema.safeParse({
+        playTableId: 'pt-1',
+        rollRequestId: 'rr-1',
+        type: 'initiative',
+        playerIds: [],
+        rollIds: [],
+        initiatedBy: 'gm-sub',
+      }).success
+    ).toBe(false)
+  })
+})
+
 describe('PlayerLeftDetailSchema', () => {
   it('accepts valid detail', () => {
     const detail = { playTableId: 'pt-1', id: 'pk-1' }
@@ -243,6 +295,25 @@ describe('EventDetailSchema', () => {
         id: 'pk-1',
         characterName: 'Gandalf',
         initiativeModifier: 3,
+      },
+    }
+    expect(EventDetailSchema.safeParse(event).success).toBe(true)
+  })
+
+  it('accepts RollRequestCompleted', () => {
+    const event = {
+      detailType: DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
+      detail: {
+        playTableId: 'pt-1',
+        rollRequestId: 'rr-1',
+        type: 'initiative' as const,
+        timestamps: {
+          createdAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+        playerIds: ['pk-1', 'pk-2'],
+        rollIds: ['roll-1', 'roll-2'],
+        initiatedBy: 'gm-sub',
       },
     }
     expect(EventDetailSchema.safeParse(event).success).toBe(true)
@@ -340,10 +411,37 @@ describe('parseEventDetail', () => {
     }
   })
 
-  it('throws for unknown detail-type', () => {
+  it('parses RollRequestCompleted envelope', () => {
     const envelope = {
       version: '0',
       id: 'evt-5',
+      'detail-type': DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
+      source: 'puzzlebottom-tabletop-tools',
+      detail: {
+        playTableId: 'pt-1',
+        rollRequestId: 'rr-1',
+        type: 'initiative' as const,
+        timestamps: {
+          createdAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+        playerIds: ['pk-1', 'pk-2'],
+        rollIds: ['roll-1', 'roll-2'],
+        initiatedBy: 'gm-sub',
+      },
+    }
+    const result = parseEventDetail(envelope)
+    expect(result.detailType).toBe(DETAIL_TYPE_ROLL_REQUEST_COMPLETED)
+    if (result.detailType === DETAIL_TYPE_ROLL_REQUEST_COMPLETED) {
+      expect(result.detail.rollRequestId).toBe('rr-1')
+      expect(result.detail.playerIds).toEqual(['pk-1', 'pk-2'])
+    }
+  })
+
+  it('throws for unknown detail-type', () => {
+    const envelope = {
+      version: '0',
+      id: 'evt-6',
       'detail-type': 'UnknownEvent',
       source: 'puzzlebottom-tabletop-tools',
       detail: {},
@@ -354,7 +452,7 @@ describe('parseEventDetail', () => {
   it('throws when detail fails validation', () => {
     const envelope = {
       version: '0',
-      id: 'evt-6',
+      id: 'evt-7',
       'detail-type': DETAIL_TYPE_PLAYER_LEFT,
       source: 'puzzlebottom-tabletop-tools',
       detail: { playTableId: 'pt-1' }, // missing id

@@ -47,15 +47,32 @@ export class StepFunctionStack extends cdk.Stack {
       },
     }
 
-    const createInitiativePendingFn = new lambdaNode.NodejsFunction(
+    const persistRollRequestFn = new lambdaNode.NodejsFunction(
       this,
-      'CreateInitiativePendingFn',
+      'PersistRollRequestFn',
       {
         ...lambdaDefaults,
-        functionName: `${config.envName}-create-initiative-pending`,
+        functionName: `${config.envName}-persist-roll-request`,
         entry: path.join(
           import.meta.dirname,
-          '../../../backend/lambdas/steps/create-initiative-pending.ts'
+          '../../../backend/lambdas/steps/persist-roll-request.ts'
+        ),
+        environment: {
+          TABLE_NAME: props.dataTable.tableName,
+        },
+      }
+    )
+    props.dataTable.grantReadWriteData(persistRollRequestFn)
+
+    const initiativeCreateHandlerFn = new lambdaNode.NodejsFunction(
+      this,
+      'InitiativeCreateHandlerFn',
+      {
+        ...lambdaDefaults,
+        functionName: `${config.envName}-initiative-create-handler`,
+        entry: path.join(
+          import.meta.dirname,
+          '../../../backend/lambdas/steps/initiative-create-handler.ts'
         ),
         environment: {
           TABLE_NAME: props.dataTable.tableName,
@@ -63,8 +80,8 @@ export class StepFunctionStack extends cdk.Stack {
         },
       }
     )
-    props.dataTable.grantReadWriteData(createInitiativePendingFn)
-    createInitiativePendingFn.addToRolePolicy(
+    props.dataTable.grantReadWriteData(initiativeCreateHandlerFn)
+    initiativeCreateHandlerFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['appsync:GraphQL'],
         resources: [
@@ -73,58 +90,64 @@ export class StepFunctionStack extends cdk.Stack {
       })
     )
 
-    const orderInitiativeFn = new lambdaNode.NodejsFunction(
+    const persistRollRequestTask = new sfnTasks.LambdaInvoke(
       this,
-      'OrderInitiativeFn',
+      'PersistRollRequest',
       {
-        ...lambdaDefaults,
-        functionName: `${config.envName}-order-initiative`,
-        entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/steps/order-initiative.ts'
-        ),
-        environment: {
-          TABLE_NAME: props.dataTable.tableName,
-          APPSYNC_GRAPHQL_URL: graphqlUrl,
-        },
+        lambdaFunction: persistRollRequestFn,
+        payloadResponseOnly: true,
       }
     )
-    props.dataTable.grantReadWriteData(orderInitiativeFn)
-    orderInitiativeFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['appsync:GraphQL'],
-        resources: [
-          `arn:aws:appsync:${config.awsRegion}:${config.awsAccount}:apis/${graphqlApi.apiId}/*`,
-        ],
-      })
-    )
 
-    const createInitiativePendingTask = new sfnTasks.LambdaInvoke(
+    const initiativeCreateHandlerTask = new sfnTasks.LambdaInvoke(
       this,
-      'CreateInitiativePending',
+      'InitiativeCreateHandler',
       {
-        lambdaFunction: createInitiativePendingFn,
+        lambdaFunction: initiativeCreateHandlerFn,
         integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
         payload: sfn.TaskInput.fromObject({
           taskToken: sfn.JsonPath.taskToken,
           'playTableId.$': '$.playTableId',
           'rollRequestId.$': '$.rollRequestId',
           'targetPlayerIds.$': '$.targetPlayerIds',
-          'expectedCount.$': '$.expectedCount',
+          'type.$': '$.type',
+          'dc.$': '$.dc',
+          'advantage.$': '$.advantage',
+          'isPrivate.$': '$.isPrivate',
+          'status.$': '$.status',
+          'createdAt.$': '$.createdAt',
+          'initiatedBy.$': '$.initiatedBy',
         }),
       }
     )
 
-    const orderInitiativeTask = new sfnTasks.LambdaInvoke(
+    const publishRollRequestCompletedTask = new sfnTasks.EventBridgePutEvents(
       this,
-      'OrderInitiative',
+      'PublishRollRequestCompleted',
       {
-        lambdaFunction: orderInitiativeFn,
-        payload: sfn.TaskInput.fromJsonPathAt('$'),
+        entries: [
+          {
+            source: 'puzzlebottom-tabletop-tools',
+            detailType: 'RollRequestCompleted',
+            detail: sfn.TaskInput.fromJsonPathAt('$'),
+            eventBus: props.eventBus,
+          },
+        ],
       }
     )
 
-    const definition = createInitiativePendingTask.next(orderInitiativeTask)
+    const initiativeCreateChain = initiativeCreateHandlerTask.next(
+      publishRollRequestCompletedTask
+    )
+
+    const initiativeChoice = new sfn.Choice(this, 'RollRequestTypeChoice')
+      .when(
+        sfn.Condition.stringEquals('$.type', 'initiative'),
+        initiativeCreateChain
+      )
+      .otherwise(new sfn.Fail(this, 'UnsupportedRollRequestType'))
+
+    const definition = persistRollRequestTask.next(initiativeChoice)
 
     const logGroup = new logs.LogGroup(this, 'StateMachineLogGroup', {
       logGroupName: `/aws/stepfunctions/${config.envName}-puzzlebottom-tabletop-tools`,
@@ -242,14 +265,12 @@ export class StepFunctionStack extends cdk.Stack {
         '../../../backend/lambdas/steps/trigger.ts'
       ),
       environment: {
-        STATE_MACHINE_ARN: this.stateMachine.stateMachineArn,
         ROLL_COMPLETED_HANDLER_ARN: rollCompletedHandler.functionArn,
         PLAYER_LEFT_HANDLER_ARN: playerLeftHandler.functionArn,
         PLAYER_JOINED_HANDLER_ARN: playerJoinedHandler.functionArn,
       },
     })
 
-    this.stateMachine.grantStartExecution(triggerFn)
     triggerFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['lambda:InvokeFunction'],

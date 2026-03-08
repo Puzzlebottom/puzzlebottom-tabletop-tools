@@ -50,6 +50,11 @@ type RollDiceResponse @aws_api_key @aws_cognito_user_pools {
   accepted: Boolean!
 }
 
+type CreateRollRequestResponse @aws_api_key @aws_cognito_user_pools {
+  rollRequestId: ID!
+  accepted: Boolean!
+}
+
 type RollResult @aws_iam @aws_api_key @aws_cognito_user_pools {
   playTableId: ID!
   rollId: ID!
@@ -177,7 +182,7 @@ type Mutation {
   createRollRequest(
     playTableId: ID!
     input: CreateRollRequestInput!
-  ): RollRequest!
+  ): CreateRollRequestResponse!
   fulfillRollRequest(
     rollRequestId: ID!
     playTableId: ID!

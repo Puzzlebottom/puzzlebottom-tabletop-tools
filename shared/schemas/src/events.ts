@@ -8,12 +8,15 @@ export type EventSource = typeof EVENT_SOURCE
 export const DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED =
   'InitiativeRollRequestCreated' as const
 export const DETAIL_TYPE_ROLL_COMPLETED = 'RollCompleted' as const
+export const DETAIL_TYPE_ROLL_REQUEST_COMPLETED =
+  'RollRequestCompleted' as const
 export const DETAIL_TYPE_PLAYER_LEFT = 'PlayerLeft' as const
 export const DETAIL_TYPE_PLAYER_JOINED = 'PlayerJoined' as const
 
 export type EventDetailType =
   | typeof DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED
   | typeof DETAIL_TYPE_ROLL_COMPLETED
+  | typeof DETAIL_TYPE_ROLL_REQUEST_COMPLETED
   | typeof DETAIL_TYPE_PLAYER_LEFT
   | typeof DETAIL_TYPE_PLAYER_JOINED
 
@@ -47,6 +50,24 @@ export const RollCompletedDetailSchema = z.object({
 
 export type RollCompletedDetail = z.infer<typeof RollCompletedDetailSchema>
 
+/** RollRequestCompleted event detail (from Roll Request Step Function when all players have rolled). */
+export const RollRequestCompletedDetailSchema = z.object({
+  playTableId: z.string(),
+  rollRequestId: z.string(),
+  type: z.enum(['initiative']),
+  timestamps: z.object({
+    createdAt: z.string(),
+    completedAt: z.string(),
+  }),
+  playerIds: z.array(z.string()),
+  rollIds: z.array(z.string()),
+  initiatedBy: z.string(),
+})
+
+export type RollRequestCompletedDetail = z.infer<
+  typeof RollRequestCompletedDetailSchema
+>
+
 /** PlayerLeft event detail (from leavePlayTable Lambda). */
 export const PlayerLeftDetailSchema = z.object({
   playTableId: z.string(),
@@ -74,6 +95,10 @@ export const EventDetailSchema = z.discriminatedUnion('detailType', [
   z.object({
     detailType: z.literal(DETAIL_TYPE_ROLL_COMPLETED),
     detail: RollCompletedDetailSchema,
+  }),
+  z.object({
+    detailType: z.literal(DETAIL_TYPE_ROLL_REQUEST_COMPLETED),
+    detail: RollRequestCompletedDetailSchema,
   }),
   z.object({
     detailType: z.literal(DETAIL_TYPE_PLAYER_LEFT),
@@ -118,6 +143,11 @@ export function parseEventDetail(envelope: EventBridgeEnvelope): EventDetail {
       return {
         detailType,
         detail: RollCompletedDetailSchema.parse(detail),
+      }
+    case DETAIL_TYPE_ROLL_REQUEST_COMPLETED:
+      return {
+        detailType,
+        detail: RollRequestCompletedDetailSchema.parse(detail),
       }
     case DETAIL_TYPE_PLAYER_LEFT:
       return {

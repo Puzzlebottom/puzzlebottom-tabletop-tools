@@ -1,21 +1,17 @@
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda'
-import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
 import {
-  DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED,
   DETAIL_TYPE_PLAYER_JOINED,
   DETAIL_TYPE_PLAYER_LEFT,
   DETAIL_TYPE_ROLL_COMPLETED,
+  DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
   EventBridgeEventBodySchema,
-  InitiativeRollRequestCreatedDetailSchema,
   parseEventDetail,
   RollCompletedDetailSchema,
+  RollRequestCompletedDetailSchema,
 } from '@puzzlebottom-tabletop-tools/schemas'
 import type { SQSHandler } from 'aws-lambda'
 
-const sfnClient = new SFNClient({})
 const lambdaClient = new LambdaClient({})
-
-const STATE_MACHINE_ARN = process.env.STATE_MACHINE_ARN!
 const ROLL_COMPLETED_HANDLER_ARN = process.env.ROLL_COMPLETED_HANDLER_ARN!
 const PLAYER_LEFT_HANDLER_ARN = process.env.PLAYER_LEFT_HANDLER_ARN!
 const PLAYER_JOINED_HANDLER_ARN = process.env.PLAYER_JOINED_HANDLER_ARN!
@@ -45,26 +41,20 @@ export const handler: SQSHandler = async (event) => {
 
     try {
       switch (detailType) {
-        case DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED: {
-          const detailResult =
-            InitiativeRollRequestCreatedDetailSchema.safeParse(envelope.detail)
+        case DETAIL_TYPE_ROLL_REQUEST_COMPLETED: {
+          const detailResult = RollRequestCompletedDetailSchema.safeParse(
+            envelope.detail
+          )
           if (!detailResult.success) {
             console.error(
-              'Invalid InitiativeRollRequestCreated detail:',
+              'Invalid RollRequestCompleted detail:',
               detailResult.error.flatten().formErrors.join(', '),
               'Skipping record'
             )
             continue
           }
-          await sfnClient.send(
-            new StartExecutionCommand({
-              stateMachineArn: STATE_MACHINE_ARN,
-              name: detailResult.data.rollRequestId,
-              input: JSON.stringify(detailResult.data),
-            })
-          )
           console.log(
-            `Started Initiative Step Function: ${detailResult.data.rollRequestId}`
+            `Roll request completed: ${detailResult.data.rollRequestId} (persist only)`
           )
           break
         }
