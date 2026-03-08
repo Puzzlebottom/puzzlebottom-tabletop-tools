@@ -5,8 +5,6 @@ export const EVENT_SOURCE = 'puzzlebottom-tabletop-tools' as const
 export type EventSource = typeof EVENT_SOURCE
 
 /** EventBridge detail types for dice roller events. */
-export const DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED =
-  'InitiativeRollRequestCreated' as const
 export const DETAIL_TYPE_ROLL_COMPLETED = 'RollCompleted' as const
 export const DETAIL_TYPE_ROLL_REQUEST_COMPLETED =
   'RollRequestCompleted' as const
@@ -14,23 +12,10 @@ export const DETAIL_TYPE_PLAYER_LEFT = 'PlayerLeft' as const
 export const DETAIL_TYPE_PLAYER_JOINED = 'PlayerJoined' as const
 
 export type EventDetailType =
-  | typeof DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED
   | typeof DETAIL_TYPE_ROLL_COMPLETED
   | typeof DETAIL_TYPE_ROLL_REQUEST_COMPLETED
   | typeof DETAIL_TYPE_PLAYER_LEFT
   | typeof DETAIL_TYPE_PLAYER_JOINED
-
-/** InitiativeRollRequestCreated event detail (from createRollRequest Lambda). */
-export const InitiativeRollRequestCreatedDetailSchema = z.object({
-  playTableId: z.string(),
-  rollRequestId: z.string(),
-  targetPlayerIds: z.array(z.string()),
-  expectedCount: z.number(),
-})
-
-export type InitiativeRollRequestCreatedDetail = z.infer<
-  typeof InitiativeRollRequestCreatedDetailSchema
->
 
 /** RollCompleted event detail (from rollDice / fulfillRollRequest Lambda). */
 export const RollCompletedDetailSchema = z.object({
@@ -89,10 +74,6 @@ export type PlayerJoinedDetail = z.infer<typeof PlayerJoinedDetailSchema>
 /** Discriminated union of all event details with their detail-type. */
 export const EventDetailSchema = z.discriminatedUnion('detailType', [
   z.object({
-    detailType: z.literal(DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED),
-    detail: InitiativeRollRequestCreatedDetailSchema,
-  }),
-  z.object({
     detailType: z.literal(DETAIL_TYPE_ROLL_COMPLETED),
     detail: RollCompletedDetailSchema,
   }),
@@ -134,11 +115,6 @@ export function parseEventDetail(envelope: EventBridgeEnvelope): EventDetail {
   const detail = envelope.detail
 
   switch (detailType) {
-    case DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED:
-      return {
-        detailType,
-        detail: InitiativeRollRequestCreatedDetailSchema.parse(detail),
-      }
     case DETAIL_TYPE_ROLL_COMPLETED:
       return {
         detailType,

@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED,
   DETAIL_TYPE_PLAYER_JOINED,
   DETAIL_TYPE_PLAYER_LEFT,
   DETAIL_TYPE_ROLL_COMPLETED,
   DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
   EventBridgeEnvelopeSchema,
   EventDetailSchema,
-  InitiativeRollRequestCreatedDetailSchema,
   parseEventDetail,
   PlayerJoinedDetailSchema,
   PlayerLeftDetailSchema,
@@ -20,13 +18,17 @@ describe('EventBridgeEnvelopeSchema', () => {
   const validEnvelope = {
     version: '0',
     id: 'evt-123',
-    'detail-type': 'InitiativeRollRequestCreated',
+    'detail-type': 'RollCompleted',
     source: 'puzzlebottom-tabletop-tools',
     detail: {
       playTableId: 'pt-1',
-      rollRequestId: 'rr-1',
-      targetPlayerIds: ['pk-1', 'pk-2'],
-      expectedCount: 2,
+      rollId: 'roll-1',
+      rollRequestType: 'ad_hoc',
+      rollerId: 'gm',
+      rollerType: 'gm',
+      values: [10],
+      modifier: 0,
+      total: 10,
     },
   }
 
@@ -61,41 +63,6 @@ describe('EventBridgeEnvelopeSchema', () => {
 
   it('rejects envelope that is not an object', () => {
     expect(EventBridgeEnvelopeSchema.safeParse('string').success).toBe(false)
-  })
-})
-
-describe('InitiativeRollRequestCreatedDetailSchema', () => {
-  it('accepts valid detail', () => {
-    const detail = {
-      playTableId: 'pt-1',
-      rollRequestId: 'rr-1',
-      targetPlayerIds: ['pk-1'],
-      expectedCount: 1,
-    }
-    expect(
-      InitiativeRollRequestCreatedDetailSchema.safeParse(detail).success
-    ).toBe(true)
-  })
-
-  it('rejects missing playTableId', () => {
-    expect(
-      InitiativeRollRequestCreatedDetailSchema.safeParse({
-        rollRequestId: 'rr-1',
-        targetPlayerIds: [],
-        expectedCount: 0,
-      }).success
-    ).toBe(false)
-  })
-
-  it('rejects targetPlayerIds that is not an array of strings', () => {
-    expect(
-      InitiativeRollRequestCreatedDetailSchema.safeParse({
-        playTableId: 'pt-1',
-        rollRequestId: 'rr-1',
-        targetPlayerIds: [123],
-        expectedCount: 1,
-      }).success
-    ).toBe(false)
   })
 })
 
@@ -249,19 +216,6 @@ describe('PlayerJoinedDetailSchema', () => {
 })
 
 describe('EventDetailSchema', () => {
-  it('accepts InitiativeRollRequestCreated', () => {
-    const event = {
-      detailType: DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED,
-      detail: {
-        playTableId: 'pt-1',
-        rollRequestId: 'rr-1',
-        targetPlayerIds: ['pk-1'],
-        expectedCount: 1,
-      },
-    }
-    expect(EventDetailSchema.safeParse(event).success).toBe(true)
-  })
-
   it('accepts RollCompleted', () => {
     const event = {
       detailType: DETAIL_TYPE_ROLL_COMPLETED,
@@ -330,27 +284,6 @@ describe('EventDetailSchema', () => {
 })
 
 describe('parseEventDetail', () => {
-  it('parses InitiativeRollRequestCreated envelope', () => {
-    const envelope = {
-      version: '0',
-      id: 'evt-1',
-      'detail-type': DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED,
-      source: 'puzzlebottom-tabletop-tools',
-      detail: {
-        playTableId: 'pt-1',
-        rollRequestId: 'rr-1',
-        targetPlayerIds: ['pk-1'],
-        expectedCount: 1,
-      },
-    }
-    const result = parseEventDetail(envelope)
-    expect(result.detailType).toBe(DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED)
-    if (result.detailType === DETAIL_TYPE_INITIATIVE_ROLL_REQUEST_CREATED) {
-      expect(result.detail.playTableId).toBe('pt-1')
-      expect(result.detail.expectedCount).toBe(1)
-    }
-  })
-
   it('parses RollCompleted envelope', () => {
     const envelope = {
       version: '0',

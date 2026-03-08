@@ -54,7 +54,7 @@ export const handler: SQSHandler = async (event) => {
             continue
           }
           console.log(
-            `Roll request completed: ${detailResult.data.rollRequestId} (persist only)`
+            `Roll request completed: ${detailResult.data.rollRequestId} (validate/ack only)`
           )
           break
         }
