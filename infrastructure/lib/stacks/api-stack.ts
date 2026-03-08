@@ -106,7 +106,7 @@ export class ApiStack extends cdk.Stack {
     })
 
     const rollStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-roll-pipeline`
-    const rollRequestStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-puzzlebottom-tabletop-tools`
+    const rollRequestStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-roll-request-pipeline`
 
     this.rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
       functionName: `${config.envName}-roll-dice-resolver`,

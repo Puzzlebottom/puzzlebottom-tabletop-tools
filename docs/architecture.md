@@ -70,10 +70,12 @@ flowchart TB
     subgraph RollRequestPipeline["Roll Request Step Function"]
         ReqSF[State Machine]
         PersistReq[PersistRollRequest]
+        ChoiceReq[Choice by type]
         InitiativeCreate[InitiativeCreateHandler]
         PublishReqCompleted[PutEvents RollRequestCompleted]
         ReqSF --> PersistReq
-        PersistReq --> InitiativeCreate
+        PersistReq --> ChoiceReq
+        ChoiceReq -->|initiative| InitiativeCreate
         InitiativeCreate -->|wait for players| PublishReqCompleted
         RollCompletedHandler -.->|SendTaskSuccess| InitiativeCreate
     end
@@ -136,6 +138,7 @@ flowchart TB
     style PublishRollEvent fill:#6366f1,stroke:#4f46e5,color:#fff
     style ReqSF fill:#7c3aed,stroke:#6d28d9,color:#fff
     style PersistReq fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style ChoiceReq fill:#7c3aed,stroke:#6d28d9,color:#fff
     style InitiativeCreate fill:#4f46e5,stroke:#4338ca,color:#fff
     style PublishReqCompleted fill:#22c55e,stroke:#16a34a,color:#fff
     style DynamoDB fill:#22c55e,stroke:#16a34a,color:#fff
@@ -149,7 +152,11 @@ stateDiagram-v2
 
     PersistRollRequest: Write RollRequest to DynamoDB<br/>completedPlayerKeys: []
 
-    PersistRollRequest --> InitiativeCreateHandler: Choice by type
+    PersistRollRequest --> ChoiceByType: Success
+
+    ChoiceByType: Route by type (initiative, future: attack, saves, etc.)
+
+    ChoiceByType --> InitiativeCreateHandler: type = initiative
 
     InitiativeCreateHandler: Update RollRequest with taskToken<br/>notifyRollRequestCreated → AppSync<br/>Wait for task token
 
@@ -163,6 +170,7 @@ stateDiagram-v2
     PublishRollRequestCompleted --> [*]: Success
 
     style PersistRollRequest fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style ChoiceByType fill:#7c3aed,stroke:#6d28d9,color:#fff
     style InitiativeCreateHandler fill:#4f46e5,stroke:#4338ca,color:#fff
     style PublishRollRequestCompleted fill:#22c55e,stroke:#16a34a,color:#fff
 ```
@@ -197,37 +205,37 @@ The `onRollRequestCreated` subscription is the sole source of truth for roll req
 
 1. GM calls `createRollRequest` mutation (Cognito auth)
 2. roll-request Lambda validates (GM owns play table), generates `rollRequestId`, starts Roll Request Step Function, returns `CreateRollRequestResponse` (`rollRequestId`, `accepted`)
-3. Roll Request Step Function: PersistRollRequest writes RollRequest to DynamoDB; InitiativeCreateHandler updates with taskToken, calls `notifyRollRequestCreated` mutation (IAM auth)
+3. Roll Request Step Function: PersistRollRequest writes RollRequest to DynamoDB; Choice routes by type; InitiativeCreateHandler updates with taskToken, calls `notifyRollRequestCreated` mutation (IAM auth)
 4. AppSync pushes to all `onRollRequestCreated` subscribers
 5. Players receive the roll request and can fulfill it
-6. When all players have rolled, roll-completed handler calls SendTaskSuccess; Step Function publishes `RollRequestCompleted` to EventBridge (for persistence/audit)
+6. When all players have rolled, roll-completed handler calls SendTaskSuccess; Step Function runs PublishRollRequestCompleted (PutEvents), then ends
 
 This mirrors the roll flow: the pipeline (Step Function) is the source of UI updates via IAM-authed notify mutations.
 
 ## Component Summary
 
-| Component           | Technology              | Responsibility                                                                                                              |
-| ------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend**        | React, Vite, Amplify UI | Dice roller UI, Cognito auth, 3D dice (Three.js), GraphQL client                                                            |
-| **AppSync**         | AWS AppSync             | GraphQL API, auth (Cognito/API key), real-time subscriptions                                                                |
-| **roll-dice**       | Lambda                  | Validate request, generate rollId, start Roll Step Function, return acknowledgment                                          |
-| **Roll SF**         | Step Function           | Generate roll result, store in DynamoDB, notify subscribers via `notifyRollCompleted`, publish RollCompleted to EventBridge |
-| **play-table**      | Lambda                  | Create/join play tables, leave, query play table and roll history                                                           |
-| **roll-request**    | Lambda                  | Validate GM, start Roll Request Step Function, return CreateRollRequestResponse                                             |
-| **initiative**      | Lambda                  | clearInitiative, notifyRollRequestCreated, notifyInitiativeUpdated                                                          |
-| **EventBridge**     | AWS EventBridge         | Decouple mutations from async processing                                                                                    |
-| **SQS**             | AWS SQS                 | Queue for trigger Lambda, DLQ for failures                                                                                  |
-| **trigger**         | Lambda                  | Route events: invoke roll-completed, player-left, player-joined; persist RollRequestCompleted                               |
-| **roll-completed**  | Lambda                  | Update RollRequest completedPlayerKeys; SendTaskSuccess with RollRequestCompleted payload when all rolled                   |
-| **Roll Request SF** | AWS Step Functions      | PersistRollRequest → Choice → InitiativeCreateHandler (WAIT) → PublishRollRequestCompleted                                  |
-| **DynamoDB**        | AWS DynamoDB            | PlayTable, Player, Roll, RollRequest, Initiative                                                                            |
+| Component                                   | Technology              | Responsibility                                                                                                               |
+| ------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend**                                | React, Vite, Amplify UI | Dice roller UI, Cognito auth, 3D dice (Three.js), GraphQL client                                                             |
+| **AppSync**                                 | AWS AppSync             | GraphQL API, auth (Cognito/API key), real-time subscriptions                                                                 |
+| **roll-dice**                               | Lambda                  | Validate request, generate rollId, start Roll Step Function, return acknowledgment                                           |
+| **Roll SF** (roll-pipeline)                 | Step Function           | Generate roll result, store in DynamoDB, notify subscribers via `notifyRollCompleted`, publish RollCompleted to EventBridge  |
+| **play-table**                              | Lambda                  | Create/join play tables, leave, query play table and roll history                                                            |
+| **roll-request**                            | Lambda                  | Validate GM, start Roll Request Step Function, return CreateRollRequestResponse                                              |
+| **initiative**                              | Lambda                  | clearInitiative, notifyRollRequestCreated, notifyInitiativeUpdated                                                           |
+| **EventBridge**                             | AWS EventBridge         | Decouple mutations from async processing                                                                                     |
+| **SQS**                                     | AWS SQS                 | Queue for trigger Lambda, DLQ for failures                                                                                   |
+| **trigger**                                 | Lambda                  | Route events: invoke roll-completed, player-left, player-joined; handle RollRequestCompleted (validate/ack only, no handler) |
+| **roll-completed**                          | Lambda                  | Update RollRequest completedPlayerKeys; SendTaskSuccess with RollRequestCompleted payload when all rolled                    |
+| **Roll Request SF** (roll-request-pipeline) | AWS Step Functions      | PersistRollRequest → Choice by type → InitiativeCreateHandler (WAIT) → PublishRollRequestCompleted                           |
+| **DynamoDB**                                | AWS DynamoDB            | PlayTable, Player, Roll, RollRequest, Initiative                                                                             |
 
 ## Event Types
 
 | detailType           | Source                      | Publisher            | Consumer                                   |
 | -------------------- | --------------------------- | -------------------- | ------------------------------------------ |
 | RollCompleted        | puzzlebottom-tabletop-tools | Roll Step Function   | trigger → roll-completed (initiative only) |
-| RollRequestCompleted | puzzlebottom-tabletop-tools | Roll Request Step Fn | trigger (persist only)                     |
+| RollRequestCompleted | puzzlebottom-tabletop-tools | Roll Request Step Fn | trigger (validate/ack only, no handler)    |
 | PlayerLeft           | puzzlebottom-tabletop-tools | play-table Lambda    | trigger → player-left Lambda               |
 | PlayerJoined         | puzzlebottom-tabletop-tools | play-table Lambda    | trigger → player-joined Lambda             |
 
@@ -254,12 +262,17 @@ This mirrors the roll flow: the pipeline (Step Function) is the source of UI upd
 
 ### RollRequestCompleted (Roll Request Step Function → EventBridge)
 
+Published after the WAIT (when SendTaskSuccess resumes the SF), before End. The initiative handler passes this payload when calling SendTaskSuccess; it becomes the input to PublishRollRequestCompleted.
+
 ```ts
 {
   playTableId: string,
   rollRequestId: string,
   type: 'initiative',
-  timestamps: { createdAt: string, completedAt: string },
+  timestamps: {
+    createdAt: string,   // when the roll request was created
+    completedAt: string  // when the last player rolled (SendTaskSuccess)
+  },
   playerIds: string[],
   rollIds: string[],
   initiatedBy: string

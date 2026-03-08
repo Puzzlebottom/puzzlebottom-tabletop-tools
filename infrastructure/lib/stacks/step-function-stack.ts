@@ -25,7 +25,7 @@ interface StepFunctionStackProps extends cdk.StackProps {
 }
 
 export class StepFunctionStack extends cdk.Stack {
-  public readonly stateMachine: sfn.StateMachine
+  public readonly rollRequestStateMachine: sfn.StateMachine
   public readonly rollStateMachine: sfn.StateMachine
 
   constructor(scope: Construct, id: string, props: StepFunctionStackProps) {
@@ -46,6 +46,8 @@ export class StepFunctionStack extends cdk.Stack {
         sourceMap: true,
       },
     }
+
+    // --- Roll Request Step Function ---
 
     const persistRollRequestFn = new lambdaNode.NodejsFunction(
       this,
@@ -149,23 +151,31 @@ export class StepFunctionStack extends cdk.Stack {
 
     const definition = persistRollRequestTask.next(initiativeChoice)
 
-    const logGroup = new logs.LogGroup(this, 'StateMachineLogGroup', {
-      logGroupName: `/aws/stepfunctions/${config.envName}-puzzlebottom-tabletop-tools`,
-      retention: config.logRetention,
-      removalPolicy: config.removalPolicy,
-    })
+    const rollRequestLogGroup = new logs.LogGroup(
+      this,
+      'RollRequestStateMachineLogGroup',
+      {
+        logGroupName: `/aws/stepfunctions/${config.envName}-roll-request-pipeline`,
+        retention: config.logRetention,
+        removalPolicy: config.removalPolicy,
+      }
+    )
 
-    this.stateMachine = new sfn.StateMachine(this, 'DataPipeline', {
-      stateMachineName: `${config.envName}-puzzlebottom-tabletop-tools`,
-      definitionBody: sfn.DefinitionBody.fromChainable(definition),
-      timeout: cdk.Duration.minutes(5),
-      tracingEnabled: true,
-      logs: {
-        destination: logGroup,
-        level: sfn.LogLevel.ALL,
-        includeExecutionData: true,
-      },
-    })
+    this.rollRequestStateMachine = new sfn.StateMachine(
+      this,
+      'RollRequestPipeline',
+      {
+        stateMachineName: `${config.envName}-roll-request-pipeline`,
+        definitionBody: sfn.DefinitionBody.fromChainable(definition),
+        timeout: cdk.Duration.minutes(5),
+        tracingEnabled: true,
+        logs: {
+          destination: rollRequestLogGroup,
+          level: sfn.LogLevel.ALL,
+          includeExecutionData: true,
+        },
+      }
+    )
 
     const rollCompletedHandler = new lambdaNode.NodejsFunction(
       this,
@@ -288,9 +298,9 @@ export class StepFunctionStack extends cdk.Stack {
       })
     )
 
-    new cdk.CfnOutput(this, 'StateMachineArn', {
-      value: this.stateMachine.stateMachineArn,
-      exportName: `${config.envName}-state-machine-arn`,
+    new cdk.CfnOutput(this, 'RollRequestStateMachineArn', {
+      value: this.rollRequestStateMachine.stateMachineArn,
+      exportName: `${config.envName}-roll-request-state-machine-arn`,
     })
 
     // --- Roll Step Function ---

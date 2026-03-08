@@ -47,7 +47,7 @@ describe('StepFunctionStack', () => {
 
     template.resourceCountIs('AWS::StepFunctions::StateMachine', 2)
     template.hasResourceProperties('AWS::StepFunctions::StateMachine', {
-      StateMachineName: `${mockConfig.envName}-puzzlebottom-tabletop-tools`,
+      StateMachineName: `${mockConfig.envName}-roll-request-pipeline`,
       TracingConfiguration: { Enabled: true },
     })
     template.hasResourceProperties('AWS::StepFunctions::StateMachine', {
@@ -65,21 +65,21 @@ describe('StepFunctionStack', () => {
     })
   }, 15000)
 
-  it('creates CloudWatch Log Group for state machine', () => {
+  it('creates CloudWatch Log Group for roll request state machine', () => {
     const stack = createStepFunctionStack()
     const template = Template.fromStack(stack)
 
     template.hasResourceProperties('AWS::Logs::LogGroup', {
-      LogGroupName: `/aws/stepfunctions/${mockConfig.envName}-puzzlebottom-tabletop-tools`,
+      LogGroupName: `/aws/stepfunctions/${mockConfig.envName}-roll-request-pipeline`,
     })
   }, 15000)
 
-  it('exports StateMachineArn and RollStateMachineArn', () => {
+  it('exports roll-request-state-machine-arn and roll-state-machine-arn', () => {
     const stack = createStepFunctionStack()
     const template = Template.fromStack(stack)
 
     template.hasOutput('*', {
-      Export: { Name: `${mockConfig.envName}-state-machine-arn` },
+      Export: { Name: `${mockConfig.envName}-roll-request-state-machine-arn` },
     })
     template.hasOutput('*', {
       Export: { Name: `${mockConfig.envName}-roll-state-machine-arn` },
