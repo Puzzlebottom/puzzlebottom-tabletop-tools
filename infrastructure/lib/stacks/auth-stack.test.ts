@@ -16,7 +16,7 @@ describe('AuthStack', () => {
 
     template.resourceCountIs('AWS::Cognito::UserPool', 1)
     template.hasResourceProperties('AWS::Cognito::UserPool', {
-      UserPoolName: `${mockConfig.envName}-user-pool`,
+      UserPoolName: `${mockConfig.envName}-puzzlebottom-tabletop-tools-user-pool`,
       AutoVerifiedAttributes: ['email'],
       UsernameAttributes: ['email'],
       Policies: Match.objectLike({
@@ -41,7 +41,7 @@ describe('AuthStack', () => {
 
     template.resourceCountIs('AWS::Cognito::UserPoolClient', 1)
     template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
-      ClientName: `${mockConfig.envName}-web-client`,
+      ClientName: `${mockConfig.envName}-puzzlebottom-tabletop-tools-web-client`,
       ExplicitAuthFlows: Match.arrayWith([
         'ALLOW_USER_PASSWORD_AUTH',
         'ALLOW_USER_SRP_AUTH',
@@ -61,10 +61,10 @@ describe('AuthStack', () => {
     const template = Template.fromStack(stack)
 
     template.hasOutput('*', {
-      Export: { Name: `${mockConfig.envName}-user-pool-id` },
+      Export: { Name: `${mockConfig.envName}-auth-user-pool-id` },
     })
     template.hasOutput('*', {
-      Export: { Name: `${mockConfig.envName}-user-pool-client-id` },
+      Export: { Name: `${mockConfig.envName}-auth-user-pool-client-id` },
     })
   })
 })

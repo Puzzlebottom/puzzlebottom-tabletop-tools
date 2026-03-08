@@ -18,7 +18,7 @@ export class AuthStack extends cdk.Stack {
     const { config } = props
 
     this.userPool = new cognito.UserPool(this, 'UserPool', {
-      userPoolName: `${config.envName}-user-pool`,
+      userPoolName: `${config.envName}-puzzlebottom-tabletop-tools-user-pool`,
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       autoVerify: { email: true },
@@ -37,7 +37,7 @@ export class AuthStack extends cdk.Stack {
     })
 
     this.userPoolClient = this.userPool.addClient('WebClient', {
-      userPoolClientName: `${config.envName}-web-client`,
+      userPoolClientName: `${config.envName}-puzzlebottom-tabletop-tools-web-client`,
       authFlows: {
         userSrp: true,
         userPassword: true,
@@ -55,12 +55,12 @@ export class AuthStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'UserPoolId', {
       value: this.userPool.userPoolId,
-      exportName: `${config.envName}-user-pool-id`,
+      exportName: `${config.envName}-auth-user-pool-id`,
     })
 
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: this.userPoolClient.userPoolClientId,
-      exportName: `${config.envName}-user-pool-client-id`,
+      exportName: `${config.envName}-auth-user-pool-client-id`,
     })
   }
 }
