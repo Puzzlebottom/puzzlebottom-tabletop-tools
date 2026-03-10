@@ -1,4 +1,10 @@
-import type { InitiativeEntry } from '@puzzlebottom-tabletop-tools/graphql-types'
+export interface InitiativeEntry {
+  id: string
+  characterName: string
+  value: number
+  modifier: number
+  total: number
+}
 
 export function InitiativeList({ order }: { order: InitiativeEntry[] }) {
   if (order.length === 0) {

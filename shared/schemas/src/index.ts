@@ -4,15 +4,11 @@ export {
   type PlayTable,
   PlayTableSchema,
   type Roll,
-  type RollerType,
-  RollerTypeSchema,
   type RollRequest,
   RollRequestSchema,
-  type RollRequestType,
-  RollRequestTypeSchema,
   RollSchema,
-  type Visibility,
-  VisibilitySchema,
+  type RollType,
+  RollTypeSchema,
 } from './domain'
 export {
   DETAIL_TYPE_PLAYER_JOINED,

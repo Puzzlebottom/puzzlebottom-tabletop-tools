@@ -242,16 +242,7 @@ describe('roll-request resolvers', () => {
       ).rejects.toThrow('Unsupported roll request type: ad_hoc')
     })
 
-    it('starts Step Function with empty targetPlayerIds for initiative', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Item: {
-            PK: { S: 'PLAYTABLE#pt-1' },
-            SK: { S: 'METADATA' },
-            gmUserId: { S: 'gm-123' },
-          },
-        })
-        .mockResolvedValueOnce({})
+    it('throws when targetPlayerIds is empty', async () => {
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -266,13 +257,13 @@ describe('roll-request resolvers', () => {
           identity: { sub: 'gm-123' },
         }
       )
-      const result = (await createRollRequest(
-        event as Parameters<typeof createRollRequest>[0],
-        {} as never,
-        vi.fn()
-      )) as { rollRequestId: string; accepted: boolean }
-      expect(result.accepted).toBe(true)
-      expect(result.rollRequestId).toBeDefined()
+      await expect(
+        createRollRequest(
+          event as Parameters<typeof createRollRequest>[0],
+          {} as never,
+          vi.fn()
+        )
+      ).rejects.toThrow('targetPlayerIds must not be empty')
     })
   })
 })

@@ -1,58 +1,15 @@
-import type {
-  Roll,
-  RollResult,
-} from '@puzzlebottom-tabletop-tools/graphql-types'
+import type { Roll } from '@puzzlebottom-tabletop-tools/graphql-types'
 
-export type RollDisplayItem =
-  | (Pick<
-      Roll,
-      | 'id'
-      | 'rollerId'
-      | 'rollerType'
-      | 'total'
-      | 'values'
-      | 'modifier'
-      | 'dc'
-      | 'success'
-      | 'visibility'
-      | 'createdAt'
-    > & {
-      advantage?: string | null
-    })
-  | (Pick<
-      RollResult,
-      | 'rollId'
-      | 'total'
-      | 'values'
-      | 'modifier'
-      | 'dc'
-      | 'success'
-      | 'visibility'
-    > & {
-      advantage?: string | null
-      id?: string
-      rollerId?: string
-      rollerType?: string
-      createdAt?: string
-    })
+export type RollDisplayItem = Roll
 
-function formatRoll(item: RollDisplayItem): string {
-  const id = ('id' in item ? item.id : item.rollId) ?? 'unknown'
-  const total = item.total
-  const dcPart =
-    item.dc !== undefined && item.dc !== null
-      ? ` (DC ${item.dc}${item.success !== undefined && item.success !== null ? `, ${item.success ? 'success' : 'fail'}` : ''})`
-      : ''
-  const advPart = item.advantage ? ` [${item.advantage}]` : ''
-  return `Roll ${id.slice(0, 8)}…: ${total}${dcPart}${advPart}`
+function formatRoll(item: Roll): string {
+  const id = item.id ?? 'unknown'
+  const total = item.rollResult
+  return `Roll ${id.slice(0, 8)}…: ${total}`
 }
 
-function isVisibleToViewer(
-  item: RollDisplayItem,
-  viewerIsGm: boolean
-): boolean {
-  const visibility = item.visibility
-  if (visibility === 'gm_only' && !viewerIsGm) return false
+function isVisibleToViewer(item: Roll, viewerIsGm: boolean): boolean {
+  if (item.isPrivate && !viewerIsGm) return false
   return true
 }
 
@@ -63,7 +20,7 @@ export function RollLog({
   loading,
   viewerIsGm = true,
 }: {
-  rolls: RollDisplayItem[]
+  rolls: Roll[]
   onLoadMore?: () => void
   hasMore?: boolean
   loading?: boolean
@@ -82,7 +39,7 @@ export function RollLog({
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {visibleRolls.map((item) => {
-            const key = 'id' in item ? item.id : item.rollId
+            const key = item.id
             return (
               <li
                 key={key}

@@ -1,13 +1,9 @@
 import { Authenticator } from '@aws-amplify/ui-react'
 import type {
-  InitiativeEntry,
-  OnInitiativeUpdatedSubscription,
-  OnRollCompletedSubscription,
-  OnRollRequestCreatedSubscription,
-  PlayTableQuery,
+  InitiativeUpdatedSubscription,
   Roll,
-  RollHistoryQuery,
-  RollResult,
+  RollCompletedSubscription,
+  RollRequestCreatedSubscription,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
 import { generateClient } from 'aws-amplify/api'
 import { getCurrentUser } from 'aws-amplify/auth'
@@ -20,21 +16,25 @@ import type {
   InitiativeRollRequestOptions,
 } from '../components/GMRollControls'
 import { GMRollControls } from '../components/GMRollControls'
+import type { InitiativeEntry } from '../components/InitiativeList'
 import { InitiativeList } from '../components/InitiativeList'
 import { RollLog } from '../components/RollLog'
 import {
   clearInitiativeMutation,
+  createRollMutation,
   createRollRequestMutation,
-  fulfillRollRequestMutation,
   leavePlayTableMutation,
-  rollDiceMutation,
 } from '../graphql/mutations'
 import { playTableQuery, rollHistoryQuery } from '../graphql/queries'
 import {
-  onInitiativeUpdatedSubscription,
-  onRollCompletedSubscription,
-  onRollRequestCreatedSubscription,
+  initiativeUpdatedSubscription,
+  rollCompletedSubscription,
+  rollRequestCreatedSubscription,
 } from '../graphql/subscriptions'
+import {
+  playTableResponseSchema,
+  rollHistoryResponseSchema,
+} from '../graphql/validation'
 import { clearStoredPlayer, getStoredPlayer } from '../lib/player-storage'
 
 const client = generateClient()
@@ -44,13 +44,7 @@ function playerAuth() {
   return { authMode: 'apiKey' as const, apiKey: API_KEY }
 }
 
-type RollDisplayItem =
-  | Roll
-  | (RollResult & {
-      rollerId?: string
-      rollerType?: string
-      createdAt?: string
-    })
+type RollDisplayItem = Roll
 
 export function PlayTablePage() {
   const { playTableId } = useParams<{ playTableId: string }>()
@@ -66,7 +60,6 @@ export function PlayTablePage() {
     id: string
     targetPlayerIds: string[]
     dc?: number | null
-    advantage?: string | null
     isPrivate?: boolean
   } | null>(null)
   const [rolling, setRolling] = useState(false)
@@ -75,7 +68,9 @@ export function PlayTablePage() {
   const [requestingInitiative, setRequestingInitiative] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [leaving, setLeaving] = useState(false)
-  const [adHocOptions, setAdHocOptions] = useState<AdHocRollOptions>({})
+  const [adHocOptions, setAdHocOptions] = useState<AdHocRollOptions>(
+    {} satisfies AdHocRollOptions
+  )
   const playerIdRef = useRef<string | null>(null)
   const pendingRollIdRef = useRef<string | null>(null)
 
@@ -108,7 +103,7 @@ export function PlayTablePage() {
       if (!playTableId) return
       setRollsLoading(true)
       try {
-        const result = (await client.graphql({
+        const raw = await client.graphql({
           query: rollHistoryQuery,
           variables: {
             playTableId,
@@ -116,8 +111,9 @@ export function PlayTablePage() {
             nextToken: nextToken ?? undefined,
           },
           ...(isPlayer ? playerAuth() : {}),
-        })) as { data: RollHistoryQuery }
-        const conn = result.data.rollHistory
+        })
+        const result = rollHistoryResponseSchema.parse(raw)
+        const conn = result.data?.rollHistory
         if (conn) {
           setRolls((prev) =>
             nextToken ? [...prev, ...conn.items] : [...conn.items]
@@ -149,19 +145,19 @@ export function PlayTablePage() {
 
     const subRoll = (
       client.graphql({
-        query: onRollCompletedSubscription,
+        query: rollCompletedSubscription,
         variables: { playTableId },
         ...(isPlayer ? playerAuth() : {}),
       }) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
-        const result = (payload as { data?: OnRollCompletedSubscription }).data
-          ?.onRollCompleted
+        const result = (payload as { data?: RollCompletedSubscription }).data
+          ?.rollCompleted
         if (result) {
-          setRolls((prev) => [result as RollDisplayItem, ...prev])
+          setRolls((prev) => [result, ...prev])
           if (
             pendingRollIdRef.current &&
-            result.rollId === pendingRollIdRef.current
+            result.id === pendingRollIdRef.current
           ) {
             const d20 =
               result.values.length > 0 ? Math.max(...result.values) : undefined
@@ -175,20 +171,19 @@ export function PlayTablePage() {
 
     const subRequest = (
       client.graphql({
-        query: onRollRequestCreatedSubscription,
+        query: rollRequestCreatedSubscription,
         variables: { playTableId },
         ...(isPlayer ? playerAuth() : {}),
       }) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
-        const req = (payload as { data?: OnRollRequestCreatedSubscription })
-          .data?.onRollRequestCreated
+        const req = (payload as { data?: RollRequestCreatedSubscription }).data
+          ?.rollRequestCreated
         if (req)
           setPendingRollRequest({
             id: req.id,
             targetPlayerIds: req.targetPlayerIds,
-            dc: req.dc,
-            advantage: req.advantage,
+            dc: req.dc ?? undefined,
             isPrivate: req.isPrivate,
           })
       },
@@ -196,15 +191,24 @@ export function PlayTablePage() {
 
     const subInitiative = (
       client.graphql({
-        query: onInitiativeUpdatedSubscription,
+        query: initiativeUpdatedSubscription,
         variables: { playTableId },
         ...(isPlayer ? playerAuth() : {}),
       }) as unknown as SubscriptionClient
     ).subscribe({
       next: (payload: unknown) => {
-        const order = (payload as { data?: OnInitiativeUpdatedSubscription })
-          .data?.onInitiativeUpdated?.order
-        if (order) {
+        const rolls = (payload as { data?: InitiativeUpdatedSubscription }).data
+          ?.initiativeUpdated
+        if (rolls && rolls.length > 0) {
+          const order: InitiativeEntry[] = rolls
+            .filter((r): r is NonNullable<typeof r> => r !== null)
+            .map((r) => ({
+              id: r.id,
+              characterName: r.rollerId,
+              value: r.values[0] ?? r.rollResult,
+              modifier: r.modifier,
+              total: r.rollResult,
+            }))
           setInitiativeOrder(order)
           setPendingRollRequest(null)
         }
@@ -242,19 +246,19 @@ export function PlayTablePage() {
     setDiceSettledValue(undefined)
     try {
       const result = (await client.graphql({
-        query: rollDiceMutation,
+        query: createRollMutation,
         variables: {
           playTableId,
+          playerId: isPlayer ? (playerIdRef.current ?? undefined) : undefined,
           input: {
-            diceType: 'd20',
-            ...(isPlayer && playerIdRef.current
-              ? { id: playerIdRef.current }
-              : {}),
+            diceNotation: 'd20',
+            modifier: 0,
+            isPrivate: false,
           },
         },
         ...(isPlayer ? playerAuth() : {}),
-      })) as { data?: { rollDice: { rollId: string; accepted: boolean } } }
-      const rollId = result.data?.rollDice?.rollId
+      })) as { data?: { createRoll: { id: string } } }
+      const rollId = result.data?.createRoll?.id
       if (rollId) {
         pendingRollIdRef.current = rollId
       }
@@ -275,17 +279,20 @@ export function PlayTablePage() {
     setDiceSettledValue(undefined)
     try {
       const result = (await client.graphql({
-        query: fulfillRollRequestMutation,
+        query: createRollMutation,
         variables: {
-          rollRequestId: pendingRollRequest.id,
           playTableId,
           playerId: playerIdRef.current,
+          input: {
+            rollRequestId: pendingRollRequest.id,
+            diceNotation: 'd20',
+            modifier: 0,
+            isPrivate: pendingRollRequest.isPrivate ?? false,
+          },
         },
         ...playerAuth(),
-      })) as {
-        data?: { fulfillRollRequest: { rollId: string; accepted: boolean } }
-      }
-      const rollId = result.data?.fulfillRollRequest?.rollId
+      })) as { data?: { createRoll: { id: string } } }
+      const rollId = result.data?.createRoll?.id
       if (rollId) {
         pendingRollIdRef.current = rollId
       }
@@ -301,11 +308,12 @@ export function PlayTablePage() {
     if (!playTableId) return
     setRequestingInitiative(true)
     try {
-      const result = (await client.graphql({
+      const raw = await client.graphql({
         query: playTableQuery,
         variables: { id: playTableId },
-      })) as { data: PlayTableQuery }
-      const players = result.data.playTable?.players ?? []
+      })
+      const result = playTableResponseSchema.parse(raw)
+      const players = result.data?.playTable?.players ?? []
       const targetPlayerIds = players.map((p) => p.id)
       await client.graphql({
         query: createRollRequestMutation,
@@ -314,9 +322,9 @@ export function PlayTablePage() {
           input: {
             targetPlayerIds,
             type: 'initiative',
-            dc: options.dc,
-            advantage: options.advantage ?? undefined,
-            isPrivate: options.isPrivate,
+            diceNotation: 'd20',
+            dc: options.dc ?? undefined,
+            isPrivate: options.isPrivate ?? false,
           },
         },
       })
@@ -332,18 +340,17 @@ export function PlayTablePage() {
     setDiceSettledValue(undefined)
     try {
       const result = (await client.graphql({
-        query: rollDiceMutation,
+        query: createRollMutation,
         variables: {
           playTableId,
           input: {
-            diceType: 'd20',
-            dc: options.dc,
-            advantage: options.advantage ?? undefined,
-            visibility: options.visibility ?? 'all',
+            diceNotation: 'd20',
+            modifier: 0,
+            isPrivate: options.visibility === 'gm_only',
           },
         },
-      })) as { data?: { rollDice: { rollId: string; accepted: boolean } } }
-      const rollId = result.data?.rollDice?.rollId
+      })) as { data?: { createRoll: { id: string } } }
+      const rollId = result.data?.createRoll?.id
       if (rollId) {
         pendingRollIdRef.current = rollId
       }
@@ -406,25 +413,13 @@ export function PlayTablePage() {
             <section>
               <p>
                 Roll requested for initiative!
-                {((pendingRollRequest.dc !== undefined &&
-                  pendingRollRequest.dc !== null) ||
-                  (pendingRollRequest.advantage !== undefined &&
-                    pendingRollRequest.advantage !== null)) && (
-                  <span style={{ fontSize: '0.9rem', color: '#666' }}>
-                    {' '}
-                    {[
-                      pendingRollRequest.dc !== undefined &&
-                      pendingRollRequest.dc !== null
-                        ? `DC ${pendingRollRequest.dc}`
-                        : null,
-                      pendingRollRequest.advantage
-                        ? `(${pendingRollRequest.advantage})`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}
-                  </span>
-                )}
+                {pendingRollRequest.dc !== undefined &&
+                  pendingRollRequest.dc !== null && (
+                    <span style={{ fontSize: '0.9rem', color: '#666' }}>
+                      {' '}
+                      DC {pendingRollRequest.dc}
+                    </span>
+                  )}
               </p>
               <button
                 type="button"

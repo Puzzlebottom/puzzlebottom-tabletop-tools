@@ -7,6 +7,7 @@ describe('PlayerSchema', () => {
     id: 'pk-abc-123',
     characterName: 'Gandalf',
     initiativeModifier: 2,
+    createdAt: '2025-01-01T00:00:00.000Z',
   }
 
   it('accepts valid player', () => {

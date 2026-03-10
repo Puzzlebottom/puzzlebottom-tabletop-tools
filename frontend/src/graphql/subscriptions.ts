@@ -1,45 +1,28 @@
-export const onRollCompletedSubscription = /* GraphQL */ `
-  subscription OnRollCompleted($playTableId: ID!) {
-    onRollCompleted(playTableId: $playTableId) {
-      playTableId
-      rollId
-      values
-      modifier
-      total
-      advantage
-      dc
-      success
-      visibility
+import { rollFragment, rollRequestFragment } from './fragments'
+
+export const rollCompletedSubscription = /* GraphQL */ `
+  subscription RollCompleted($playTableId: ID!) {
+    rollCompleted(playTableId: $playTableId) {
+      ...Roll
     }
   }
+  ${rollFragment}
 `
 
-export const onRollRequestCreatedSubscription = /* GraphQL */ `
-  subscription OnRollRequestCreated($playTableId: ID!) {
-    onRollRequestCreated(playTableId: $playTableId) {
-      id
-      targetPlayerIds
-      type
-      dc
-      advantage
-      isPrivate
-      status
-      createdAt
+export const rollRequestCreatedSubscription = /* GraphQL */ `
+  subscription RollRequestCreated($playTableId: ID!) {
+    rollRequestCreated(playTableId: $playTableId) {
+      ...RollRequest
     }
   }
+  ${rollRequestFragment}
 `
 
-export const onInitiativeUpdatedSubscription = /* GraphQL */ `
-  subscription OnInitiativeUpdated($playTableId: ID!) {
-    onInitiativeUpdated(playTableId: $playTableId) {
-      playTableId
-      order {
-        id
-        characterName
-        value
-        modifier
-        total
-      }
+export const initiativeUpdatedSubscription = /* GraphQL */ `
+  subscription InitiativeUpdated($playTableId: ID!) {
+    initiativeUpdated(playTableId: $playTableId) {
+      ...Roll
     }
   }
+  ${rollFragment}
 `

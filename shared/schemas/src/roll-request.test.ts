@@ -7,9 +7,10 @@ describe('RollRequestSchema', () => {
     id: 'rr-123',
     playTableId: 'pt-123',
     targetPlayerIds: ['pk-1', 'pk-2'],
-    type: 'initiative',
+    type: 'initiative' as const,
     isPrivate: false,
-    status: 'pending',
+    rollNotation: 'd20',
+    rolls: [],
     createdAt: '2025-01-01T00:00:00.000Z',
   }
 
@@ -23,11 +24,23 @@ describe('RollRequestSchema', () => {
     ).toBe(true)
   })
 
-  it('accepts roll request with optional advantage', () => {
+  it('accepts roll request with rolls', () => {
     expect(
       RollRequestSchema.safeParse({
         ...validRollRequest,
-        advantage: 'advantage',
+        rolls: [
+          {
+            id: 'r-1',
+            playTableId: 'pt-123',
+            rollerId: 'roller-1',
+            rollNotation: 'd20',
+            values: [15],
+            modifier: 2,
+            rollResult: 17,
+            isPrivate: false,
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
       }).success
     ).toBe(true)
   })
@@ -37,15 +50,6 @@ describe('RollRequestSchema', () => {
       RollRequestSchema.safeParse({
         ...validRollRequest,
         targetPlayerIds: [],
-      }).success
-    ).toBe(true)
-  })
-
-  it('accepts ad_hoc type', () => {
-    expect(
-      RollRequestSchema.safeParse({
-        ...validRollRequest,
-        type: 'ad_hoc',
       }).success
     ).toBe(true)
   })
@@ -92,9 +96,15 @@ describe('RollRequestSchema', () => {
     expect(RollRequestSchema.safeParse(withoutIsPrivate).success).toBe(false)
   })
 
-  it('rejects missing status', () => {
-    const { status, ...withoutStatus } = validRollRequest
-    void status
-    expect(RollRequestSchema.safeParse(withoutStatus).success).toBe(false)
+  it('rejects missing rollNotation', () => {
+    const { rollNotation, ...withoutRollNotation } = validRollRequest
+    void rollNotation
+    expect(RollRequestSchema.safeParse(withoutRollNotation).success).toBe(false)
+  })
+
+  it('rejects missing rolls', () => {
+    const { rolls, ...withoutRolls } = validRollRequest
+    void rolls
+    expect(RollRequestSchema.safeParse(withoutRolls).success).toBe(false)
   })
 })

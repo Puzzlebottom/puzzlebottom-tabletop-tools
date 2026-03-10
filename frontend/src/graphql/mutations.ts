@@ -1,20 +1,25 @@
+import {
+  playTableFragment,
+  rollFragment,
+  rollRequestFragment,
+} from './fragments'
+
 export const createPlayTableMutation = /* GraphQL */ `
   mutation CreatePlayTable {
     createPlayTable {
-      id
-      inviteCode
-      createdAt
+      ...PlayTable
     }
   }
+  ${playTableFragment}
 `
 
 export const joinPlayTableMutation = /* GraphQL */ `
   mutation JoinPlayTable($inviteCode: String!, $input: JoinPlayTableInput!) {
     joinPlayTable(inviteCode: $inviteCode, input: $input) {
-      id
-      playTableId
+      ...PlayTable
     }
   }
+  ${playTableFragment}
 `
 
 export const leavePlayTableMutation = /* GraphQL */ `
@@ -23,30 +28,17 @@ export const leavePlayTableMutation = /* GraphQL */ `
   }
 `
 
-export const rollDiceMutation = /* GraphQL */ `
-  mutation RollDice($playTableId: ID!, $input: RollDiceInput!) {
-    rollDice(playTableId: $playTableId, input: $input) {
-      rollId
-      accepted
-    }
-  }
-`
-
-export const fulfillRollRequestMutation = /* GraphQL */ `
-  mutation FulfillRollRequest(
-    $rollRequestId: ID!
+export const createRollMutation = /* GraphQL */ `
+  mutation CreateRoll(
     $playTableId: ID!
-    $playerId: String!
+    $playerId: ID
+    $input: CreateRollInput!
   ) {
-    fulfillRollRequest(
-      rollRequestId: $rollRequestId
-      playTableId: $playTableId
-      playerId: $playerId
-    ) {
-      rollId
-      accepted
+    createRoll(playTableId: $playTableId, playerId: $playerId, input: $input) {
+      ...Roll
     }
   }
+  ${rollFragment}
 `
 
 export const createRollRequestMutation = /* GraphQL */ `
@@ -55,10 +47,10 @@ export const createRollRequestMutation = /* GraphQL */ `
     $input: CreateRollRequestInput!
   ) {
     createRollRequest(playTableId: $playTableId, input: $input) {
-      rollRequestId
-      accepted
+      ...RollRequest
     }
   }
+  ${rollRequestFragment}
 `
 
 export const clearInitiativeMutation = /* GraphQL */ `

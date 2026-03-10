@@ -1,13 +1,14 @@
-import type {
-  JoinPlayTableMutation,
-  PlayTableByInviteCodeQuery,
-} from '@puzzlebottom-tabletop-tools/graphql-types'
+import { type PlayTableByInviteCodeQuery } from '@puzzlebottom-tabletop-tools/graphql-types'
 import { generateClient } from 'aws-amplify/api'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { joinPlayTableMutation } from '../graphql/mutations'
 import { playTableByInviteCodeQuery } from '../graphql/queries'
+import {
+  joinPlayTableResponseSchema,
+  playTableByInviteCodeResponseSchema,
+} from '../graphql/validation'
 import { getStoredPlayer, storePlayer } from '../lib/player-storage'
 
 const client = generateClient()
@@ -48,13 +49,14 @@ export function JoinPlayTablePage() {
     let cancelled = false
     const check = async () => {
       try {
-        const result = (await client.graphql({
+        const raw = await client.graphql<PlayTableByInviteCodeQuery>({
           query: playTableByInviteCodeQuery,
           variables: { inviteCode: inviteCode.trim() },
           authMode: 'apiKey',
           apiKey: API_KEY,
-        })) as { data: PlayTableByInviteCodeQuery }
-        const playTableId = result.data.playTableByInviteCode?.id
+        })
+        const result = playTableByInviteCodeResponseSchema.parse(raw)
+        const playTableId = result.data?.playTableByInviteCode?.id
         if (!cancelled && playTableId === stored.playTableId) {
           void navigate(`/dice/table/${playTableId}`, { replace: true })
         }
@@ -83,7 +85,7 @@ export function JoinPlayTablePage() {
     setError(null)
     setSubmitting(true)
     try {
-      const result = (await client.graphql({
+      const raw = await client.graphql({
         query: joinPlayTableMutation,
         variables: {
           inviteCode: inviteCode.trim(),
@@ -94,10 +96,8 @@ export function JoinPlayTablePage() {
         },
         authMode: 'apiKey',
         apiKey: API_KEY,
-      })) as {
-        data?: JoinPlayTableMutation
-        errors?: { message?: string }[]
-      }
+      })
+      const result = joinPlayTableResponseSchema.parse(raw)
 
       const gqlErrors = result.errors
       if (Array.isArray(gqlErrors) && gqlErrors[0]?.message) {
@@ -111,8 +111,16 @@ export function JoinPlayTablePage() {
         return
       }
 
-      const { id, playTableId } = joinResult
-      storePlayer(id, playTableId)
+      const playTableId = joinResult.id
+      const ourPlayer = joinResult.players?.find(
+        (p) => p?.characterName === characterName.trim()
+      )
+      const playerId = ourPlayer?.id ?? joinResult.players?.[0]?.id
+      if (!playerId) {
+        setError('Joined but could not identify your player. Please try again.')
+        return
+      }
+      storePlayer(playerId, playTableId)
       void navigate(`/dice/table/${playTableId}`, { replace: true })
     } catch (err) {
       setError(extractErrorMessage(err))

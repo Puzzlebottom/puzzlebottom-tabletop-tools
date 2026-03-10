@@ -97,6 +97,38 @@ vi.mock('@aws-amplify/ui-react', () => ({
 
 const { getCurrentUser } = await import('aws-amplify/auth')
 
+/** Asserts the nth graphql call matches the expected (partial) config. Uses typed expected objects instead of expect.objectContaining. */
+function expectNthGraphqlCall(
+  mock: ReturnType<typeof vi.fn>,
+  n: number,
+  expected: Record<string, unknown>
+): void {
+  const callArgs = mock.mock.calls[n - 1]?.[0] as
+    | Record<string, unknown>
+    | undefined
+  expect(callArgs).toBeDefined()
+  expect(callArgs).toMatchObject(expected)
+}
+
+/** Asserts some graphql call matches the expected (partial) config. Uses typed expected objects instead of expect.objectContaining. */
+function expectGraphqlCalledWith(
+  mock: ReturnType<typeof vi.fn>,
+  expected: Record<string, unknown>
+): void {
+  const hasMatch = mock.mock.calls.some((call) => {
+    const args = call[0] as Record<string, unknown> | undefined
+    if (args === undefined || args === null || typeof args !== 'object')
+      return false
+    try {
+      expect(args).toMatchObject(expected)
+      return true
+    } catch {
+      return false
+    }
+  })
+  expect(hasMatch).toBe(true)
+}
+
 describe('PlayTablePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -106,7 +138,13 @@ describe('PlayTablePage', () => {
     mockGraphql.mockResolvedValue({
       data: {
         rollHistory: { items: [], nextToken: null },
-        playTable: { players: [] },
+        playTable: {
+          id: 'table-1',
+          gmUserId: 'gm-1',
+          inviteCode: 'ABC',
+          createdAt: '2024-01-01',
+          players: [],
+        },
       },
     })
   })
@@ -279,18 +317,15 @@ describe('PlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /leave table/i }))
 
     await waitFor(() => {
-      expect(mockGraphql).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          variables: { playTableId: 'table-1', playerId: 'p1' },
-        })
-      )
+      expectNthGraphqlCall(mockGraphql, 2, {
+        variables: { playTableId: 'table-1', playerId: 'p1' },
+      })
     })
     expect(mockClearStoredPlayer).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith('/dice', { replace: true })
   })
 
-  it('calls rollDice when player clicks roll d20', async () => {
+  it('calls createRoll when player clicks roll d20', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue({
       playerId: 'p1',
@@ -302,7 +337,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          rollDice: { rollId: 'r1', accepted: true },
+          createRoll: { id: 'r1' },
         },
       })
 
@@ -322,21 +357,21 @@ describe('PlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /roll d20/i }))
 
     await waitFor(() => {
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- expect.objectContaining matcher */
-      expect(mockGraphql).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          variables: expect.objectContaining({
-            playTableId: 'table-1',
-            input: expect.objectContaining({ diceType: 'd20', id: 'p1' }),
-          }),
-        })
-      )
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expectNthGraphqlCall(mockGraphql, 2, {
+        variables: {
+          playTableId: 'table-1',
+          playerId: 'p1',
+          input: {
+            diceNotation: 'd20',
+            modifier: 0,
+            isPrivate: false,
+          },
+        },
+      })
     })
   })
 
-  it('settles dice from subscription when rollId matches pending roll', async () => {
+  it('settles dice from subscription when id matches pending roll', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue({
       playerId: 'p1',
@@ -348,7 +383,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          rollDice: { rollId: 'r1', accepted: true },
+          createRoll: { id: 'r1' },
         },
       })
 
@@ -374,12 +409,18 @@ describe('PlayTablePage', () => {
     act(() => {
       subscriptionHandlers.onRollCompleted?.({
         data: {
-          onRollCompleted: {
-            rollId: 'r1',
+          rollCompleted: {
+            id: 'r1',
+            playTableId: 'table-1',
+            rollerId: 'p1',
+            rollNotation: 'd20',
+            type: null,
             values: [15],
             modifier: 2,
-            total: 17,
-            visibility: 'all',
+            rollResult: 17,
+            isPrivate: false,
+            rollRequestId: null,
+            createdAt: '2024-01-01',
           },
         },
       })
@@ -391,7 +432,7 @@ describe('PlayTablePage', () => {
     expect(screen.getByText(/Roll r1…: 17/)).toBeInTheDocument()
   })
 
-  it('adds to roll log but does not settle dice for non-matching rollId', async () => {
+  it('adds to roll log but does not settle dice for non-matching id', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue({
       playerId: 'p1',
@@ -403,7 +444,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          rollDice: { rollId: 'r1', accepted: true },
+          createRoll: { id: 'r1' },
         },
       })
 
@@ -429,12 +470,18 @@ describe('PlayTablePage', () => {
     act(() => {
       subscriptionHandlers.onRollCompleted?.({
         data: {
-          onRollCompleted: {
-            rollId: 'other-roll',
+          rollCompleted: {
+            id: 'other-roll',
+            playTableId: 'table-1',
+            rollerId: 'p2',
+            rollNotation: 'd20',
+            type: null,
             values: [10],
             modifier: 0,
-            total: 10,
-            visibility: 'all',
+            rollResult: 10,
+            isPrivate: false,
+            rollRequestId: null,
+            createdAt: '2024-01-01',
           },
         },
       })
@@ -446,7 +493,7 @@ describe('PlayTablePage', () => {
     expect(screen.getByRole('button', { name: /rolling/i })).toBeInTheDocument()
   })
 
-  it('updates initiative order when onInitiativeUpdated fires', async () => {
+  it('updates initiative order when initiativeUpdated fires', async () => {
     mockGetStoredPlayer.mockReturnValue(null)
     vi.mocked(getCurrentUser).mockResolvedValue({} as never)
     mockGraphql.mockResolvedValue({
@@ -468,23 +515,27 @@ describe('PlayTablePage', () => {
     act(() => {
       subscriptionHandlers.onInitiativeUpdated?.({
         data: {
-          onInitiativeUpdated: {
-            order: [
-              {
-                id: 'p1',
-                characterName: 'Alice',
-                value: 18,
-                modifier: 2,
-                total: 20,
-              },
-            ],
-          },
+          initiativeUpdated: [
+            {
+              id: 'r1',
+              playTableId: 'table-1',
+              rollerId: 'p1',
+              rollNotation: 'd20',
+              type: 'initiative',
+              values: [18],
+              modifier: 2,
+              rollResult: 20,
+              isPrivate: false,
+              rollRequestId: 'req-1',
+              createdAt: '2024-01-01',
+            },
+          ],
         },
       })
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/Alice: 20/)).toBeInTheDocument()
+      expect(screen.getByText(/p1: 20/)).toBeInTheDocument()
     })
   })
 
@@ -496,18 +547,35 @@ describe('PlayTablePage', () => {
       .mockResolvedValueOnce({
         data: {
           rollHistory: { items: [], nextToken: null },
-          playTable: { players: [] },
+          playTable: {
+            id: 'table-1',
+            gmUserId: 'gm-1',
+            inviteCode: 'ABC',
+            createdAt: '2024-01-01',
+            players: [],
+          },
         },
       })
       .mockResolvedValueOnce({
         data: {
           playTable: {
             id: 'table-1',
+            gmUserId: 'gm-1',
             inviteCode: 'ABC',
             createdAt: '2024-01-01',
             players: [
-              { id: 'p1', characterName: 'Alice', initiativeModifier: 2 },
-              { id: 'p2', characterName: 'Bob', initiativeModifier: -1 },
+              {
+                id: 'p1',
+                characterName: 'Alice',
+                initiativeModifier: 2,
+                createdAt: '2024-01-01',
+              },
+              {
+                id: 'p2',
+                characterName: 'Bob',
+                initiativeModifier: -1,
+                createdAt: '2024-01-01',
+              },
             ],
           },
         },
@@ -516,9 +584,12 @@ describe('PlayTablePage', () => {
         data: {
           createRollRequest: {
             id: 'req-1',
+            playTableId: 'table-1',
             targetPlayerIds: ['p1', 'p2'],
+            rollNotation: 'd20',
             type: 'initiative',
-            status: 'pending',
+            dc: null,
+            isPrivate: false,
             createdAt: '2024-01-01',
           },
         },
@@ -542,20 +613,15 @@ describe('PlayTablePage', () => {
     )
 
     await waitFor(() => {
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- expect.objectContaining returns asymmetric matcher */
-      expect(mockGraphql).toHaveBeenNthCalledWith(
-        3,
-        expect.objectContaining({
-          variables: expect.objectContaining({
-            playTableId: 'table-1',
-            input: expect.objectContaining({
-              targetPlayerIds: ['p1', 'p2'],
-              type: 'initiative',
-            }),
-          }),
-        })
-      )
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expectNthGraphqlCall(mockGraphql, 3, {
+        variables: {
+          playTableId: 'table-1',
+          input: {
+            targetPlayerIds: ['p1', 'p2'],
+            type: 'initiative',
+          },
+        },
+      })
     })
   })
 
@@ -581,15 +647,13 @@ describe('PlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /clear initiative/i }))
 
     await waitFor(() => {
-      expect(mockGraphql).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: { playTableId: 'table-1' },
-        })
-      )
+      expectGraphqlCalledWith(mockGraphql, {
+        variables: { playTableId: 'table-1' },
+      })
     })
   })
 
-  it('calls rollDice when GM clicks roll d20 (ad hoc)', async () => {
+  it('calls createRoll when GM clicks roll d20 (ad hoc)', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue(null)
     vi.mocked(getCurrentUser).mockResolvedValue({} as never)
@@ -599,7 +663,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          rollDice: { rollId: 'r1', accepted: true },
+          createRoll: { id: 'r1' },
         },
       })
 
@@ -619,17 +683,16 @@ describe('PlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /roll d20/i }))
 
     await waitFor(() => {
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- expect.objectContaining matcher */
-      expect(mockGraphql).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          variables: expect.objectContaining({
-            playTableId: 'table-1',
-            input: expect.objectContaining({ diceType: 'd20' }),
-          }),
-        })
-      )
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expectNthGraphqlCall(mockGraphql, 2, {
+        variables: {
+          playTableId: 'table-1',
+          input: {
+            diceNotation: 'd20',
+            modifier: 0,
+            isPrivate: false,
+          },
+        },
+      })
     })
   })
 
@@ -671,13 +734,13 @@ describe('PlayTablePage', () => {
                 id: 'r1',
                 playTableId: 'table-1',
                 rollerId: 'p1',
-                rollerType: 'player',
-                total: 15,
+                rollNotation: 'd20',
+                type: null,
                 values: [15],
                 modifier: 0,
-                dc: null,
-                success: null,
-                visibility: 'visible',
+                rollResult: 15,
+                isPrivate: false,
+                rollRequestId: null,
                 createdAt: '2024-01-01',
               },
             ],
@@ -710,17 +773,12 @@ describe('PlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /load more/i }))
 
     await waitFor(() => {
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- expect.objectContaining matcher */
-      expect(mockGraphql).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          variables: expect.objectContaining({
-            playTableId: 'table-1',
-            nextToken: 'token1',
-          }),
-        })
-      )
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expectNthGraphqlCall(mockGraphql, 2, {
+        variables: {
+          playTableId: 'table-1',
+          nextToken: 'token1',
+        },
+      })
     })
   })
 
@@ -758,7 +816,7 @@ describe('PlayTablePage', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  it('calls fulfillRollRequest when player clicks roll for initiative', async () => {
+  it('calls createRoll when player clicks roll for initiative', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue({
       playerId: 'p1',
@@ -770,7 +828,7 @@ describe('PlayTablePage', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          fulfillRollRequest: { rollId: 'r1', accepted: true },
+          createRoll: { id: 'r1' },
         },
       })
 
@@ -789,9 +847,15 @@ describe('PlayTablePage', () => {
     act(() => {
       subscriptionHandlers.onRollRequestCreated?.({
         data: {
-          onRollRequestCreated: {
+          rollRequestCreated: {
             id: 'req-1',
+            playTableId: 'table-1',
             targetPlayerIds: ['p1'],
+            rollNotation: 'd20',
+            type: 'initiative',
+            dc: null,
+            isPrivate: false,
+            createdAt: '2024-01-01',
           },
         },
       })
@@ -807,20 +871,22 @@ describe('PlayTablePage', () => {
     )
 
     await waitFor(() => {
-      expect(mockGraphql).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          variables: {
+      expectNthGraphqlCall(mockGraphql, 2, {
+        variables: {
+          playTableId: 'table-1',
+          playerId: 'p1',
+          input: {
             rollRequestId: 'req-1',
-            playTableId: 'table-1',
-            playerId: 'p1',
+            diceNotation: 'd20',
+            modifier: 0,
+            isPrivate: false,
           },
-        })
-      )
+        },
+      })
     })
   })
 
-  it('resets rolling state when rollDice rejects', async () => {
+  it('resets rolling state when createRoll rejects', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue({
       playerId: 'p1',
@@ -852,7 +918,7 @@ describe('PlayTablePage', () => {
     })
   })
 
-  it('resets rolling and sets cocked when GM ad hoc roll rejects', async () => {
+  it('resets rolling and sets cocked when GM ad hoc createRoll rejects', async () => {
     const user = userEvent.setup()
     mockGetStoredPlayer.mockReturnValue(null)
     vi.mocked(getCurrentUser).mockResolvedValue({} as never)

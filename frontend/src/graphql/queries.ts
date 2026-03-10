@@ -1,50 +1,41 @@
+import { playTableFragment, rollFragment } from './fragments'
+
 export const playTableByInviteCodeQuery = /* GraphQL */ `
   query PlayTableByInviteCode($inviteCode: String!) {
     playTableByInviteCode(inviteCode: $inviteCode) {
-      id
+      ...PlayTable
     }
   }
+  ${playTableFragment}
 `
 
 export const playTableQuery = /* GraphQL */ `
   query PlayTable($id: ID!) {
     playTable(id: $id) {
-      id
-      inviteCode
-      createdAt
-      players {
-        id
-        characterName
-        initiativeModifier
-      }
+      ...PlayTable
     }
   }
+  ${playTableFragment}
 `
 
 export const rollHistoryQuery = /* GraphQL */ `
-  query RollHistory($playTableId: ID!, $limit: Int, $nextToken: String) {
+  query RollHistory(
+    $playTableId: ID!
+    $playerId: ID
+    $limit: Int
+    $nextToken: String
+  ) {
     rollHistory(
       playTableId: $playTableId
+      playerId: $playerId
       limit: $limit
       nextToken: $nextToken
     ) {
       items {
-        id
-        playTableId
-        rollerId
-        rollerType
-        diceType
-        values
-        modifier
-        total
-        advantage
-        dc
-        success
-        visibility
-        rollRequestType
-        createdAt
+        ...Roll
       }
       nextToken
     }
   }
+  ${rollFragment}
 `

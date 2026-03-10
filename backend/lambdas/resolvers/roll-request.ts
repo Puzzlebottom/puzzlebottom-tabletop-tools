@@ -44,6 +44,10 @@ export const createRollRequest: AppSyncResolverHandler<
   const { playTableId, input } = event.arguments
   const { targetPlayerIds, type, dc, advantage, isPrivate = false } = input
 
+  if (!targetPlayerIds?.length) {
+    throw new Error('targetPlayerIds must not be empty')
+  }
+
   const playTableResult = await dynamo.send(
     new GetItemCommand({
       TableName: TABLE_NAME,

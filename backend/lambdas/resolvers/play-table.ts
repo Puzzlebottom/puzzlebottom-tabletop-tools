@@ -260,6 +260,7 @@ async function fetchPlayTableWithPlayers(playTableId: string) {
       }
       return {
         id: p.id,
+        playTableId: playTable.id,
         characterName: p.characterName,
         initiativeModifier: p.initiativeModifier,
       }

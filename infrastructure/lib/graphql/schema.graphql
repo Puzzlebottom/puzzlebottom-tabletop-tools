@@ -1,15 +1,4 @@
-enum RollerType {
-  gm
-  player
-}
-
-enum Visibility {
-  all
-  gm_only
-}
-
-enum RollRequestType {
-  ad_hoc
+enum RollType {
   initiative
 }
 
@@ -18,91 +7,45 @@ type PlayTable @aws_api_key @aws_cognito_user_pools {
   gmUserId: String!
   inviteCode: String!
   createdAt: String!
+  deletedAt: String
   players: [Player!]
 }
 
 type Player @aws_api_key @aws_cognito_user_pools {
   id: ID!
+  playTableId: ID
   characterName: String!
   initiativeModifier: Int!
+  createdAt: String!
+  deletedAt: String
 }
 
 type Roll @aws_api_key @aws_cognito_user_pools {
   id: ID!
   playTableId: ID!
   rollerId: String!
-  rollerType: RollerType!
-  diceType: String!
+  rollNotation: String!
+  type: RollType
   values: [Int!]!
   modifier: Int!
-  total: Int!
-  advantage: String
-  dc: Int
-  success: Boolean
-  visibility: Visibility!
-  rollRequestType: RollRequestType!
+  rollResult: Int!
+  isPrivate: Boolean!
   rollRequestId: ID
   createdAt: String!
-}
-
-type RollDiceResponse @aws_api_key @aws_cognito_user_pools {
-  rollId: ID!
-  accepted: Boolean!
-}
-
-type CreateRollRequestResponse @aws_api_key @aws_cognito_user_pools {
-  rollRequestId: ID!
-  accepted: Boolean!
-}
-
-type RollResult @aws_iam @aws_api_key @aws_cognito_user_pools {
-  playTableId: ID!
-  rollId: ID!
-  values: [Int!]!
-  modifier: Int!
-  total: Int!
-  advantage: String
-  dc: Int
-  success: Boolean
-  visibility: Visibility!
+  deletedAt: String
 }
 
 type RollRequest @aws_iam @aws_api_key @aws_cognito_user_pools {
   id: ID!
   playTableId: ID!
   targetPlayerIds: [String!]!
-  type: RollRequestType!
+  rolls: [Roll]!
+  rollNotation: String!
+  type: RollType!
   dc: Int
-  advantage: String
   isPrivate: Boolean!
-  status: String!
   createdAt: String!
-}
-
-type InitiativeEntry @aws_iam @aws_api_key @aws_cognito_user_pools {
-  id: ID!
-  characterName: String!
-  value: Int!
-  modifier: Int!
-  total: Int!
-}
-
-type InitiativeOrderUpdated @aws_iam @aws_api_key @aws_cognito_user_pools {
-  playTableId: ID!
-  order: [InitiativeEntry!]!
-}
-
-input InitiativeEntryInput {
-  id: ID!
-  characterName: String!
-  value: Int!
-  modifier: Int!
-  total: Int!
-}
-
-type JoinPlayTableResponse @aws_api_key @aws_cognito_user_pools {
-  id: ID!
-  playTableId: ID!
+  deletedAt: String
 }
 
 input JoinPlayTableInput {
@@ -110,49 +53,55 @@ input JoinPlayTableInput {
   initiativeModifier: Int!
 }
 
-input RollDiceInput {
-  id: String
-  diceType: String!
-  advantage: String
-  modifier: Int
-  dc: Int
-  visibility: String
+input CreateRollInput {
+  playerId: ID
   rollRequestId: ID
+  diceNotation: String!
+  modifier: Int!
+  isPrivate: Boolean!
 }
 
 input CreateRollRequestInput {
-  targetPlayerIds: [String!]!
-  type: RollRequestType!
+  targetPlayerIds: [ID!]!
+  type: RollType!
+  diceNotation: String!
   dc: Int
-  advantage: String
   isPrivate: Boolean
 }
 
-input NotifyRollRequestInput {
+input PublishRollRequestInput {
   id: ID!
   playTableId: ID!
   targetPlayerIds: [String!]!
-  type: RollRequestType!
+  rolls: [PublishRollInput]!
+  rollNotation: String!
+  type: RollType!
   dc: Int
-  advantage: String
   isPrivate: Boolean!
-  status: String!
   createdAt: String!
+  deletedAt: String
 }
 
-input RollResultInput {
+input PublishRollInput {
+  id: ID!
   playTableId: ID!
-  rollId: ID!
+  rollerId: String!
+  rollNotation: String!
+  type: RollType
   values: [Int!]!
   modifier: Int!
-  total: Int!
-  advantage: String
-  dc: Int
-  success: Boolean
-  visibility: Visibility!
+  rollResult: Int!
+  isPrivate: Boolean!
+  rollRequestId: ID
+  createdAt: String!
+  deletedAt: String
 }
 
-type RollConnection @aws_api_key @aws_cognito_user_pools {
+input PublishInitiativeUpdatedInput {
+  rolls: [PublishRollInput]!
+}
+
+type PaginatedRolls @aws_api_key @aws_cognito_user_pools {
   items: [Roll!]!
   nextToken: String
 }
@@ -162,55 +111,50 @@ type Query {
   playTableByInviteCode(inviteCode: String!): PlayTable
     @aws_api_key
     @aws_cognito_user_pools
-  rollHistory(playTableId: ID!, limit: Int, nextToken: String): RollConnection
-    @aws_api_key
-    @aws_cognito_user_pools
+  rollHistory(
+    playTableId: ID!
+    playerId: ID
+    limit: Int
+    nextToken: String
+  ): PaginatedRolls @aws_api_key @aws_cognito_user_pools
 }
 
 type Mutation {
   createPlayTable: PlayTable!
-  joinPlayTable(
-    inviteCode: String!
-    input: JoinPlayTableInput!
-  ): JoinPlayTableResponse! @aws_api_key @aws_cognito_user_pools
+  joinPlayTable(inviteCode: String!, input: JoinPlayTableInput!): PlayTable!
+    @aws_api_key
+    @aws_cognito_user_pools
   leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
     @aws_api_key
     @aws_cognito_user_pools
-  rollDice(playTableId: ID!, input: RollDiceInput!): RollDiceResponse!
+  createRoll(playTableId: ID!, playerId: ID, input: CreateRollInput!): Roll!
     @aws_api_key
     @aws_cognito_user_pools
   createRollRequest(
     playTableId: ID!
     input: CreateRollRequestInput!
-  ): CreateRollRequestResponse!
-  fulfillRollRequest(
-    rollRequestId: ID!
-    playTableId: ID!
-    playerId: String!
-  ): RollDiceResponse! @aws_api_key @aws_cognito_user_pools
+  ): RollRequest!
   clearInitiative(playTableId: ID!): Boolean!
-  notifyRollCompleted(input: RollResultInput!): RollResult! @aws_iam
-  notifyRollRequestCreated(input: NotifyRollRequestInput!): RollRequest!
+  publishRollCompleted(input: PublishRollInput!): Roll! @aws_iam
+  publishRollRequestCreated(input: PublishRollRequestInput!): RollRequest!
     @aws_iam
-  notifyInitiativeUpdated(
-    playTableId: ID!
-    order: [InitiativeEntryInput!]!
-  ): InitiativeOrderUpdated!
+  publishInitiativeUpdated(input: PublishInitiativeUpdatedInput!): [Roll]!
+    @aws_iam
 }
 
 type Subscription {
-  onRollCompleted(playTableId: ID!): RollResult
-    @aws_subscribe(mutations: ["notifyRollCompleted"])
+  rollCompleted(playTableId: ID!): Roll
+    @aws_subscribe(mutations: ["publishRollCompleted"])
     @aws_iam
     @aws_api_key
     @aws_cognito_user_pools
-  onRollRequestCreated(playTableId: ID!): RollRequest
-    @aws_subscribe(mutations: ["notifyRollRequestCreated"])
+  rollRequestCreated(playTableId: ID!): RollRequest
+    @aws_subscribe(mutations: ["publishRollRequestCreated"])
     @aws_iam
     @aws_api_key
     @aws_cognito_user_pools
-  onInitiativeUpdated(playTableId: ID!): InitiativeOrderUpdated
-    @aws_subscribe(mutations: ["notifyInitiativeUpdated"])
+  initiativeUpdated(playTableId: ID!): [Roll]!
+    @aws_subscribe(mutations: ["publishInitiativeUpdated"])
     @aws_iam
     @aws_api_key
     @aws_cognito_user_pools

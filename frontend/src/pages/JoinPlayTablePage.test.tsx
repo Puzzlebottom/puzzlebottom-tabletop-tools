@@ -65,8 +65,18 @@ describe('JoinPlayTablePage', () => {
         return Promise.resolve({
           data: {
             joinPlayTable: {
-              id: 'player-123',
-              playTableId: 'table-456',
+              id: 'table-456',
+              gmUserId: 'gm-1',
+              inviteCode: 'ABC123',
+              createdAt: '2024-01-01',
+              players: [
+                {
+                  id: 'player-123',
+                  characterName: 'Test Character',
+                  initiativeModifier: 0,
+                  createdAt: '2024-01-01',
+                },
+              ],
             },
           },
         })
@@ -374,8 +384,18 @@ describe('JoinPlayTablePage', () => {
         return Promise.resolve({
           data: {
             joinPlayTable: {
-              id: 'player-123',
-              playTableId: 'table-456',
+              id: 'table-456',
+              gmUserId: 'gm-1',
+              inviteCode: 'ABC123',
+              createdAt: '2024-01-01',
+              players: [
+                {
+                  id: 'player-123',
+                  characterName: 'Test',
+                  initiativeModifier: 0,
+                  createdAt: '2024-01-01',
+                },
+              ],
             },
           },
         })
@@ -433,7 +453,14 @@ describe('JoinPlayTablePage', () => {
       (args: { query?: string }): Promise<unknown> => {
         if (args.query?.includes('PlayTableByInviteCode')) {
           return Promise.resolve({
-            data: { playTableByInviteCode: { id: 'table-456' } },
+            data: {
+              playTableByInviteCode: {
+                id: 'table-456',
+                gmUserId: 'gm-1',
+                inviteCode: 'ABC123',
+                createdAt: '2024-01-01',
+              },
+            },
           })
         }
         return Promise.resolve({ data: { playTableByInviteCode: null } })
