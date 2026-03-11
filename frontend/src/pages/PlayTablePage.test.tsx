@@ -31,7 +31,7 @@ vi.mock('../lib/player-storage', () => {
       mockGetStoredPlayer() as unknown as StoredPlayer,
     clearStoredPlayer: (...args: unknown[]) => mockClearStoredPlayer(...args),
   }
-  /* eslint-enable @typescript-eslint/no-unsafe-return */
+  // eslint-enable @typescript-eslint/no-unsafe-return
 })
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -69,7 +69,7 @@ vi.mock('aws-amplify/api', () => ({
           },
         }
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- test mock passthrough
+
       return mockGraphql(config)
     },
   }),
@@ -97,9 +97,8 @@ vi.mock('@aws-amplify/ui-react', () => ({
 
 const { getCurrentUser } = await import('aws-amplify/auth')
 
-/** Asserts the nth graphql call matches the expected (partial) config. Uses typed expected objects instead of expect.objectContaining. */
 function expectNthGraphqlCall(
-  mock: ReturnType<typeof vi.fn>,
+  mock: { mock: { calls: unknown[][] } },
   n: number,
   expected: Record<string, unknown>
 ): void {
@@ -110,9 +109,8 @@ function expectNthGraphqlCall(
   expect(callArgs).toMatchObject(expected)
 }
 
-/** Asserts some graphql call matches the expected (partial) config. Uses typed expected objects instead of expect.objectContaining. */
 function expectGraphqlCalledWith(
-  mock: ReturnType<typeof vi.fn>,
+  mock: { mock: { calls: unknown[][] } },
   expected: Record<string, unknown>
 ): void {
   const hasMatch = mock.mock.calls.some((call) => {

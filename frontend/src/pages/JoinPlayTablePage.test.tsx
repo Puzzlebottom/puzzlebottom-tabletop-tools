@@ -108,7 +108,6 @@ describe('JoinPlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /Join/ }))
 
     await waitFor(() => {
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- Vitest matchers */
       expect(mockGraphql).toHaveBeenCalledWith(
         expect.objectContaining({
           variables: {
@@ -122,7 +121,6 @@ describe('JoinPlayTablePage', () => {
           apiKey: expect.any(String),
         })
       )
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     })
     await waitFor(() => {
       expect(mockStorePlayer).toHaveBeenCalledWith('player-123', 'table-456')
@@ -157,14 +155,12 @@ describe('JoinPlayTablePage', () => {
     await waitFor(() => {
       expect(screen.getByText('Character name is required')).toBeInTheDocument()
     })
-    /* eslint-disable @typescript-eslint/no-unsafe-assignment -- Vitest matchers */
     expect(mockGraphql).not.toHaveBeenCalledWith(
       expect.objectContaining({
         query: expect.stringContaining('JoinPlayTable'),
       }),
       expect.anything()
     )
-    /* eslint-enable @typescript-eslint/no-unsafe-assignment */
   })
 
   it('shows error when invite code is empty', async () => {
@@ -428,19 +424,15 @@ describe('JoinPlayTablePage', () => {
     await user.click(screen.getByRole('button', { name: /Join/ }))
 
     await waitFor(() => {
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- Vitest matchers */
       expect(mockGraphql).toHaveBeenCalledWith(
         expect.objectContaining({
           variables: expect.objectContaining({
-            input: expect.objectContaining({
-              initiativeModifier: 0,
-            }),
+            input: expect.objectContaining({ initiativeModifier: 0 }),
           }),
           authMode: 'apiKey',
           apiKey: expect.any(String),
         })
       )
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     })
   })
 

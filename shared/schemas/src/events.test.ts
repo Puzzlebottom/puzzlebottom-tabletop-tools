@@ -23,12 +23,13 @@ describe('EventBridgeEnvelopeSchema', () => {
     detail: {
       playTableId: 'pt-1',
       rollId: 'roll-1',
-      rollRequestType: 'ad_hoc',
       rollerId: 'gm',
-      rollerType: 'gm',
+      rollNotation: 'd20',
       values: [10],
       modifier: 0,
-      total: 10,
+      rollResult: 10,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     },
   }
 
@@ -67,65 +68,46 @@ describe('EventBridgeEnvelopeSchema', () => {
 })
 
 describe('RollCompletedDetailSchema', () => {
+  const validDetail = {
+    playTableId: 'pt-1',
+    rollId: 'roll-1',
+    rollerId: 'gm-sub',
+    rollNotation: 'd20',
+    values: [15],
+    modifier: 3,
+    rollResult: 18,
+    isPrivate: false,
+    createdAt: '2025-01-01T00:00:00.000Z',
+  }
+
   it('accepts valid detail with required fields only', () => {
-    const detail = {
-      playTableId: 'pt-1',
-      rollId: 'roll-1',
-      rollRequestType: 'ad_hoc' as const,
-      rollerId: 'gm-sub',
-      rollerType: 'gm' as const,
-      values: [15],
-      modifier: 3,
-      total: 18,
-    }
-    expect(RollCompletedDetailSchema.safeParse(detail).success).toBe(true)
+    expect(RollCompletedDetailSchema.safeParse(validDetail).success).toBe(true)
   })
 
   it('accepts valid detail with optional fields', () => {
     const detail = {
-      playTableId: 'pt-1',
-      rollId: 'roll-1',
+      ...validDetail,
       rollRequestId: 'rr-1',
-      rollRequestType: 'initiative' as const,
-      rollerId: 'pk-1',
-      rollerType: 'player' as const,
-      values: [12],
-      modifier: 3,
-      total: 15,
-      advantage: 'advantage' as const,
-      dc: 14,
-      success: true,
+      type: 'initiative' as const,
+      deletedAt: null,
     }
     expect(RollCompletedDetailSchema.safeParse(detail).success).toBe(true)
   })
 
-  it('rejects invalid rollRequestType', () => {
+  it('rejects invalid type', () => {
     expect(
       RollCompletedDetailSchema.safeParse({
-        playTableId: 'pt-1',
-        rollId: 'roll-1',
-        rollRequestType: 'invalid',
-        rollerId: 'gm',
-        rollerType: 'gm',
-        values: [10],
-        modifier: 0,
-        total: 10,
+        ...validDetail,
+        type: 'invalid',
       }).success
     ).toBe(false)
   })
 
-  it('rejects invalid rollerType', () => {
+  it('rejects missing required fields', () => {
+    const { rollNotation, ...withoutRollNotation } = validDetail
+    void rollNotation
     expect(
-      RollCompletedDetailSchema.safeParse({
-        playTableId: 'pt-1',
-        rollId: 'roll-1',
-        rollRequestType: 'ad_hoc',
-        rollerId: 'gm',
-        rollerType: 'npc',
-        values: [10],
-        modifier: 0,
-        total: 10,
-      }).success
+      RollCompletedDetailSchema.safeParse(withoutRollNotation).success
     ).toBe(false)
   })
 })
@@ -222,12 +204,13 @@ describe('EventDetailSchema', () => {
       detail: {
         playTableId: 'pt-1',
         rollId: 'roll-1',
-        rollRequestType: 'ad_hoc' as const,
         rollerId: 'gm',
-        rollerType: 'gm' as const,
+        rollNotation: 'd20',
         values: [10],
         modifier: 0,
-        total: 10,
+        rollResult: 10,
+        isPrivate: false,
+        createdAt: '2025-01-01T00:00:00.000Z',
       },
     }
     expect(EventDetailSchema.safeParse(event).success).toBe(true)
@@ -293,20 +276,21 @@ describe('parseEventDetail', () => {
       detail: {
         playTableId: 'pt-1',
         rollId: 'roll-1',
-        rollRequestType: 'initiative',
+        type: 'initiative' as const,
         rollerId: 'pk-1',
-        rollerType: 'player',
+        rollNotation: 'd20',
         values: [18],
         modifier: 3,
-        total: 21,
+        rollResult: 21,
+        isPrivate: false,
+        createdAt: '2025-01-01T00:00:00.000Z',
       },
     }
     const result = parseEventDetail(envelope)
-    expect(result.detailType).toBe(DETAIL_TYPE_ROLL_COMPLETED)
-    if (result.detailType === DETAIL_TYPE_ROLL_COMPLETED) {
-      expect(result.detail.rollId).toBe('roll-1')
-      expect(result.detail.values).toEqual([18])
-    }
+    expect(result).toMatchObject({
+      detailType: DETAIL_TYPE_ROLL_COMPLETED,
+      detail: { rollId: 'roll-1', values: [18] },
+    })
   })
 
   it('parses PlayerLeft envelope', () => {
@@ -318,10 +302,10 @@ describe('parseEventDetail', () => {
       detail: { playTableId: 'pt-1', id: 'pk-1' },
     }
     const result = parseEventDetail(envelope)
-    expect(result.detailType).toBe(DETAIL_TYPE_PLAYER_LEFT)
-    if (result.detailType === DETAIL_TYPE_PLAYER_LEFT) {
-      expect(result.detail.id).toBe('pk-1')
-    }
+    expect(result).toMatchObject({
+      detailType: DETAIL_TYPE_PLAYER_LEFT,
+      detail: { id: 'pk-1' },
+    })
   })
 
   it('parses PlayerJoined envelope', () => {
@@ -338,10 +322,10 @@ describe('parseEventDetail', () => {
       },
     }
     const result = parseEventDetail(envelope)
-    expect(result.detailType).toBe(DETAIL_TYPE_PLAYER_JOINED)
-    if (result.detailType === DETAIL_TYPE_PLAYER_JOINED) {
-      expect(result.detail.characterName).toBe('Aragorn')
-    }
+    expect(result).toMatchObject({
+      detailType: DETAIL_TYPE_PLAYER_JOINED,
+      detail: { characterName: 'Aragorn' },
+    })
   })
 
   it('parses RollRequestCompleted envelope', () => {
@@ -364,11 +348,13 @@ describe('parseEventDetail', () => {
       },
     }
     const result = parseEventDetail(envelope)
-    expect(result.detailType).toBe(DETAIL_TYPE_ROLL_REQUEST_COMPLETED)
-    if (result.detailType === DETAIL_TYPE_ROLL_REQUEST_COMPLETED) {
-      expect(result.detail.rollRequestId).toBe('rr-1')
-      expect(result.detail.playerIds).toEqual(['pk-1', 'pk-2'])
-    }
+    expect(result).toMatchObject({
+      detailType: DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
+      detail: {
+        rollRequestId: 'rr-1',
+        playerIds: ['pk-1', 'pk-2'],
+      },
+    })
   })
 
   it('throws for unknown detail-type', () => {

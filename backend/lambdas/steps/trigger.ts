@@ -71,7 +71,7 @@ export const handler: SQSHandler = async (event) => {
             )
             continue
           }
-          if (detailResult.data.rollRequestType !== 'initiative') {
+          if (detailResult.data.type !== 'initiative') {
             continue
           }
           await lambdaClient.send(

@@ -38,6 +38,7 @@
     "@graphql-codegen/typescript": "^5.0.0",
     "@graphql-codegen/typescript-operations": "^5.0.0",
     "@vitest/coverage-v8": "^4.0.0",
+    "@vitest/eslint-plugin": "^1.6.10",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-boundaries": "^5.4.0",

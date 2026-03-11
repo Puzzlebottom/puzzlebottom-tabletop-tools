@@ -81,7 +81,6 @@ describe('CreatePlayTablePage', () => {
 
     expect(mockGraphql).toHaveBeenCalledWith(
       expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Vitest matchers
         query: expect.stringContaining('CreatePlayTable'),
       })
     )

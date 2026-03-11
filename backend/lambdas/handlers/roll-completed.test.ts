@@ -96,12 +96,14 @@ describe('roll-completed handler', () => {
       playTableId: 'pt-1',
       rollId: 'roll-2',
       rollRequestId: 'rr-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p2',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
@@ -134,12 +136,14 @@ describe('roll-completed handler', () => {
       playTableId: 'pt-1',
       rollId: 'roll-1',
       rollRequestId: 'rr-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p2',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [12],
       modifier: 1,
-      total: 13,
+      rollResult: 13,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
@@ -152,12 +156,14 @@ describe('roll-completed handler', () => {
     const event = {
       playTableId: 'pt-1',
       rollId: 'roll-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p1',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
 
     await expect(
@@ -173,12 +179,14 @@ describe('roll-completed handler', () => {
       playTableId: 'pt-1',
       rollId: 'roll-1',
       rollRequestId: 'rr-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p1',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
@@ -202,12 +210,14 @@ describe('roll-completed handler', () => {
       playTableId: 'pt-1',
       rollId: 'roll-1',
       rollRequestId: 'rr-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p1',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
@@ -232,12 +242,14 @@ describe('roll-completed handler', () => {
       playTableId: 'pt-1',
       rollId: 'roll-1',
       rollRequestId: 'rr-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p3',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
@@ -262,12 +274,14 @@ describe('roll-completed handler', () => {
       playTableId: 'pt-1',
       rollId: 'roll-1',
       rollRequestId: 'rr-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p1',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())

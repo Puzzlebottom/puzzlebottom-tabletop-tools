@@ -232,8 +232,7 @@ export function PlayTablePage() {
         ...playerAuth(),
       })
       clearStoredPlayer()
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- navigate may return Promise; we intentionally fire-and-forget
-      navigate('/dice', { replace: true })
+      void navigate('/dice', { replace: true })
     } catch {
       setLeaving(false)
     }

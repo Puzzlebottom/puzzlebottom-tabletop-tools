@@ -72,12 +72,14 @@ describe('trigger handler (dispatcher)', () => {
     const detail = {
       playTableId: 'pt-1',
       rollId: 'roll-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p1',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
     const event = createSqsEvent([
       JSON.stringify({
@@ -102,16 +104,17 @@ describe('trigger handler (dispatcher)', () => {
     expect(JSON.parse(invokeParams?.Payload as string)).toEqual(detail)
   })
 
-  it('skips ad_hoc RollCompleted (no handler invocation)', async () => {
+  it('skips RollCompleted without type initiative (no handler invocation)', async () => {
     const detail = {
       playTableId: 'pt-1',
       rollId: 'roll-1',
-      rollRequestType: 'ad_hoc' as const,
       rollerId: 'p1',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
     const event = createSqsEvent([
       JSON.stringify({
@@ -252,12 +255,14 @@ describe('trigger handler (dispatcher)', () => {
     const detail = {
       playTableId: 'pt-1',
       rollId: 'roll-1',
-      rollRequestType: 'initiative' as const,
+      type: 'initiative' as const,
       rollerId: 'p1',
-      rollerType: 'player' as const,
+      rollNotation: 'd20',
       values: [15],
       modifier: 2,
-      total: 17,
+      rollResult: 17,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
     }
     const event = createSqsEvent([
       JSON.stringify({

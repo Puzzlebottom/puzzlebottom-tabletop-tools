@@ -111,7 +111,6 @@ describe('player-left handler', () => {
     expect(mockSfnSend).toHaveBeenCalledTimes(1)
     expect(mockSfnSend).toHaveBeenCalledWith(
       expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- vitest matcher
         input: expect.objectContaining({
           taskToken: 'token-123',
         }),

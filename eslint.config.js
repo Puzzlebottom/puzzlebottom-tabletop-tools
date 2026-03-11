@@ -6,6 +6,7 @@ const react = require('eslint-plugin-react')
 const reactHooks = require('eslint-plugin-react-hooks')
 const prettier = require('eslint-plugin-prettier')
 const simpleImportSort = require('eslint-plugin-simple-import-sort')
+const vitest = require('@vitest/eslint-plugin')
 const prettierConfig = require('eslint-config-prettier/flat')
 
 module.exports = tseslint.config(
@@ -17,7 +18,6 @@ module.exports = tseslint.config(
       '**/cdk.out/**',
       '**/coverage/**',
       '**/*.min.js',
-      '**/generated.ts',
       'eslint.config.js',
       'commitlint.config.js',
       '**/vitest.config.ts',
@@ -166,7 +166,6 @@ module.exports = tseslint.config(
       'frontend/src/components/DiceRollerScene.tsx',
     ],
     rules: {
-      '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
@@ -186,11 +185,57 @@ module.exports = tseslint.config(
     },
   },
 
+  // Test files: Vitest plugin + relax no-unsafe-assignment for expect.any(), expect.objectContaining, etc.
+  {
+    files: [
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      '**/test/**/*.ts',
+      '**/test/**/*.tsx',
+    ],
+    plugins: { vitest },
+    rules: {
+      ...vitest.configs.recommended.rules,
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+    },
+  },
+
+  // Infrastructure CDK tests: use Template assertions, not expect()
+  {
+    files: ['infrastructure/**/*.test.ts'],
+    rules: {
+      'vitest/expect-expect': 'off',
+    },
+  },
+
   // Test setup: ResizeObserver mock needs empty methods
   {
     files: ['frontend/src/test/setup.ts'],
     rules: {
       '@typescript-eslint/no-empty-function': 'off',
+    },
+  },
+
+  // Lambda dispatcher: console is intentional for CloudWatch logging
+  {
+    files: ['backend/lambdas/steps/trigger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // Generated code: relax rules so it can be loaded for type resolution without failing lint
+  {
+    files: ['**/generated.ts'],
+    extends: [tseslint.configs.disableTypeChecked],
+    rules: {
+      '@typescript-eslint/consistent-indexed-object-style': 'off',
+      '@typescript-eslint/consistent-type-definitions': 'off',
+      '@typescript-eslint/array-type': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   }
 )

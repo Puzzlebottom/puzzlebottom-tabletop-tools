@@ -17,20 +17,20 @@ export type EventDetailType =
   | typeof DETAIL_TYPE_PLAYER_LEFT
   | typeof DETAIL_TYPE_PLAYER_JOINED
 
-/** RollCompleted event detail (from rollDice / fulfillRollRequest Lambda). */
+/** RollCompleted event detail (from createRoll / roll pipeline). Aligns with GraphQL Roll type. */
 export const RollCompletedDetailSchema = z.object({
   playTableId: z.string(),
   rollId: z.string(),
-  rollRequestId: z.string().optional(),
-  rollRequestType: z.enum(['ad_hoc', 'initiative']),
+  rollRequestId: z.string().nullish(),
+  type: z.enum(['initiative']).nullish(),
   rollerId: z.string(),
-  rollerType: z.enum(['gm', 'player']),
-  values: z.array(z.number()).min(1),
+  rollNotation: z.string(),
+  values: z.array(z.number()),
   modifier: z.number(),
-  total: z.number(),
-  advantage: z.enum(['advantage', 'disadvantage']).nullable().optional(),
-  dc: z.number().nullable().optional(),
-  success: z.boolean().nullable().optional(),
+  rollResult: z.number(),
+  isPrivate: z.boolean(),
+  createdAt: z.string(),
+  deletedAt: z.string().nullish(),
 })
 
 export type RollCompletedDetail = z.infer<typeof RollCompletedDetailSchema>

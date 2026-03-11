@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createAppSyncEvent } from '../../test/appsync-event.js'
