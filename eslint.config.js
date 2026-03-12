@@ -234,10 +234,14 @@ module.exports = tseslint.config(
     },
   },
 
-  // Node.js scripts (compose-schema, compose-events)
+  // Node.js scripts (compose-schema, compose-events): plain JS, no type info
   {
     files: ['scripts/**/*.mjs'],
     languageOptions: {
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
       globals: {
         console: 'readonly',
         process: 'readonly',
@@ -247,6 +251,14 @@ module.exports = tseslint.config(
         require: 'readonly',
         Buffer: 'readonly',
       },
+    },
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-enum-comparison': 'off',
     },
   }
 )

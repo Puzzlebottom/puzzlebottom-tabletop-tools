@@ -1,6 +1,3 @@
-# PlayTable module schema
-# Composition order: play-table first, then dice-roller
-
 type PlayTable @aws_api_key @aws_cognito_user_pools {
   id: ID!
   gmUserId: String!
@@ -23,44 +20,24 @@ input JoinPlayTableInput {
   characterName: String!
   initiativeModifier: Int!
 }
+
 type Query {
   playTable(id: ID!): PlayTable
-  playTableByInviteCode(inviteCode: String!): PlayTable
-    @aws_api_key
-    @aws_cognito_user_pools
-  rollHistory(
-    playTableId: ID!
-    playerId: ID
-    limit: Int
-    nextToken: String
-  ): PaginatedRolls @aws_api_key @aws_cognito_user_pools
+  playTableByInviteCode(inviteCode: String!): PlayTable @aws_api_key @aws_cognito_user_pools
+  rollHistory(playTableId: ID!, playerId: ID, limit: Int, nextToken: String): PaginatedRolls @aws_api_key @aws_cognito_user_pools
 }
+
 type Mutation {
   createPlayTable: PlayTable!
-  joinPlayTable(inviteCode: String!, input: JoinPlayTableInput!): PlayTable!
-    @aws_api_key
-    @aws_cognito_user_pools
-  leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
-    @aws_api_key
-    @aws_cognito_user_pools
-  createRoll(playTableId: ID!, playerId: ID, input: CreateRollInput!): Roll!
-    @aws_api_key
-    @aws_cognito_user_pools
-  createRollRequest(
-    playTableId: ID!
-    input: CreateRollRequestInput!
-  ): RollRequest!
+  joinPlayTable(inviteCode: String!, input: JoinPlayTableInput!): PlayTable! @aws_api_key @aws_cognito_user_pools
+  leavePlayTable(playTableId: ID!, playerId: String!): Boolean! @aws_api_key @aws_cognito_user_pools
+  createRoll(playTableId: ID!, playerId: ID, input: CreateRollInput!): Roll! @aws_api_key @aws_cognito_user_pools
+  createRollRequest(playTableId: ID!, input: CreateRollRequestInput!): RollRequest!
   clearInitiative(playTableId: ID!): Boolean!
   publishRollCompleted(input: PublishRollInput!): Roll! @aws_iam
-  publishRollRequestCreated(input: PublishRollRequestInput!): RollRequest!
-    @aws_iam
-  publishInitiativeUpdated(input: PublishInitiativeUpdatedInput!): [Roll]!
-    @aws_iam
+  publishRollRequestCreated(input: PublishRollRequestInput!): RollRequest! @aws_iam
+  publishInitiativeUpdated(input: PublishInitiativeUpdatedInput!): [Roll]! @aws_iam
 }
-
-
-# DiceRoller module schema
-# Extends play-table; PlayTable and Player types referenced for rollHistory
 
 enum RollType {
   initiative
@@ -146,20 +123,15 @@ type PaginatedRolls @aws_api_key @aws_cognito_user_pools {
   items: [Roll!]!
   nextToken: String
 }
+
 type Subscription {
-  rollCompleted(playTableId: ID!): Roll
-    @aws_subscribe(mutations: ["publishRollCompleted"])
-    @aws_iam
-    @aws_api_key
-    @aws_cognito_user_pools
-  rollRequestCreated(playTableId: ID!): RollRequest
-    @aws_subscribe(mutations: ["publishRollRequestCreated"])
-    @aws_iam
-    @aws_api_key
-    @aws_cognito_user_pools
-  initiativeUpdated(playTableId: ID!): [Roll]!
-    @aws_subscribe(mutations: ["publishInitiativeUpdated"])
-    @aws_iam
-    @aws_api_key
-    @aws_cognito_user_pools
+  rollCompleted(playTableId: ID!): Roll @aws_subscribe(mutations: ["publishRollCompleted"]) @aws_iam @aws_api_key @aws_cognito_user_pools
+  rollRequestCreated(playTableId: ID!): RollRequest @aws_subscribe(mutations: ["publishRollRequestCreated"]) @aws_iam @aws_api_key @aws_cognito_user_pools
+  initiativeUpdated(playTableId: ID!): [Roll]! @aws_subscribe(mutations: ["publishInitiativeUpdated"]) @aws_iam @aws_api_key @aws_cognito_user_pools
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
 }
