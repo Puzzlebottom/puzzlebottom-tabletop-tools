@@ -12,7 +12,7 @@ import {
   PlayerLeftDetailSchema,
   RollCompletedDetailSchema,
   RollRequestCompletedDetailSchema,
-} from './events'
+} from './events/index.js'
 
 describe('EventBridgeEnvelopeSchema', () => {
   const validEnvelope = {
@@ -198,69 +198,65 @@ describe('PlayerJoinedDetailSchema', () => {
 })
 
 describe('EventDetailSchema', () => {
-  it('accepts RollCompleted', () => {
+  it('accepts RollCompletedDetail', () => {
     const event = {
-      detailType: DETAIL_TYPE_ROLL_COMPLETED,
-      detail: {
-        playTableId: 'pt-1',
-        rollId: 'roll-1',
-        rollerId: 'gm',
-        rollNotation: 'd20',
-        values: [10],
-        modifier: 0,
-        rollResult: 10,
-        isPrivate: false,
-        createdAt: '2025-01-01T00:00:00.000Z',
+      __typename: 'RollCompletedDetail' as const,
+      playTableId: 'pt-1',
+      rollId: 'roll-1',
+      rollerId: 'gm',
+      rollNotation: 'd20',
+      values: [10],
+      modifier: 0,
+      rollResult: 10,
+      isPrivate: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
+    }
+    expect(EventDetailSchema.safeParse(event).success).toBe(true)
+  })
+
+  it('accepts PlayerLeftDetail', () => {
+    const event = {
+      __typename: 'PlayerLeftDetail' as const,
+      playTableId: 'pt-1',
+      id: 'pk-1',
+    }
+    expect(EventDetailSchema.safeParse(event).success).toBe(true)
+  })
+
+  it('accepts PlayerJoinedDetail', () => {
+    const event = {
+      __typename: 'PlayerJoinedDetail' as const,
+      playTableId: 'pt-1',
+      id: 'pk-1',
+      characterName: 'Gandalf',
+      initiativeModifier: 3,
+    }
+    expect(EventDetailSchema.safeParse(event).success).toBe(true)
+  })
+
+  it('accepts RollRequestCompletedDetail', () => {
+    const event = {
+      __typename: 'RollRequestCompletedDetail' as const,
+      playTableId: 'pt-1',
+      rollRequestId: 'rr-1',
+      type: 'initiative' as const,
+      timestamps: {
+        createdAt: '2024-01-01T00:00:00Z',
+        completedAt: '2024-01-01T00:01:00Z',
       },
+      playerIds: ['pk-1', 'pk-2'],
+      rollIds: ['roll-1', 'roll-2'],
+      initiatedBy: 'gm-sub',
     }
     expect(EventDetailSchema.safeParse(event).success).toBe(true)
   })
 
-  it('accepts PlayerLeft', () => {
-    const event = {
-      detailType: DETAIL_TYPE_PLAYER_LEFT,
-      detail: { playTableId: 'pt-1', id: 'pk-1' },
-    }
-    expect(EventDetailSchema.safeParse(event).success).toBe(true)
-  })
-
-  it('accepts PlayerJoined', () => {
-    const event = {
-      detailType: DETAIL_TYPE_PLAYER_JOINED,
-      detail: {
-        playTableId: 'pt-1',
-        id: 'pk-1',
-        characterName: 'Gandalf',
-        initiativeModifier: 3,
-      },
-    }
-    expect(EventDetailSchema.safeParse(event).success).toBe(true)
-  })
-
-  it('accepts RollRequestCompleted', () => {
-    const event = {
-      detailType: DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
-      detail: {
-        playTableId: 'pt-1',
-        rollRequestId: 'rr-1',
-        type: 'initiative' as const,
-        timestamps: {
-          createdAt: '2024-01-01T00:00:00Z',
-          completedAt: '2024-01-01T00:01:00Z',
-        },
-        playerIds: ['pk-1', 'pk-2'],
-        rollIds: ['roll-1', 'roll-2'],
-        initiatedBy: 'gm-sub',
-      },
-    }
-    expect(EventDetailSchema.safeParse(event).success).toBe(true)
-  })
-
-  it('rejects unknown detailType', () => {
+  it('rejects unknown __typename', () => {
     expect(
       EventDetailSchema.safeParse({
-        detailType: 'UnknownEvent',
-        detail: {},
+        __typename: 'UnknownEvent',
+        playTableId: 'pt-1',
+        id: 'pk-1',
       }).success
     ).toBe(false)
   })
@@ -288,8 +284,9 @@ describe('parseEventDetail', () => {
     }
     const result = parseEventDetail(envelope)
     expect(result).toMatchObject({
-      detailType: DETAIL_TYPE_ROLL_COMPLETED,
-      detail: { rollId: 'roll-1', values: [18] },
+      __typename: 'RollCompletedDetail',
+      rollId: 'roll-1',
+      values: [18],
     })
   })
 
@@ -303,8 +300,8 @@ describe('parseEventDetail', () => {
     }
     const result = parseEventDetail(envelope)
     expect(result).toMatchObject({
-      detailType: DETAIL_TYPE_PLAYER_LEFT,
-      detail: { id: 'pk-1' },
+      __typename: 'PlayerLeftDetail',
+      id: 'pk-1',
     })
   })
 
@@ -323,8 +320,8 @@ describe('parseEventDetail', () => {
     }
     const result = parseEventDetail(envelope)
     expect(result).toMatchObject({
-      detailType: DETAIL_TYPE_PLAYER_JOINED,
-      detail: { characterName: 'Aragorn' },
+      __typename: 'PlayerJoinedDetail',
+      characterName: 'Aragorn',
     })
   })
 
@@ -344,16 +341,13 @@ describe('parseEventDetail', () => {
         },
         playerIds: ['pk-1', 'pk-2'],
         rollIds: ['roll-1', 'roll-2'],
-        initiatedBy: 'gm-sub',
       },
     }
     const result = parseEventDetail(envelope)
     expect(result).toMatchObject({
-      detailType: DETAIL_TYPE_ROLL_REQUEST_COMPLETED,
-      detail: {
-        rollRequestId: 'rr-1',
-        playerIds: ['pk-1', 'pk-2'],
-      },
+      __typename: 'RollRequestCompletedDetail',
+      rollRequestId: 'rr-1',
+      playerIds: ['pk-1', 'pk-2'],
     })
   })
 

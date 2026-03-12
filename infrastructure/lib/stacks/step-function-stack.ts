@@ -15,9 +15,12 @@ import * as path from 'path'
 
 import { type EnvironmentConfig } from '../config/environments.js'
 
+const modulesRoot = path.join(import.meta.dirname, '../../..', 'modules')
+
 interface StepFunctionStackProps extends cdk.StackProps {
   config: EnvironmentConfig
-  dataTable: dynamodb.Table
+  playTableTable: dynamodb.Table
+  diceRollerTable: dynamodb.Table
   eventBus: events.IEventBus
   pipelineQueue: sqs.Queue
   graphqlApi: appsync.IGraphqlApi
@@ -56,15 +59,15 @@ export class StepFunctionStack extends cdk.Stack {
         ...lambdaDefaults,
         functionName: `${config.envName}-persist-roll-request`,
         entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/steps/persist-roll-request.ts'
+          modulesRoot,
+          'dice-roller/steps/persist-roll-request.ts'
         ),
         environment: {
-          TABLE_NAME: props.dataTable.tableName,
+          TABLE_NAME: props.diceRollerTable.tableName,
         },
       }
     )
-    props.dataTable.grantReadWriteData(persistRollRequestFn)
+    props.diceRollerTable.grantReadWriteData(persistRollRequestFn)
 
     const initiativeCreateHandlerFn = new lambdaNode.NodejsFunction(
       this,
@@ -73,16 +76,16 @@ export class StepFunctionStack extends cdk.Stack {
         ...lambdaDefaults,
         functionName: `${config.envName}-initiative-create-handler`,
         entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/steps/initiative-create-handler.ts'
+          modulesRoot,
+          'dice-roller/steps/initiative-create-handler.ts'
         ),
         environment: {
-          TABLE_NAME: props.dataTable.tableName,
+          TABLE_NAME: props.diceRollerTable.tableName,
           APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
-    props.dataTable.grantReadWriteData(initiativeCreateHandlerFn)
+    props.diceRollerTable.grantReadWriteData(initiativeCreateHandlerFn)
     initiativeCreateHandlerFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['appsync:GraphQL'],
@@ -112,13 +115,11 @@ export class StepFunctionStack extends cdk.Stack {
           'playTableId.$': '$.playTableId',
           'rollRequestId.$': '$.rollRequestId',
           'targetPlayerIds.$': '$.targetPlayerIds',
+          'rollNotation.$': '$.rollNotation',
           'type.$': '$.type',
           'dc.$': '$.dc',
-          'advantage.$': '$.advantage',
           'isPrivate.$': '$.isPrivate',
-          'status.$': '$.status',
           'createdAt.$': '$.createdAt',
-          'initiatedBy.$': '$.initiatedBy',
         }),
       }
     )
@@ -183,17 +184,14 @@ export class StepFunctionStack extends cdk.Stack {
       {
         ...lambdaDefaults,
         functionName: `${config.envName}-roll-completed-handler`,
-        entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/handlers/roll-completed.ts'
-        ),
+        entry: path.join(modulesRoot, 'dice-roller/handlers/roll-completed.ts'),
         environment: {
-          TABLE_NAME: props.dataTable.tableName,
+          TABLE_NAME: props.diceRollerTable.tableName,
           APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
-    props.dataTable.grantReadWriteData(rollCompletedHandler)
+    props.diceRollerTable.grantReadWriteData(rollCompletedHandler)
     rollCompletedHandler.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['states:SendTaskSuccess'],
@@ -215,17 +213,16 @@ export class StepFunctionStack extends cdk.Stack {
       {
         ...lambdaDefaults,
         functionName: `${config.envName}-player-left-handler`,
-        entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/handlers/player-left.ts'
-        ),
+        entry: path.join(modulesRoot, 'dice-roller/handlers/player-left.ts'),
         environment: {
-          TABLE_NAME: props.dataTable.tableName,
+          TABLE_NAME: props.diceRollerTable.tableName,
+          PLAY_TABLE_NAME: props.playTableTable.tableName,
           APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
-    props.dataTable.grantReadWriteData(playerLeftHandler)
+    props.diceRollerTable.grantReadWriteData(playerLeftHandler)
+    props.playTableTable.grantReadData(playerLeftHandler)
     playerLeftHandler.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['states:SendTaskSuccess'],
@@ -247,17 +244,16 @@ export class StepFunctionStack extends cdk.Stack {
       {
         ...lambdaDefaults,
         functionName: `${config.envName}-player-joined-handler`,
-        entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/handlers/player-joined.ts'
-        ),
+        entry: path.join(modulesRoot, 'dice-roller/handlers/player-joined.ts'),
         environment: {
-          TABLE_NAME: props.dataTable.tableName,
+          TABLE_NAME: props.diceRollerTable.tableName,
+          PLAY_TABLE_NAME: props.playTableTable.tableName,
           APPSYNC_GRAPHQL_URL: graphqlUrl,
         },
       }
     )
-    props.dataTable.grantReadWriteData(playerJoinedHandler)
+    props.diceRollerTable.grantReadWriteData(playerJoinedHandler)
+    props.playTableTable.grantReadData(playerJoinedHandler)
     playerJoinedHandler.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['appsync:GraphQL'],
@@ -270,10 +266,7 @@ export class StepFunctionStack extends cdk.Stack {
     const triggerFn = new lambdaNode.NodejsFunction(this, 'SqsTriggerFn', {
       ...lambdaDefaults,
       functionName: `${config.envName}-pipeline-trigger`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/steps/trigger.ts'
-      ),
+      entry: path.join(modulesRoot, 'dice-roller/steps/trigger.ts'),
       environment: {
         ROLL_COMPLETED_HANDLER_ARN: rollCompletedHandler.functionArn,
         PLAYER_LEFT_HANDLER_ARN: playerLeftHandler.functionArn,
@@ -312,15 +305,15 @@ export class StepFunctionStack extends cdk.Stack {
         ...lambdaDefaults,
         functionName: `${config.envName}-generate-and-store-roll`,
         entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/steps/generate-and-store-roll.ts'
+          modulesRoot,
+          'dice-roller/steps/generate-and-store-roll.ts'
         ),
         environment: {
-          TABLE_NAME: props.dataTable.tableName,
+          TABLE_NAME: props.diceRollerTable.tableName,
         },
       }
     )
-    props.dataTable.grantReadWriteData(generateAndStoreRollFn)
+    props.diceRollerTable.grantReadWriteData(generateAndStoreRollFn)
 
     const notifyRollCompletedFn = new lambdaNode.NodejsFunction(
       this,
@@ -329,8 +322,8 @@ export class StepFunctionStack extends cdk.Stack {
         ...lambdaDefaults,
         functionName: `${config.envName}-notify-roll-completed`,
         entry: path.join(
-          import.meta.dirname,
-          '../../../backend/lambdas/steps/notify-roll-completed.ts'
+          modulesRoot,
+          'dice-roller/steps/notify-roll-completed.ts'
         ),
         environment: {
           APPSYNC_GRAPHQL_URL: graphqlUrl,

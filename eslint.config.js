@@ -21,6 +21,8 @@ module.exports = tseslint.config(
       'eslint.config.js',
       'commitlint.config.js',
       '**/vitest.config.ts',
+      '**/generated.ts',
+      'infrastructure/lib/graphql/**',
     ],
   },
   // Base: ESLint recommended + TypeScript recommended (type-checked)
@@ -31,6 +33,7 @@ module.exports = tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: true,
+        tsconfigRootDir: __dirname,
       },
     },
   },
@@ -50,17 +53,22 @@ module.exports = tseslint.config(
         },
         {
           type: 'steps',
-          pattern: 'backend/lambdas/steps/**/*.ts',
+          pattern: 'modules/dice-roller/steps/**/*.ts',
           mode: 'full',
         },
         {
           type: 'resolvers',
-          pattern: 'backend/lambdas/resolvers/**/*.ts',
+          pattern: 'modules/*/resolvers/**/*.ts',
           mode: 'full',
         },
         {
           type: 'handlers',
-          pattern: 'backend/lambdas/handlers/**/*.ts',
+          pattern: 'modules/dice-roller/handlers/**/*.ts',
+          mode: 'full',
+        },
+        {
+          type: 'shared',
+          pattern: 'modules/*/shared/**/*.ts',
           mode: 'full',
         },
         { type: 'frontend', pattern: 'frontend/src/**/*.ts', mode: 'full' },
@@ -80,9 +88,9 @@ module.exports = tseslint.config(
           rules: [
             { from: 'domain', allow: ['contracts'] },
             { from: 'contracts', disallow: ['*'] },
-            { from: 'steps', allow: ['domain'] },
+            { from: 'steps', allow: ['domain', 'shared'] },
             { from: 'resolvers', allow: ['domain', 'contracts'] },
-            { from: 'handlers', allow: ['domain', 'handlers'] },
+            { from: 'handlers', allow: ['domain', 'handlers', 'shared'] },
             { from: 'frontend', allow: ['domain', 'contracts'] },
             { from: 'infrastructure', allow: [] },
           ],
@@ -220,22 +228,25 @@ module.exports = tseslint.config(
 
   // Lambda dispatcher: console is intentional for CloudWatch logging
   {
-    files: ['backend/lambdas/steps/trigger.ts'],
+    files: ['modules/dice-roller/steps/trigger.ts'],
     rules: {
       'no-console': 'off',
     },
   },
 
-  // Generated code: relax rules so it can be loaded for type resolution without failing lint
+  // Node.js scripts (compose-schema, compose-events)
   {
-    files: ['**/generated.ts'],
-    extends: [tseslint.configs.disableTypeChecked],
-    rules: {
-      '@typescript-eslint/consistent-indexed-object-style': 'off',
-      '@typescript-eslint/consistent-type-definitions': 'off',
-      '@typescript-eslint/array-type': 'off',
-      '@typescript-eslint/no-empty-object-type': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        Buffer: 'readonly',
+      },
     },
   }
 )

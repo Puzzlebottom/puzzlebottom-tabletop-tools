@@ -2,10 +2,10 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "..",
     "module": "ESNext",
     "moduleResolution": "bundler"
   },
-  "include": ["lambdas/**/*.ts", "test/**/*.ts", "vitest.config.ts"],
+  "include": ["test/**/*.ts", "vitest.config.ts", "../modules/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

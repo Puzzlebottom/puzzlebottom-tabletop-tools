@@ -1,0 +1,48 @@
+# EventBridge event detail types. Single source of truth for pipeline events.
+# AWS envelope uses 'detail-type' (RollCompleted, etc.); we map to __typename for discrimination.
+
+enum EventDetailType {
+  RollCompleted
+  RollRequestCompleted
+  PlayerLeft
+  PlayerJoined
+}
+
+enum RollType {
+  initiative
+}
+
+type RollCompletedDetail {
+  playTableId: ID!
+  rollId: ID!
+  rollRequestId: ID
+  type: RollType
+  rollerId: ID!
+  rollNotation: String!
+  values: [Int!]!
+  modifier: Int!
+  rollResult: Int!
+  isPrivate: Boolean!
+  createdAt: String!
+  deletedAt: String
+}
+
+type RollRequestCompletedTimestamps {
+  createdAt: String!
+  completedAt: String!
+}
+
+type RollRequestCompletedDetail {
+  playTableId: ID!
+  rollRequestId: ID!
+  type: RollType!
+  timestamps: RollRequestCompletedTimestamps!
+  playerIds: [String!]!
+  rollIds: [String!]!
+}
+
+union EventDetail =
+  | RollCompletedDetail
+  | RollRequestCompletedDetail
+  | PlayerLeftDetail
+  | PlayerJoinedDetail

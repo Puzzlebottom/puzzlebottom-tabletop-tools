@@ -33,4 +33,4 @@ export {
   RollCompletedDetailSchema,
   type RollRequestCompletedDetail,
   RollRequestCompletedDetailSchema,
-} from './events'
+} from './events/index.js'

@@ -26,12 +26,14 @@ function createStepFunctionStack(): StepFunctionStack {
     config: mockConfig,
     userPool: authStack.userPool,
     eventBus: eventStack.eventBus,
-    dataTable: databaseStack.dataTable,
+    playTableTable: databaseStack.playTableTable,
+    diceRollerTable: databaseStack.diceRollerTable,
     env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
   })
   return new StepFunctionStack(app, 'TestStepFunctionStack', {
     config: mockConfig,
-    dataTable: databaseStack.dataTable,
+    playTableTable: databaseStack.playTableTable,
+    diceRollerTable: databaseStack.diceRollerTable,
     eventBus: eventStack.eventBus,
     pipelineQueue: eventStack.pipelineQueue,
     graphqlApi: apiStack.api,

@@ -11,22 +11,26 @@ import * as path from 'path'
 
 import { type EnvironmentConfig } from '../config/environments.js'
 
+const modulesRoot = path.join(import.meta.dirname, '../../..', 'modules')
+
 interface ApiStackProps extends cdk.StackProps {
   config: EnvironmentConfig
   userPool: cognito.UserPool
   eventBus: events.EventBus
-  dataTable: dynamodb.Table
+  playTableTable: dynamodb.Table
+  diceRollerTable: dynamodb.Table
 }
 
 export class ApiStack extends cdk.Stack {
   public readonly api: appsync.GraphqlApi
   public readonly graphqlApiKey: string
-  private readonly rollDiceFn: lambdaNode.NodejsFunction
+  private readonly createRollFn: lambdaNode.NodejsFunction
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props)
 
-    const { config, userPool, eventBus, dataTable } = props
+    const { config, userPool, eventBus, playTableTable, diceRollerTable } =
+      props
 
     this.api = new appsync.GraphqlApi(this, 'Api', {
       name: `${config.envName}-puzzlebottom-tabletop-tools-api`,
@@ -52,17 +56,14 @@ export class ApiStack extends cdk.Stack {
 
     const playTableFn = new lambdaNode.NodejsFunction(this, 'PlayTableFn', {
       functionName: `${config.envName}-play-table-resolver`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/resolvers/play-table.ts'
-      ),
+      entry: path.join(modulesRoot, 'play-table/resolvers/play-table.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
-        TABLE_NAME: dataTable.tableName,
+        TABLE_NAME: playTableTable.tableName,
         EVENT_BUS_NAME: eventBus.eventBusName,
       },
       bundling: {
@@ -72,7 +73,7 @@ export class ApiStack extends cdk.Stack {
       },
     })
 
-    dataTable.grantReadWriteData(playTableFn)
+    playTableTable.grantReadWriteData(playTableFn)
     eventBus.grantPutEventsTo(playTableFn)
 
     const playTableDs = this.api.addLambdaDataSource(
@@ -100,27 +101,21 @@ export class ApiStack extends cdk.Stack {
       typeName: 'Query',
       fieldName: 'playTableByInviteCode',
     })
-    playTableDs.createResolver('RollHistoryResolver', {
-      typeName: 'Query',
-      fieldName: 'rollHistory',
-    })
 
     const rollStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-roll-pipeline`
     const rollRequestStateMachineArn = `arn:aws:states:${config.awsRegion}:${config.awsAccount}:stateMachine:${config.envName}-roll-request-pipeline`
 
-    this.rollDiceFn = new lambdaNode.NodejsFunction(this, 'RollDiceFn', {
-      functionName: `${config.envName}-roll-dice-resolver`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/resolvers/roll-dice.ts'
-      ),
+    this.createRollFn = new lambdaNode.NodejsFunction(this, 'CreateRollFn', {
+      functionName: `${config.envName}-create-roll-resolver`,
+      entry: path.join(modulesRoot, 'dice-roller/resolvers/roll-dice.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
-        TABLE_NAME: dataTable.tableName,
+        PLAY_TABLE_NAME: playTableTable.tableName,
+        DICE_ROLLER_TABLE_NAME: diceRollerTable.tableName,
         ROLL_STATE_MACHINE_ARN: rollStateMachineArn,
       },
       bundling: {
@@ -130,41 +125,36 @@ export class ApiStack extends cdk.Stack {
       },
     })
 
-    dataTable.grantReadWriteData(this.rollDiceFn)
-    this.rollDiceFn.addToRolePolicy(
+    playTableTable.grantReadData(this.createRollFn)
+    diceRollerTable.grantReadWriteData(this.createRollFn)
+    this.createRollFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['states:StartExecution'],
         resources: [rollStateMachineArn],
       })
     )
 
-    const rollDiceDs = this.api.addLambdaDataSource(
-      'RollDiceDataSource',
-      this.rollDiceFn
+    const createRollDs = this.api.addLambdaDataSource(
+      'CreateRollDataSource',
+      this.createRollFn
     )
 
-    rollDiceDs.createResolver('RollDiceResolver', {
+    createRollDs.createResolver('CreateRollResolver', {
       typeName: 'Mutation',
-      fieldName: 'rollDice',
-    })
-    rollDiceDs.createResolver('FulfillRollRequestResolver', {
-      typeName: 'Mutation',
-      fieldName: 'fulfillRollRequest',
+      fieldName: 'createRoll',
     })
 
     const rollRequestFn = new lambdaNode.NodejsFunction(this, 'RollRequestFn', {
       functionName: `${config.envName}-roll-request-resolver`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/resolvers/roll-request.ts'
-      ),
+      entry: path.join(modulesRoot, 'dice-roller/resolvers/roll-request.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
-        TABLE_NAME: dataTable.tableName,
+        PLAY_TABLE_NAME: playTableTable.tableName,
+        DICE_ROLLER_TABLE_NAME: diceRollerTable.tableName,
         ROLL_REQUEST_STATE_MACHINE_ARN: rollRequestStateMachineArn,
       },
       bundling: {
@@ -174,7 +164,7 @@ export class ApiStack extends cdk.Stack {
       },
     })
 
-    dataTable.grantReadData(rollRequestFn)
+    playTableTable.grantReadData(rollRequestFn)
     rollRequestFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['states:StartExecution'],
@@ -194,17 +184,15 @@ export class ApiStack extends cdk.Stack {
 
     const initiativeFn = new lambdaNode.NodejsFunction(this, 'InitiativeFn', {
       functionName: `${config.envName}-initiative-resolver`,
-      entry: path.join(
-        import.meta.dirname,
-        '../../../backend/lambdas/resolvers/initiative.ts'
-      ),
+      entry: path.join(modulesRoot, 'dice-roller/resolvers/initiative.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
-        TABLE_NAME: dataTable.tableName,
+        PLAY_TABLE_NAME: playTableTable.tableName,
+        DICE_ROLLER_TABLE_NAME: diceRollerTable.tableName,
       },
       bundling: {
         format: lambdaNode.OutputFormat.ESM,
@@ -213,28 +201,33 @@ export class ApiStack extends cdk.Stack {
       },
     })
 
-    dataTable.grantReadWriteData(initiativeFn)
+    playTableTable.grantReadData(initiativeFn)
+    diceRollerTable.grantReadWriteData(initiativeFn)
 
     const initiativeDs = this.api.addLambdaDataSource(
       'InitiativeDataSource',
       initiativeFn
     )
 
+    initiativeDs.createResolver('RollHistoryResolver', {
+      typeName: 'Query',
+      fieldName: 'rollHistory',
+    })
     initiativeDs.createResolver('ClearInitiativeResolver', {
       typeName: 'Mutation',
       fieldName: 'clearInitiative',
     })
-    initiativeDs.createResolver('NotifyRollRequestCreatedResolver', {
+    initiativeDs.createResolver('PublishRollRequestCreatedResolver', {
       typeName: 'Mutation',
-      fieldName: 'notifyRollRequestCreated',
+      fieldName: 'publishRollRequestCreated',
     })
-    initiativeDs.createResolver('NotifyInitiativeUpdatedResolver', {
+    initiativeDs.createResolver('PublishInitiativeUpdatedResolver', {
       typeName: 'Mutation',
-      fieldName: 'notifyInitiativeUpdated',
+      fieldName: 'publishInitiativeUpdated',
     })
-    initiativeDs.createResolver('NotifyRollCompletedResolver', {
+    initiativeDs.createResolver('PublishRollCompletedResolver', {
       typeName: 'Mutation',
-      fieldName: 'notifyRollCompleted',
+      fieldName: 'publishRollCompleted',
     })
 
     const apiKey = new appsync.CfnApiKey(this, 'PlayerAccessApiKey', {

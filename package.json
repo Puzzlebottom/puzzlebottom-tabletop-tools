@@ -10,8 +10,10 @@
     "shared/schemas"
   ],
   "scripts": {
-    "codegen": "graphql-codegen",
-    "codegen:check": "npm run codegen && git diff --exit-code shared/graphql-types",
+    "codegen:schema": "node scripts/compose-schema.mjs",
+    "codegen:events": "node scripts/compose-events.mjs",
+    "codegen": "npm run codegen:schema && npm run codegen:events && graphql-codegen",
+    "codegen:check": "npm run codegen && git diff --exit-code shared/graphql-types shared/schemas/src/events infrastructure/lib/graphql",
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

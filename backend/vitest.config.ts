@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     ...(process.env.HUSKY === '1' && { reporters: ['dot'] }),
     globals: true,
-    include: ['**/*.{test,spec}.ts'],
+    include: ['**/*.{test,spec}.ts', '../modules/**/*.{test,spec}.ts'],
     exclude: ['node_modules', 'dist'],
     onConsoleLog(): boolean {
       return process.env.HUSKY !== '1' // suppress only in pre-commit/pre-push

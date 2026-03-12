@@ -25,7 +25,8 @@ function createApiStack(): ApiStack {
     config: mockConfig,
     userPool: authStack.userPool,
     eventBus: eventStack.eventBus,
-    dataTable: databaseStack.dataTable,
+    playTableTable: databaseStack.playTableTable,
+    diceRollerTable: databaseStack.diceRollerTable,
     env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
   })
 }

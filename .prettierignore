@@ -4,3 +4,4 @@ cdk.out
 *.min.js
 package-lock.json
 **/generated.ts
+infrastructure/lib/graphql/

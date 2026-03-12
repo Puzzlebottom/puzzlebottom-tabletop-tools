@@ -48,7 +48,8 @@ const apiStack = new ApiStack(app, `${prefix}-ApiStack`, {
   config,
   userPool: authStack.userPool,
   eventBus: eventStack.eventBus,
-  dataTable: databaseStack.dataTable,
+  playTableTable: databaseStack.playTableTable,
+  diceRollerTable: databaseStack.diceRollerTable,
 })
 
 const stepFunctionStack = new StepFunctionStack(
@@ -57,7 +58,8 @@ const stepFunctionStack = new StepFunctionStack(
   {
     ...stackProps,
     config,
-    dataTable: databaseStack.dataTable,
+    playTableTable: databaseStack.playTableTable,
+    diceRollerTable: databaseStack.diceRollerTable,
     eventBus: eventStack.eventBus,
     pipelineQueue: eventStack.pipelineQueue,
     graphqlApi: apiStack.api,

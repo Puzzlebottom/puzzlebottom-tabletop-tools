@@ -34,7 +34,8 @@ function createFrontendStack(config = mockConfig): FrontendStack {
     config,
     userPool: authStack.userPool,
     eventBus: eventStack.eventBus,
-    dataTable: databaseStack.dataTable,
+    playTableTable: databaseStack.playTableTable,
+    diceRollerTable: databaseStack.diceRollerTable,
     env: { account: config.awsAccount, region: config.awsRegion },
   })
   return new FrontendStack(app, 'TestFrontendStack', {
@@ -142,7 +143,8 @@ describe('FrontendStack', () => {
       config: mockConfig,
       userPool: authStack.userPool,
       eventBus: eventStack.eventBus,
-      dataTable: databaseStack.dataTable,
+      playTableTable: databaseStack.playTableTable,
+      diceRollerTable: databaseStack.diceRollerTable,
       env: { account: mockConfig.awsAccount, region: mockConfig.awsRegion },
     })
 

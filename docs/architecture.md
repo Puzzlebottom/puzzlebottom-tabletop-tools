@@ -150,7 +150,7 @@ flowchart TB
 stateDiagram-v2
     [*] --> PersistRollRequest: createRollRequest mutation<br/>resolver starts execution
 
-    PersistRollRequest: Write RollRequest to DynamoDB<br/>completedPlayerKeys: []
+    PersistRollRequest: Write RollRequest to DiceRoller table; set INITIATIVE_META when type=initiative
 
     PersistRollRequest --> ChoiceByType: Success
 
@@ -226,9 +226,9 @@ This mirrors the roll flow: the pipeline (Step Function) is the source of UI upd
 | **EventBridge**                             | AWS EventBridge         | Decouple mutations from async processing                                                                                     |
 | **SQS**                                     | AWS SQS                 | Queue for trigger Lambda, DLQ for failures                                                                                   |
 | **trigger**                                 | Lambda                  | Route events: invoke roll-completed, player-left, player-joined; handle RollRequestCompleted (validate/ack only, no handler) |
-| **roll-completed**                          | Lambda                  | Update RollRequest completedPlayerKeys; SendTaskSuccess with RollRequestCompleted payload when all rolled                    |
+| **roll-completed**                          | Lambda                  | Derive completion from rolls; SendTaskSuccess with RollRequestCompleted payload when all target players have rolled          |
 | **Roll Request SF** (roll-request-pipeline) | AWS Step Functions      | PersistRollRequest → Choice by type → InitiativeCreateHandler (WAIT) → PublishRollRequestCompleted                           |
-| **DynamoDB**                                | AWS DynamoDB            | PlayTable, Player, Roll, RollRequest, Initiative                                                                             |
+| **DynamoDB**                                | AWS DynamoDB            | PlayTable table: PlayTable, Player; DiceRoller table: Roll, RollRequest, INITIATIVE_META (initiative derived from rolls)     |
 
 ## Event Types
 
@@ -281,9 +281,21 @@ Published after the WAIT (when SendTaskSuccess resumes the SF), before End. The 
 
 ### DynamoDB Items (dice roller)
 
-| Entity      | PK               | SK                  | Description                                                        |
-| ----------- | ---------------- | ------------------- | ------------------------------------------------------------------ |
-| PlayTable   | `PLAYTABLE#<id>` | `METADATA`          | GM, invite code, createdAt                                         |
-| Player      | `PLAYTABLE#<id>` | `PLAYER#<playerId>` | characterName, initiativeModifier                                  |
-| Roll        | `PLAYTABLE#<id>` | `ROLL#<rollId>`     | values, modifier, total, visibility                                |
-| RollRequest | `PLAYTABLE#<id>` | `ROLLREQUEST#<id>`  | targetPlayerIds, type, taskToken, completedPlayerKeys, initiatedBy |
+Data is split across two tables:
+
+**PlayTable table** (`{env}-puzzlebottom-play-table`):
+
+| Entity    | PK               | SK                  | Description                       |
+| --------- | ---------------- | ------------------- | --------------------------------- |
+| PlayTable | `PLAYTABLE#<id>` | `METADATA`          | GM, invite code, createdAt        |
+| Player    | `PLAYTABLE#<id>` | `PLAYER#<playerId>` | characterName, initiativeModifier |
+
+**DiceRoller table** (`{env}-puzzlebottom-dice-roller`):
+
+| Entity          | PK               | SK                 | Description                                                            |
+| --------------- | ---------------- | ------------------ | ---------------------------------------------------------------------- |
+| Roll            | `PLAYTABLE#<id>` | `ROLL#<rollId>`    | values, modifier, total, visibility, rollRequestId, rollRequestType    |
+| RollRequest     | `PLAYTABLE#<id>` | `ROLLREQUEST#<id>` | targetPlayerIds, type, taskToken, initiatedBy                          |
+| INITIATIVE_META | `PLAYTABLE#<id>` | `INITIATIVE_META`  | currentRollRequestId (initiative order derived from rolls, not stored) |
+
+Initiative order is derived by querying `ROLL#` items for the current `rollRequestId` where `rollRequestType === 'initiative'`, sorted by total/value/modifier, joined with Player for characterName.

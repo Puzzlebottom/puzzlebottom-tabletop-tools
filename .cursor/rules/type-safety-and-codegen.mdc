@@ -10,9 +10,9 @@ When introducing or modifying types, schemas, or GraphQL operations:
 1. **Strict type safety** — Prefer explicit types over `any`, avoid type assertions unless necessary, and use strict TypeScript settings.
 
 2. **Automatically generated types** — Do not hand-write types for GraphQL. Use the existing codegen pipeline (`codegen.ts`):
-   - Schema: `infrastructure/lib/graphql/schema.graphql`
+   - Schemas: `modules/play-table/graphql/`, `modules/dice-roller/graphql/` (composed to `infrastructure/lib/graphql/`)
    - Documents: `frontend/src/graphql/**/*.ts`
-   - Generated output: `shared/graphql-types/src/generated.ts`
+   - Generated output: `shared/graphql-types/src/generated.ts`, `shared/schemas/src/events/generated.ts`
    - Run `npm run codegen` after schema or operation changes.
 
 3. **Single source of truth** — The GraphQL schema is the source of truth. Add or change types in the schema first, then update operations in the documents. Regenerate types; do not duplicate or override generated types manually.

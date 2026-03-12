@@ -1,0 +1,13 @@
+# PlayTable event details
+
+type PlayerLeftDetail {
+  playTableId: ID!
+  id: ID!
+}
+
+type PlayerJoinedDetail {
+  playTableId: ID!
+  id: ID!
+  characterName: String!
+  initiativeModifier: Int!
+}

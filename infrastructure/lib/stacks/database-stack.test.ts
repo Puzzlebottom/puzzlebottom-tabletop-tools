@@ -5,7 +5,7 @@ import { mockConfig } from '../test/mock-config.js'
 import { DatabaseStack } from './database-stack.js'
 
 describe('DatabaseStack', () => {
-  it('synthesizes a DynamoDB table with expected properties', () => {
+  it('synthesizes PlayTable and DiceRoller DynamoDB tables with expected properties', () => {
     const app = new cdk.App()
     const stack = new DatabaseStack(app, 'TestDatabaseStack', {
       config: mockConfig,
@@ -14,18 +14,26 @@ describe('DatabaseStack', () => {
 
     const template = Template.fromStack(stack)
 
-    template.resourceCountIs('AWS::DynamoDB::Table', 1)
-    template.hasResourceProperties('AWS::DynamoDB::Table', {
+    template.resourceCountIs('AWS::DynamoDB::Table', 2)
+    const baseTableProps = {
       BillingMode: 'PAY_PER_REQUEST',
       KeySchema: Match.arrayWith([
         { AttributeName: 'PK', KeyType: 'HASH' },
         { AttributeName: 'SK', KeyType: 'RANGE' },
       ]),
       TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },
+    }
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      ...baseTableProps,
+      TableName: `${mockConfig.envName}-puzzlebottom-play-table`,
+    })
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      ...baseTableProps,
+      TableName: `${mockConfig.envName}-puzzlebottom-dice-roller`,
     })
   })
 
-  it('creates GSIs for dice roller access patterns', () => {
+  it('creates GSIs for play table and dice roller access patterns', () => {
     const app = new cdk.App()
     const stack = new DatabaseStack(app, 'TestDatabaseStack', {
       config: mockConfig,
@@ -34,37 +42,25 @@ describe('DatabaseStack', () => {
 
     const template = Template.fromStack(stack)
 
-    // GSI1: GM#gmUserId + createdAt — list PlayTables by GM
-    // GSI2: INVITECODE#code + PLAYTABLE — lookup PlayTable by invite link
-    // GSI3: TARGET#playerId + status#createdAt — list RollRequests by target player
+    // PlayTable: GSI1 (GM#gmUserId + createdAt), GSI2 (INVITECODE#code + PLAYTABLE)
     template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: `${mockConfig.envName}-puzzlebottom-play-table`,
       GlobalSecondaryIndexes: Match.arrayWith([
-        Match.objectLike({
-          IndexName: 'GSI1',
-          KeySchema: Match.arrayWith([
-            { AttributeName: 'GSI1PK', KeyType: 'HASH' },
-            { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
-          ]),
-        }),
-        Match.objectLike({
-          IndexName: 'GSI2',
-          KeySchema: Match.arrayWith([
-            { AttributeName: 'GSI2PK', KeyType: 'HASH' },
-            { AttributeName: 'GSI2SK', KeyType: 'RANGE' },
-          ]),
-        }),
-        Match.objectLike({
-          IndexName: 'GSI3',
-          KeySchema: Match.arrayWith([
-            { AttributeName: 'GSI3PK', KeyType: 'HASH' },
-            { AttributeName: 'GSI3SK', KeyType: 'RANGE' },
-          ]),
-        }),
+        Match.objectLike({ IndexName: 'GSI1' }),
+        Match.objectLike({ IndexName: 'GSI2' }),
+      ]),
+    })
+
+    // DiceRoller: GSI3 (TARGET#playerId + status#createdAt)
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: `${mockConfig.envName}-puzzlebottom-dice-roller`,
+      GlobalSecondaryIndexes: Match.arrayWith([
+        Match.objectLike({ IndexName: 'GSI3' }),
       ]),
     })
   })
 
-  it('exports DataTableName and DataTableArn outputs', () => {
+  it('exports DataTableName and table name outputs', () => {
     const app = new cdk.App()
     const stack = new DatabaseStack(app, 'TestDatabaseStack', {
       config: mockConfig,
@@ -77,7 +73,10 @@ describe('DatabaseStack', () => {
       Export: { Name: `${mockConfig.envName}-puzzlebottom-table-name` },
     })
     template.hasOutput('*', {
-      Export: { Name: `${mockConfig.envName}-puzzlebottom-table-arn` },
+      Export: { Name: `${mockConfig.envName}-puzzlebottom-play-table-name` },
+    })
+    template.hasOutput('*', {
+      Export: { Name: `${mockConfig.envName}-puzzlebottom-dice-roller-name` },
     })
   })
 })
