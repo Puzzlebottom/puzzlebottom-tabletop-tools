@@ -23,14 +23,18 @@ input JoinPlayTableInput {
   characterName: String!
   initiativeModifier: Int!
 }
-
 type Query {
   playTable(id: ID!): PlayTable
   playTableByInviteCode(inviteCode: String!): PlayTable
     @aws_api_key
     @aws_cognito_user_pools
+  rollHistory(
+    playTableId: ID!
+    playerId: ID
+    limit: Int
+    nextToken: String
+  ): PaginatedRolls @aws_api_key @aws_cognito_user_pools
 }
-
 type Mutation {
   createPlayTable: PlayTable!
   joinPlayTable(inviteCode: String!, input: JoinPlayTableInput!): PlayTable!
@@ -39,6 +43,19 @@ type Mutation {
   leavePlayTable(playTableId: ID!, playerId: String!): Boolean!
     @aws_api_key
     @aws_cognito_user_pools
+  createRoll(playTableId: ID!, playerId: ID, input: CreateRollInput!): Roll!
+    @aws_api_key
+    @aws_cognito_user_pools
+  createRollRequest(
+    playTableId: ID!
+    input: CreateRollRequestInput!
+  ): RollRequest!
+  clearInitiative(playTableId: ID!): Boolean!
+  publishRollCompleted(input: PublishRollInput!): Roll! @aws_iam
+  publishRollRequestCreated(input: PublishRollRequestInput!): RollRequest!
+    @aws_iam
+  publishInitiativeUpdated(input: PublishInitiativeUpdatedInput!): [Roll]!
+    @aws_iam
 }
 
 
@@ -129,32 +146,6 @@ type PaginatedRolls @aws_api_key @aws_cognito_user_pools {
   items: [Roll!]!
   nextToken: String
 }
-
-extend type Query {
-  rollHistory(
-    playTableId: ID!
-    playerId: ID
-    limit: Int
-    nextToken: String
-  ): PaginatedRolls @aws_api_key @aws_cognito_user_pools
-}
-
-extend type Mutation {
-  createRoll(playTableId: ID!, playerId: ID, input: CreateRollInput!): Roll!
-    @aws_api_key
-    @aws_cognito_user_pools
-  createRollRequest(
-    playTableId: ID!
-    input: CreateRollRequestInput!
-  ): RollRequest!
-  clearInitiative(playTableId: ID!): Boolean!
-  publishRollCompleted(input: PublishRollInput!): Roll! @aws_iam
-  publishRollRequestCreated(input: PublishRollRequestInput!): RollRequest!
-    @aws_iam
-  publishInitiativeUpdated(input: PublishInitiativeUpdatedInput!): [Roll]!
-    @aws_iam
-}
-
 type Subscription {
   rollCompleted(playTableId: ID!): Roll
     @aws_subscribe(mutations: ["publishRollCompleted"])
