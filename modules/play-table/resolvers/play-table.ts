@@ -112,7 +112,13 @@ export const joinPlayTable: AppSyncResolverHandler<
     inviteCode: string
     input: { characterName: string; initiativeModifier: number }
   },
-  { id: string; playTableId: string }
+  {
+    id: string
+    gmUserId: string
+    inviteCode: string
+    createdAt: string
+    players?: unknown[]
+  }
 > = async (event) => {
   const { inviteCode, input } = event.arguments
   const { characterName, initiativeModifier } = input
@@ -139,12 +145,14 @@ export const joinPlayTable: AppSyncResolverHandler<
   const playTableId = playTable.id
 
   const playerId = randomUUID()
+  const playerCreatedAt = new Date().toISOString()
   const playerItem = {
     PK: `PLAYTABLE#${playTableId}`,
     SK: `PLAYER#${playerId}`,
     id: playerId,
     characterName,
     initiativeModifier,
+    createdAt: playerCreatedAt,
   }
 
   await dynamo.send(
@@ -175,10 +183,11 @@ export const joinPlayTable: AppSyncResolverHandler<
     })
   )
 
-  return {
-    id: playerId,
-    playTableId,
+  const playTableWithPlayers = await fetchPlayTableWithPlayers(playTableId)
+  if (!playTableWithPlayers) {
+    throw new Error('Play table not found after joining')
   }
+  return playTableWithPlayers
 }
 
 export const leavePlayTable: AppSyncResolverHandler<
@@ -257,12 +266,16 @@ async function fetchPlayTableWithPlayers(playTableId: string) {
         id: string
         characterName: string
         initiativeModifier: number
+        createdAt?: string
+        deletedAt?: string
       }
       return {
         id: p.id,
         playTableId: playTable.id,
         characterName: p.characterName,
         initiativeModifier: p.initiativeModifier,
+        createdAt: p.createdAt ?? playTable.createdAt,
+        deletedAt: p.deletedAt ?? null,
       }
     }) ?? []
 

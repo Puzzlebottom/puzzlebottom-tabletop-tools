@@ -152,6 +152,17 @@ describe('play-table resolvers', () => {
       })
       mockSend.mockResolvedValueOnce({})
       mockSend.mockResolvedValueOnce({})
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: { S: 'PLAYTABLE#pt-1' },
+          SK: { S: 'METADATA' },
+          id: { S: 'pt-1' },
+          gmUserId: { S: 'gm-1' },
+          inviteCode: { S: 'ABC123' },
+          createdAt: { S: '2025-01-01T00:00:00.000Z' },
+        },
+      })
+      mockSend.mockResolvedValueOnce({ Items: [] })
       const event = createEvent(
         {
           inviteCode: 'ABC123',
@@ -161,9 +172,16 @@ describe('play-table resolvers', () => {
       )
       const result = (await handler(event, {} as never, vi.fn())) as {
         id: string
-        playTableId: string
+        gmUserId: string
+        inviteCode: string
+        players?: unknown[]
       }
-      expect(result).toMatchObject({ playTableId: 'pt-1' })
+      expect(result).toMatchObject({
+        id: 'pt-1',
+        gmUserId: 'gm-1',
+        inviteCode: 'ABC123',
+        players: [],
+      })
     })
 
     it('routes leavePlayTable to leavePlayTable resolver', async () => {
@@ -256,7 +274,7 @@ describe('play-table resolvers', () => {
   })
 
   describe('joinPlayTable', () => {
-    it('creates player and returns id and playTableId', async () => {
+    it('creates player and returns full PlayTable', async () => {
       mockSend.mockResolvedValueOnce({
         Items: [
           {
@@ -268,6 +286,27 @@ describe('play-table resolvers', () => {
       })
       mockSend.mockResolvedValueOnce({})
       mockSend.mockResolvedValueOnce({})
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: { S: 'PLAYTABLE#pt-1' },
+          SK: { S: 'METADATA' },
+          id: { S: 'pt-1' },
+          gmUserId: { S: 'gm-1' },
+          inviteCode: { S: 'ABC123' },
+          createdAt: { S: '2025-01-01T00:00:00.000Z' },
+        },
+      })
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            PK: { S: 'PLAYTABLE#pt-1' },
+            SK: { S: 'PLAYER#p-new' },
+            id: { S: 'p-new' },
+            characterName: { S: 'Frodo' },
+            initiativeModifier: { N: '2' },
+          },
+        ],
+      })
       const event = createEvent(
         {
           inviteCode: 'ABC123',
@@ -279,10 +318,27 @@ describe('play-table resolvers', () => {
         event as Parameters<typeof joinPlayTable>[0],
         {} as never,
         vi.fn()
-      )) as { id: string; playTableId: string }
+      )) as {
+        id: string
+        gmUserId: string
+        inviteCode: string
+        players?: {
+          id: string
+          characterName: string
+          initiativeModifier: number
+        }[]
+      }
       expect(result).toMatchObject({
-        id: expect.any(String),
-        playTableId: 'pt-1',
+        id: 'pt-1',
+        gmUserId: 'gm-1',
+        inviteCode: 'ABC123',
+        players: [
+          {
+            id: 'p-new',
+            characterName: 'Frodo',
+            initiativeModifier: 2,
+          },
+        ],
       })
     })
 
