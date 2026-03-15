@@ -43,7 +43,7 @@ enum RollType {
   initiative
 }
 
-type Roll @aws_api_key @aws_cognito_user_pools {
+type Roll @aws_iam @aws_api_key @aws_cognito_user_pools {
   id: ID!
   playTableId: ID!
   rollerId: String!
