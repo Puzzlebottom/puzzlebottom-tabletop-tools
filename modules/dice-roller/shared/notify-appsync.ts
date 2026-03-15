@@ -101,6 +101,20 @@ export async function publishRollRequestCreated(
         id
         playTableId
         targetPlayerIds
+        rolls {
+          id
+          playTableId
+          rollerId
+          rollNotation
+          type
+          values
+          modifier
+          rollResult
+          isPrivate
+          rollRequestId
+          createdAt
+          deletedAt
+        }
         rollNotation
         type
         dc
