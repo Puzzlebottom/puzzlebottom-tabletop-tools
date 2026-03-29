@@ -1,3 +1,4 @@
+import { InitiativeCreateHandlerPayload } from '@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline'
 import * as cdk from 'aws-cdk-lib'
 import type * as appsync from 'aws-cdk-lib/aws-appsync'
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
@@ -14,6 +15,7 @@ import { type Construct } from 'constructs'
 import * as path from 'path'
 
 import { type EnvironmentConfig } from '../config/environments.js'
+import { taskInputFromSchema } from '../utils/task-input.js'
 
 const modulesRoot = path.join(import.meta.dirname, '../../..', 'modules')
 
@@ -112,14 +114,7 @@ export class StepFunctionStack extends cdk.Stack {
         integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
         payload: sfn.TaskInput.fromObject({
           taskToken: sfn.JsonPath.taskToken,
-          'playTableId.$': '$.playTableId',
-          'rollRequestId.$': '$.rollRequestId',
-          'targetPlayerIds.$': '$.targetPlayerIds',
-          'rollNotation.$': '$.rollNotation',
-          'type.$': '$.type',
-          'dc.$': '$.dc',
-          'isPrivate.$': '$.isPrivate',
-          'createdAt.$': '$.createdAt',
+          ...taskInputFromSchema(InitiativeCreateHandlerPayload),
         }),
       }
     )

@@ -20,6 +20,7 @@ import type {
   RollRequest,
   RollType,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
+import type { RollRequestStepPayload } from '@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline'
 
 export const createRollRequest: AppSyncResolverHandler<
   {
@@ -70,7 +71,7 @@ export const createRollRequest: AppSyncResolverHandler<
     throw new Error(`Unsupported roll request type: ${String(type)}`)
   }
 
-  const executionInput = {
+  const executionInput: RollRequestStepPayload = {
     playTableId,
     rollRequestId,
     targetPlayerIds,

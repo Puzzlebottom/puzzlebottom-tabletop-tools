@@ -8,31 +8,20 @@ import type {
   PublishRollRequestInput,
   RollType,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
+import {
+  InitiativeCreateHandlerPayload,
+  type InitiativeCreateHandlerPayload as Payload,
+} from '@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline'
 import type { Handler } from 'aws-lambda'
-import { z } from 'zod'
 
 import { publishRollRequestCreated } from '../shared/notify-appsync.js'
-
-const PayloadSchema = z.object({
-  taskToken: z.string(),
-  playTableId: z.string(),
-  rollRequestId: z.string(),
-  targetPlayerIds: z.array(z.string()),
-  rollNotation: z.string(),
-  type: z.enum(['initiative']),
-  dc: z.number().nullable().optional(),
-  isPrivate: z.boolean(),
-  createdAt: z.string(),
-})
-
-type Payload = z.infer<typeof PayloadSchema>
 
 const dynamo = new DynamoDBClient({})
 const TABLE_NAME = process.env.TABLE_NAME!
 const APPSYNC_GRAPHQL_URL = process.env.APPSYNC_GRAPHQL_URL!
 
 export const handler: Handler<Payload, void> = async (event) => {
-  const payload = PayloadSchema.parse(event)
+  const payload = InitiativeCreateHandlerPayload.parse(event)
 
   const { playTableId, rollRequestId, taskToken } = payload
 

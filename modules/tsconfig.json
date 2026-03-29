@@ -2,7 +2,12 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "paths": {
+      "@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline": [
+        "../shared/schemas/src/steps/roll-request-pipeline.ts"
+      ]
+    }
   },
   "include": ["**/*.ts"]
 }
