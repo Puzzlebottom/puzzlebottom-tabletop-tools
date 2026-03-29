@@ -1,16 +1,4 @@
 export {
-  type Player,
-  PlayerSchema,
-  type PlayTable,
-  PlayTableSchema,
-  type Roll,
-  type RollRequest,
-  RollRequestSchema,
-  RollSchema,
-  type RollType,
-  RollTypeSchema,
-} from './domain'
-export {
   DETAIL_TYPE_PLAYER_JOINED,
   DETAIL_TYPE_PLAYER_LEFT,
   DETAIL_TYPE_ROLL_COMPLETED,

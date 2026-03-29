@@ -1,6 +1,8 @@
+import {
+  RollSchema,
+  RollTypeSchema,
+} from '@puzzlebottom-tabletop-tools/graphql-types'
 import { describe, expect, it } from 'vitest'
-
-import { RollSchema, RollTypeSchema } from './domain'
 
 describe('RollTypeSchema', () => {
   it('accepts initiative', () => {
@@ -28,28 +30,28 @@ describe('RollSchema', () => {
   }
 
   it('accepts valid roll', () => {
-    expect(RollSchema.safeParse(validRoll).success).toBe(true)
+    expect(RollSchema().safeParse(validRoll).success).toBe(true)
   })
 
   it('accepts roll with optional rollRequestId', () => {
     expect(
-      RollSchema.safeParse({ ...validRoll, rollRequestId: 'rr-456' }).success
+      RollSchema().safeParse({ ...validRoll, rollRequestId: 'rr-456' }).success
     ).toBe(true)
   })
 
   it('accepts roll with optional type', () => {
     expect(
-      RollSchema.safeParse({ ...validRoll, type: 'initiative' }).success
+      RollSchema().safeParse({ ...validRoll, type: 'initiative' }).success
     ).toBe(true)
   })
 
   it('accepts roll without rollRequestId', () => {
-    expect(RollSchema.safeParse(validRoll).success).toBe(true)
+    expect(RollSchema().safeParse(validRoll).success).toBe(true)
   })
 
   it('accepts multiple values for multi-dice (e.g. 2d6)', () => {
     expect(
-      RollSchema.safeParse({
+      RollSchema().safeParse({
         ...validRoll,
         rollNotation: '2d6',
         values: [4, 6],
@@ -60,28 +62,29 @@ describe('RollSchema', () => {
 
   it('accepts empty values array (GraphQL [Int!]! allows empty)', () => {
     expect(
-      RollSchema.safeParse({ ...validRoll, values: [], rollResult: 0 }).success
+      RollSchema().safeParse({ ...validRoll, values: [], rollResult: 0 })
+        .success
     ).toBe(true)
   })
 
   it('rejects invalid type', () => {
     expect(
-      RollSchema.safeParse({ ...validRoll, type: 'saving_throw' }).success
+      RollSchema().safeParse({ ...validRoll, type: 'saving_throw' }).success
     ).toBe(false)
   })
 
   it('rejects missing required fields', () => {
     const { id, ...withoutId } = validRoll
     void id
-    expect(RollSchema.safeParse(withoutId).success).toBe(false)
+    expect(RollSchema().safeParse(withoutId).success).toBe(false)
   })
 
   it('rejects values that is not an array of numbers', () => {
-    expect(RollSchema.safeParse({ ...validRoll, values: '15' }).success).toBe(
+    expect(RollSchema().safeParse({ ...validRoll, values: '15' }).success).toBe(
       false
     )
-    expect(RollSchema.safeParse({ ...validRoll, values: ['15'] }).success).toBe(
-      false
-    )
+    expect(
+      RollSchema().safeParse({ ...validRoll, values: ['15'] }).success
+    ).toBe(false)
   })
 })

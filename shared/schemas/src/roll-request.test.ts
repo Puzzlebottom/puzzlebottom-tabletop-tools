@@ -1,6 +1,5 @@
+import { RollRequestSchema } from '@puzzlebottom-tabletop-tools/graphql-types'
 import { describe, expect, it } from 'vitest'
-
-import { RollRequestSchema } from './domain'
 
 describe('RollRequestSchema', () => {
   const validRollRequest = {
@@ -15,18 +14,18 @@ describe('RollRequestSchema', () => {
   }
 
   it('accepts valid roll request', () => {
-    expect(RollRequestSchema.safeParse(validRollRequest).success).toBe(true)
+    expect(RollRequestSchema().safeParse(validRollRequest).success).toBe(true)
   })
 
   it('accepts roll request with optional dc', () => {
     expect(
-      RollRequestSchema.safeParse({ ...validRollRequest, dc: 15 }).success
+      RollRequestSchema().safeParse({ ...validRollRequest, dc: 15 }).success
     ).toBe(true)
   })
 
   it('accepts roll request with rolls', () => {
     expect(
-      RollRequestSchema.safeParse({
+      RollRequestSchema().safeParse({
         ...validRollRequest,
         rolls: [
           {
@@ -47,7 +46,7 @@ describe('RollRequestSchema', () => {
 
   it('accepts empty targetPlayerIds', () => {
     expect(
-      RollRequestSchema.safeParse({
+      RollRequestSchema().safeParse({
         ...validRollRequest,
         targetPlayerIds: [],
       }).success
@@ -56,7 +55,7 @@ describe('RollRequestSchema', () => {
 
   it('rejects invalid type', () => {
     expect(
-      RollRequestSchema.safeParse({
+      RollRequestSchema().safeParse({
         ...validRollRequest,
         type: 'saving_throw',
       }).success
@@ -66,24 +65,26 @@ describe('RollRequestSchema', () => {
   it('rejects missing id', () => {
     const { id, ...withoutId } = validRollRequest
     void id
-    expect(RollRequestSchema.safeParse(withoutId).success).toBe(false)
+    expect(RollRequestSchema().safeParse(withoutId).success).toBe(false)
   })
 
   it('rejects missing playTableId', () => {
     const { playTableId, ...withoutPlayTableId } = validRollRequest
     void playTableId
-    expect(RollRequestSchema.safeParse(withoutPlayTableId).success).toBe(false)
+    expect(RollRequestSchema().safeParse(withoutPlayTableId).success).toBe(
+      false
+    )
   })
 
   it('rejects missing targetPlayerIds', () => {
     const { targetPlayerIds, ...withoutTargets } = validRollRequest
     void targetPlayerIds
-    expect(RollRequestSchema.safeParse(withoutTargets).success).toBe(false)
+    expect(RollRequestSchema().safeParse(withoutTargets).success).toBe(false)
   })
 
   it('rejects targetPlayerIds that is not an array', () => {
     expect(
-      RollRequestSchema.safeParse({
+      RollRequestSchema().safeParse({
         ...validRollRequest,
         targetPlayerIds: 'pk-1',
       }).success
@@ -93,18 +94,20 @@ describe('RollRequestSchema', () => {
   it('rejects missing isPrivate', () => {
     const { isPrivate, ...withoutIsPrivate } = validRollRequest
     void isPrivate
-    expect(RollRequestSchema.safeParse(withoutIsPrivate).success).toBe(false)
+    expect(RollRequestSchema().safeParse(withoutIsPrivate).success).toBe(false)
   })
 
   it('rejects missing rollNotation', () => {
     const { rollNotation, ...withoutRollNotation } = validRollRequest
     void rollNotation
-    expect(RollRequestSchema.safeParse(withoutRollNotation).success).toBe(false)
+    expect(RollRequestSchema().safeParse(withoutRollNotation).success).toBe(
+      false
+    )
   })
 
   it('rejects missing rolls', () => {
     const { rolls, ...withoutRolls } = validRollRequest
     void rolls
-    expect(RollRequestSchema.safeParse(withoutRolls).success).toBe(false)
+    expect(RollRequestSchema().safeParse(withoutRolls).success).toBe(false)
   })
 })
