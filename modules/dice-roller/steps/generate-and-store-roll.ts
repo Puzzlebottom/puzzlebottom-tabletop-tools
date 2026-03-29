@@ -1,6 +1,10 @@
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb'
 import { marshall } from '@aws-sdk/util-dynamodb'
 import type { PublishRollInput } from '@puzzlebottom-tabletop-tools/graphql-types'
+import {
+  GenerateAndStoreRollPayload,
+  type GenerateAndStoreRollPayload as Payload,
+} from '@puzzlebottom-tabletop-tools/schemas/steps/roll-pipeline'
 import type { Handler } from 'aws-lambda'
 
 const dynamo = new DynamoDBClient({})
@@ -12,31 +16,17 @@ function rollD20(): { values: number[]; used: number } {
   return { values: [v], used: v }
 }
 
-interface GenerateAndStoreRollInput {
-  rollId: string
-  playTableId: string
-  roller: { type: 'gm' | 'player'; rollerId: string }
-  rollNotation: string
-  modifier: number
-  isPrivate: boolean
-  rollRequestId?: string | null
-  rollRequestType: 'ad_hoc' | 'initiative'
-}
-
-export const handler: Handler<
-  GenerateAndStoreRollInput,
-  PublishRollInput
-> = async (event) => {
+export const handler: Handler<Payload, PublishRollInput> = async (event) => {
   const {
     rollId,
     playTableId,
     roller,
     rollNotation,
-    modifier = 0,
+    modifier,
     isPrivate,
     rollRequestId,
     rollRequestType,
-  } = event
+  } = GenerateAndStoreRollPayload.parse(event)
 
   const { values, used } = rollD20()
   const rollResult = used + modifier

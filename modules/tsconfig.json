@@ -6,6 +6,9 @@
     "paths": {
       "@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline": [
         "../shared/schemas/src/steps/roll-request-pipeline.ts"
+      ],
+      "@puzzlebottom-tabletop-tools/schemas/steps/roll-pipeline": [
+        "../shared/schemas/src/steps/roll-pipeline.ts"
       ]
     }
   },

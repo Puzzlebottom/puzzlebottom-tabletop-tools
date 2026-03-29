@@ -5,6 +5,7 @@ import type {
   CreateRollInput,
   Roll,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
+import type { GenerateAndStoreRollPayload } from '@puzzlebottom-tabletop-tools/schemas/steps/roll-pipeline'
 import type {
   AppSyncResolverEvent,
   AppSyncResolverHandler,
@@ -55,16 +56,9 @@ async function resolveActor(
   )
 }
 
-async function startRollExecution(params: {
-  rollId: string
-  playTableId: string
-  roller: RollerIdentity
-  rollNotation: string
-  modifier: number
-  isPrivate: boolean
-  rollRequestId?: string | null
-  rollRequestType: 'ad_hoc' | 'initiative'
-}): Promise<void> {
+async function startRollExecution(
+  params: GenerateAndStoreRollPayload
+): Promise<void> {
   await sfnClient.send(
     new StartExecutionCommand({
       stateMachineArn: ROLL_STATE_MACHINE_ARN,
