@@ -12,27 +12,33 @@ import { mergeTypeDefs } from '@graphql-tools/merge'
 import { print } from 'graphql'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const root = join(__dirname, '..')
-const modulesDir = join(root, 'modules')
 
 // Composition order: modules that extend others must come after their dependencies
 const SCHEMA_ORDER = ['play-table', 'dice-roller']
 
-const discovered = readdirSync(modulesDir).filter((name) =>
-  existsSync(join(modulesDir, name, 'graphql', 'schema.graphql'))
-)
-const moduleNames = [
-  ...SCHEMA_ORDER.filter((name) => discovered.includes(name)),
-  ...discovered.filter((name) => !SCHEMA_ORDER.includes(name)).sort(),
-]
+export function composeSchema(root = join(__dirname, '..')) {
+  const modulesDir = join(root, 'modules')
 
-const typeDefs = moduleNames.map((name) =>
-  readFileSync(join(modulesDir, name, 'graphql', 'schema.graphql'), 'utf8')
-)
+  const discovered = readdirSync(modulesDir).filter((name) =>
+    existsSync(join(modulesDir, name, 'graphql', 'schema.graphql'))
+  )
+  const moduleNames = [
+    ...SCHEMA_ORDER.filter((name) => discovered.includes(name)),
+    ...discovered.filter((name) => !SCHEMA_ORDER.includes(name)).sort(),
+  ]
 
-const merged = mergeTypeDefs(typeDefs)
-const sdl = print(merged)
+  const typeDefs = moduleNames.map((name) =>
+    readFileSync(join(modulesDir, name, 'graphql', 'schema.graphql'), 'utf8')
+  )
 
-const outputPath = join(root, 'infrastructure/lib/graphql/schema.graphql')
-writeFileSync(outputPath, sdl, 'utf8')
-console.log('Composed schema written to', outputPath)
+  const merged = mergeTypeDefs(typeDefs)
+  const sdl = print(merged)
+
+  const outputPath = join(root, 'infrastructure/lib/graphql/schema.graphql')
+  writeFileSync(outputPath, sdl, 'utf8')
+  console.log('Composed schema written to', outputPath)
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  composeSchema()
+}

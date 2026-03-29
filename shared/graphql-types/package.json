@@ -5,12 +5,14 @@
   "main": "./src/generated.ts",
   "types": "./src/generated.ts",
   "exports": {
-    ".": "./src/generated.ts"
+    ".": "./src/generated.ts",
+    "./events": "./src/events.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@puzzlebottom-tabletop-tools/schemas": "*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

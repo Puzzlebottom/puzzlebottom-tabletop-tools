@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "rootDir": "src"
+    "paths": {
+      "@puzzlebottom-tabletop-tools/graphql-types/events": [
+        "../graphql-types/src/events.ts"
+      ]
+    }
   },
   "include": ["src/**/*.ts"]
 }
