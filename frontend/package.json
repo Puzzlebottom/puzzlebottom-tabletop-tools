@@ -14,10 +14,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@aws-amplify/ui-react": "^6.15.1",
+    "@aws-amplify/ui-react": "^6.15.2",
     "@puzzlebottom-tabletop-tools/graphql-types": "*",
     "@puzzlebottom-tabletop-tools/schemas": "*",
-    "aws-amplify": "^6.16.2",
+    "aws-amplify": "^6.16.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
