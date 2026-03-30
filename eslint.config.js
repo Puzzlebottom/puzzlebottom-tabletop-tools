@@ -119,6 +119,7 @@ module.exports = tseslint.config(
                 'domain',
                 'contracts',
                 ['store', { module: 'play-table' }],
+                ['store', { module: 'dice-roller' }],
               ],
             },
             {
