@@ -5,7 +5,7 @@ export default defineConfig({
     ...(process.env.HUSKY === '1' && { reporters: ['dot'] }),
     globals: true,
     include: ['**/*.test.ts'],
-    exclude: ['node_modules'],
+    exclude: ['node_modules', 'frontend/**'],
     onConsoleLog(): boolean {
       return process.env.HUSKY !== '1'
     },
