@@ -150,7 +150,7 @@ flowchart TB
 stateDiagram-v2
     [*] --> PersistRollRequest: createRollRequest mutation<br/>resolver starts execution
 
-    PersistRollRequest: Write RollRequest to DiceRoller table; set INITIATIVE_META when type=initiative
+    PersistRollRequest: Write RollRequest to DiceRoller table; set activePK (GSI4) when the request is the table's active roll request
 
     PersistRollRequest --> ChoiceByType: Success
 
@@ -214,21 +214,21 @@ This mirrors the roll flow: the pipeline (Step Function) is the source of UI upd
 
 ## Component Summary
 
-| Component                                   | Technology              | Responsibility                                                                                                               |
-| ------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend**                                | React, Vite, Amplify UI | Dice roller UI, Cognito auth, 3D dice (Three.js), GraphQL client                                                             |
-| **AppSync**                                 | AWS AppSync             | GraphQL API, auth (Cognito/API key), real-time subscriptions                                                                 |
-| **roll-dice**                               | Lambda                  | Validate request, generate rollId, start Roll Step Function, return acknowledgment                                           |
-| **Roll SF** (roll-pipeline)                 | Step Function           | Generate roll result, store in DynamoDB, notify subscribers via `notifyRollCompleted`, publish RollCompleted to EventBridge  |
-| **play-table**                              | Lambda                  | Create/join play tables, leave, query play table and roll history                                                            |
-| **roll-request**                            | Lambda                  | Validate GM, start Roll Request Step Function, return CreateRollRequestResponse                                              |
-| **initiative**                              | Lambda                  | clearInitiative, notifyRollRequestCreated, notifyInitiativeUpdated                                                           |
-| **EventBridge**                             | AWS EventBridge         | Decouple mutations from async processing                                                                                     |
-| **SQS**                                     | AWS SQS                 | Queue for trigger Lambda, DLQ for failures                                                                                   |
-| **trigger**                                 | Lambda                  | Route events: invoke roll-completed, player-left, player-joined; handle RollRequestCompleted (validate/ack only, no handler) |
-| **roll-completed**                          | Lambda                  | Derive completion from rolls; SendTaskSuccess with RollRequestCompleted payload when all target players have rolled          |
-| **Roll Request SF** (roll-request-pipeline) | AWS Step Functions      | PersistRollRequest → Choice by type → InitiativeCreateHandler (WAIT) → PublishRollRequestCompleted                           |
-| **DynamoDB**                                | AWS DynamoDB            | PlayTable table: PlayTable, Player; DiceRoller table: Roll, RollRequest, INITIATIVE_META (initiative derived from rolls)     |
+| Component                                   | Technology              | Responsibility                                                                                                                |
+| ------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend**                                | React, Vite, Amplify UI | Dice roller UI, Cognito auth, 3D dice (Three.js), GraphQL client                                                              |
+| **AppSync**                                 | AWS AppSync             | GraphQL API, auth (Cognito/API key), real-time subscriptions                                                                  |
+| **roll-dice**                               | Lambda                  | Validate request, generate rollId, start Roll Step Function, return acknowledgment                                            |
+| **Roll SF** (roll-pipeline)                 | Step Function           | Generate roll result, store in DynamoDB, notify subscribers via `notifyRollCompleted`, publish RollCompleted to EventBridge   |
+| **play-table**                              | Lambda                  | Create/join play tables, leave, query play table and roll history                                                             |
+| **roll-request**                            | Lambda                  | Validate GM, start Roll Request Step Function, return CreateRollRequestResponse                                               |
+| **initiative**                              | Lambda                  | clearInitiative, notifyRollRequestCreated, notifyInitiativeUpdated                                                            |
+| **EventBridge**                             | AWS EventBridge         | Decouple mutations from async processing                                                                                      |
+| **SQS**                                     | AWS SQS                 | Queue for trigger Lambda, DLQ for failures                                                                                    |
+| **trigger**                                 | Lambda                  | Route events: invoke roll-completed, player-left, player-joined; handle RollRequestCompleted (validate/ack only, no handler)  |
+| **roll-completed**                          | Lambda                  | Derive completion from rolls; SendTaskSuccess with RollRequestCompleted payload when all target players have rolled           |
+| **Roll Request SF** (roll-request-pipeline) | AWS Step Functions      | PersistRollRequest → Choice by type → InitiativeCreateHandler (WAIT) → PublishRollRequestCompleted                            |
+| **DynamoDB**                                | AWS DynamoDB            | PlayTable table: PlayTable, Player; DiceRoller table: Roll, RollRequest (active request via GSI4; rolls per request via GSI5) |
 
 ## Event Types
 
@@ -292,10 +292,9 @@ Data is split across two tables:
 
 **DiceRoller table** (`{env}-puzzlebottom-dice-roller`):
 
-| Entity          | PK               | SK                 | Description                                                            |
-| --------------- | ---------------- | ------------------ | ---------------------------------------------------------------------- |
-| Roll            | `PLAYTABLE#<id>` | `ROLL#<rollId>`    | values, modifier, total, visibility, rollRequestId, rollRequestType    |
-| RollRequest     | `PLAYTABLE#<id>` | `ROLLREQUEST#<id>` | targetPlayerIds, type, taskToken, initiatedBy                          |
-| INITIATIVE_META | `PLAYTABLE#<id>` | `INITIATIVE_META`  | currentRollRequestId (initiative order derived from rolls, not stored) |
+| Entity      | PK               | SK                 | Description                                                                                        |
+| ----------- | ---------------- | ------------------ | -------------------------------------------------------------------------------------------------- |
+| Roll        | `PLAYTABLE#<id>` | `ROLL#<rollId>`    | values, modifier, total, visibility, rollRequestId, rollRequestType                                |
+| RollRequest | `PLAYTABLE#<id>` | `ROLLREQUEST#<id>` | targetPlayerIds, type, taskToken, initiatedBy; `activePK` + GSI4 for active request per play table |
 
-Initiative order is derived by querying `ROLL#` items for the current `rollRequestId` where `rollRequestType === 'initiative'`, sorted by total/value/modifier, joined with Player for characterName.
+Initiative order is derived by querying rolls for the active roll request (GSI5 / `listRollsForRequest`) where `type === 'initiative'`, sorted by total/value/modifier, joined with Player for characterName.

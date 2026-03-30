@@ -1,11 +1,4 @@
-import {
-  DynamoDBClient,
-  GetItemCommand,
-  QueryCommand,
-  UpdateItemCommand,
-} from '@aws-sdk/client-dynamodb'
 import { SendTaskSuccessCommand, SFNClient } from '@aws-sdk/client-sfn'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 import type { PublishRollInput } from '@puzzlebottom-tabletop-tools/graphql-types'
 import { PlayerLeftDetailSchema } from '@puzzlebottom-tabletop-tools/schemas'
 import {
@@ -15,171 +8,135 @@ import {
 import type { Handler } from 'aws-lambda'
 
 import { publishInitiativeUpdated } from '../shared/notify-appsync.js'
+import {
+  createDiceRollerStore,
+  type IDiceRollerStore,
+  type Roll,
+} from '../store/index.js'
 
-const dynamo = new DynamoDBClient({})
 const sfn = new SFNClient({})
-const TABLE_NAME = process.env.TABLE_NAME!
 
-interface InitiativeMetaItem {
-  currentRollRequestId: string
-}
-
-interface RollRequestItem {
-  id: string
-  taskToken?: string
-  targetPlayerIds: string[]
-  type: string
-  createdAt: string
-}
-
-function rollsForInitiative(
-  rolls: PublishRollInput[],
-  rollRequestId: string
-): PublishRollInput[] {
+function rollsForInitiative(rolls: Roll[], rollRequestId: string): Roll[] {
   return rolls.filter(
     (r) => r.rollRequestId === rollRequestId && r.type === 'initiative'
   )
 }
 
-export const handler: Handler<unknown, void> = async (event) => {
-  const detail = PlayerLeftDetailSchema.parse(event)
-  const { playTableId, id: playerId } = detail
+function rollToPublishInput(r: Roll): PublishRollInput {
+  return {
+    id: r.id,
+    playTableId: r.playTableId,
+    rollerId: r.rollerId,
+    rollNotation: r.rollNotation,
+    type: r.type ?? undefined,
+    values: r.values,
+    modifier: r.modifier,
+    rollResult: r.rollResult,
+    isPrivate: r.isPrivate,
+    rollRequestId: r.rollRequestId ?? undefined,
+    createdAt: r.createdAt,
+    deletedAt: r.deletedAt ?? undefined,
+  }
+}
 
-  const pk = `PLAYTABLE#${playTableId}`
+export function createPlayerLeftHandler(
+  store: IDiceRollerStore,
+  sfnClient: SFNClient
+): Handler<unknown, void> {
+  return async (event) => {
+    const detail = PlayerLeftDetailSchema.parse(event)
+    const { playTableId, id: playerId } = detail
 
-  const rollRequestsResult = await dynamo.send(
-    new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      ExpressionAttributeValues: marshall({
-        ':pk': pk,
-        ':sk': 'ROLLREQUEST#',
-      }),
-    })
-  )
+    const activeBefore = await store.getActiveRollRequest(playTableId)
 
-  const rollRequestItems = (rollRequestsResult.Items ?? []).map(
-    (i) => unmarshall(i) as RollRequestItem
-  )
-  const rollRequestsWithPlayer = rollRequestItems.filter((rr) =>
-    rr.targetPlayerIds.includes(playerId)
-  )
+    await store.removePlayerFromActiveRollRequest(playTableId, playerId)
 
-  for (const rr of rollRequestsWithPlayer) {
-    const updatedTargets = rr.targetPlayerIds.filter((id) => id !== playerId)
+    if (!activeBefore) {
+      return
+    }
 
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: TABLE_NAME,
-        Key: marshall({
-          PK: pk,
-          SK: `ROLLREQUEST#${rr.id}`,
-        }),
-        UpdateExpression: 'SET targetPlayerIds = :t',
-        ExpressionAttributeValues: marshall({ ':t': updatedTargets }),
-      })
-    )
+    if (
+      activeBefore.targetPlayerIds.includes(playerId) &&
+      activeBefore.taskToken
+    ) {
+      const updatedTargets = activeBefore.targetPlayerIds.filter(
+        (id) => id !== playerId
+      )
 
-    if (rr.taskToken) {
       if (updatedTargets.length === 0) {
         const payload: RollRequestCompletedDetail =
           RollRequestCompletedDetailSchema.parse({
             playTableId,
-            rollRequestId: rr.id,
-            type: rr.type as 'initiative',
+            rollRequestId: activeBefore.id,
+            type: activeBefore.type,
             timestamps: {
-              createdAt: rr.createdAt,
+              createdAt: activeBefore.createdAt,
               completedAt: new Date().toISOString(),
             },
             playerIds: [],
             rollIds: [],
           })
-        await sfn.send(
+        await sfnClient.send(
           new SendTaskSuccessCommand({
-            taskToken: rr.taskToken,
+            taskToken: activeBefore.taskToken,
             output: JSON.stringify(payload),
           })
         )
-      } else {
-        const rollsResult = await dynamo.send(
-          new QueryCommand({
-            TableName: TABLE_NAME,
-            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-            ExpressionAttributeValues: marshall({
-              ':pk': pk,
-              ':sk': 'ROLL#',
-            }),
+      } else if (
+        await store.isRollRequestFulfilled(playTableId, activeBefore.id)
+      ) {
+        const rolls = await store.listRollsForRequest(
+          playTableId,
+          activeBefore.id
+        )
+        const initiativeRolls = rollsForInitiative(rolls, activeBefore.id)
+        const rollIds = initiativeRolls.map((r) => r.id).sort()
+        const payload: RollRequestCompletedDetail =
+          RollRequestCompletedDetailSchema.parse({
+            playTableId,
+            rollRequestId: activeBefore.id,
+            type: activeBefore.type,
+            timestamps: {
+              createdAt: activeBefore.createdAt,
+              completedAt: new Date().toISOString(),
+            },
+            playerIds: [...updatedTargets].sort(),
+            rollIds,
+          })
+        await sfnClient.send(
+          new SendTaskSuccessCommand({
+            taskToken: activeBefore.taskToken,
+            output: JSON.stringify(payload),
           })
         )
-        const rolls = (rollsResult.Items ?? []).map(
-          (i) => unmarshall(i) as PublishRollInput
-        )
-        const rollsForRequest = rollsForInitiative(rolls, rr.id)
-        const rollerIds = [...new Set(rollsForRequest.map((r) => r.rollerId))]
-        const allRolled = updatedTargets.every((id) => rollerIds.includes(id))
-        if (allRolled) {
-          const rollIds = rollsForRequest.map((r) => r.id).sort()
-          const payload: RollRequestCompletedDetail =
-            RollRequestCompletedDetailSchema.parse({
-              playTableId,
-              rollRequestId: rr.id,
-              type: rr.type as 'initiative',
-              timestamps: {
-                createdAt: rr.createdAt,
-                completedAt: new Date().toISOString(),
-              },
-              playerIds: [...updatedTargets].sort(),
-              rollIds,
-            })
-          await sfn.send(
-            new SendTaskSuccessCommand({
-              taskToken: rr.taskToken,
-              output: JSON.stringify(payload),
-            })
-          )
-        }
       }
     }
-  }
 
-  const metaResult = await dynamo.send(
-    new GetItemCommand({
-      TableName: TABLE_NAME,
-      Key: marshall({ PK: pk, SK: 'INITIATIVE_META' }),
+    const active = await store.getActiveRollRequest(playTableId)
+    if (!active) {
+      return
+    }
+
+    const rolls = await store.listRollsForRequest(playTableId, active.id)
+    const initiativeRolls = rollsForInitiative(rolls, active.id)
+    const updatedRolls = initiativeRolls.filter((r) => r.rollerId !== playerId)
+
+    if (updatedRolls.length === initiativeRolls.length) {
+      return
+    }
+
+    const url = process.env.APPSYNC_GRAPHQL_URL!
+    await publishInitiativeUpdated(url, {
+      rolls: updatedRolls.map(rollToPublishInput),
     })
-  )
-
-  if (!metaResult.Item) {
-    return
   }
-
-  const meta = unmarshall(metaResult.Item) as InitiativeMetaItem
-  const currentRollRequestId = meta.currentRollRequestId
-  if (!currentRollRequestId) {
-    return
-  }
-
-  const rollsResult = await dynamo.send(
-    new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      ExpressionAttributeValues: marshall({
-        ':pk': pk,
-        ':sk': 'ROLL#',
-      }),
-    })
-  )
-
-  const rolls = (rollsResult.Items ?? []).map(
-    (i) => unmarshall(i) as PublishRollInput
-  )
-  const initiativeRolls = rollsForInitiative(rolls, currentRollRequestId)
-  const updatedRolls = initiativeRolls.filter((r) => r.rollerId !== playerId)
-
-  if (updatedRolls.length === initiativeRolls.length) {
-    return
-  }
-
-  const url = process.env.APPSYNC_GRAPHQL_URL!
-  await publishInitiativeUpdated(url, { rolls: updatedRolls })
 }
+
+const defaultStore = createDiceRollerStore({
+  tableName: process.env.TABLE_NAME!,
+})
+
+export const handler: Handler<unknown, void> = createPlayerLeftHandler(
+  defaultStore,
+  sfn
+)

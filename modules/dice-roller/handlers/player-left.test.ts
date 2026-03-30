@@ -1,43 +1,22 @@
-import { marshall } from '@aws-sdk/util-dynamodb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MINIMAL_CONTEXT } from '../../../backend/test/lambda-context.js'
+import type { RollRequest } from '../store/index.js'
 import { handler } from './player-left.js'
 
-const { mockDynamoSend, mockSfnSend, mockFetch } = vi.hoisted(() => ({
-  mockDynamoSend: vi.fn(),
+const { mockStore, mockSfnSend, mockFetch } = vi.hoisted(() => ({
+  mockStore: {
+    getActiveRollRequest: vi.fn(),
+    removePlayerFromActiveRollRequest: vi.fn(),
+    isRollRequestFulfilled: vi.fn(),
+    listRollsForRequest: vi.fn(),
+  },
   mockSfnSend: vi.fn(),
   mockFetch: vi.fn(),
 }))
 
-vi.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: vi.fn(function () {
-    return { send: mockDynamoSend }
-  }),
-  GetItemCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
-  PutItemCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
-  QueryCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
-  UpdateItemCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
+vi.mock('../store/index.js', () => ({
+  createDiceRollerStore: () => mockStore,
 }))
 
 vi.mock('@aws-sdk/client-sfn', () => ({
@@ -58,10 +37,29 @@ vi.mock('../shared/notify-appsync.js', () => ({
   publishInitiativeUpdated: vi.fn().mockResolvedValue(undefined),
 }))
 
+function rollRequest(overrides: Partial<RollRequest> = {}): RollRequest {
+  return {
+    id: 'rr-1',
+    playTableId: 'pt-1',
+    targetPlayerIds: ['p1', 'p2'],
+    rollNotation: 'd20',
+    type: 'initiative',
+    dc: null,
+    isPrivate: false,
+    createdAt: '2024-01-01T00:00:00Z',
+    deletedAt: null,
+    ...overrides,
+  }
+}
+
 describe('player-left handler', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockDynamoSend.mockReset()
+    mockStore.getActiveRollRequest.mockReset()
+    mockStore.removePlayerFromActiveRollRequest.mockReset()
+    mockStore.isRollRequestFulfilled.mockReset()
+    mockStore.listRollsForRequest.mockReset()
+    mockSfnSend.mockReset()
     process.env.TABLE_NAME = 'test-table'
     process.env.PLAY_TABLE_NAME = 'test-play-table'
     process.env.APPSYNC_GRAPHQL_URL =
@@ -70,61 +68,44 @@ describe('player-left handler', () => {
   })
 
   it('removes player from initiative order and notifies AppSync', async () => {
-    const rollRequestItems: ReturnType<typeof marshall>[] = []
-    const metaItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'INITIATIVE_META',
-      currentRollRequestId: 'rr-1',
-    })
-    const rollItems = [
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p1',
+    mockStore.getActiveRollRequest
+      .mockResolvedValueOnce(
+        rollRequest({ targetPlayerIds: ['p1', 'p2'], taskToken: undefined })
+      )
+      .mockResolvedValueOnce(
+        rollRequest({ targetPlayerIds: ['p1', 'p2'], taskToken: undefined })
+      )
+    mockStore.removePlayerFromActiveRollRequest.mockResolvedValue(undefined)
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
         id: 'r-p1',
         playTableId: 'pt-1',
         rollerId: 'p1',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 2,
         rollResult: 20,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p2',
+      },
+      {
         id: 'r-p2',
         playTableId: 'pt-1',
         rollerId: 'p2',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [15],
         modifier: 1,
         rollResult: 16,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-    ]
-    const playerItems = ['p1', 'p2'].map((id) =>
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: `PLAYER#${id}`,
-        id,
-        characterName: id === 'p1' ? 'Alice' : 'Bob',
-      })
-    )
-    mockDynamoSend
-      .mockResolvedValueOnce({ Items: rollRequestItems })
-      .mockResolvedValueOnce({ Item: metaItem })
-      .mockResolvedValueOnce({ Items: rollItems })
-      .mockResolvedValueOnce({ Item: playerItems[0] })
-      .mockResolvedValueOnce({ Item: playerItems[1] })
-      .mockResolvedValue({})
+      },
+    ])
 
     const event = { playTableId: 'pt-1', id: 'p2' }
 
@@ -147,26 +128,26 @@ describe('player-left handler', () => {
   })
 
   it('updates RollRequest and sends SendTaskSuccess when last target player leaves', async () => {
-    const rollRequestItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'ROLLREQUEST#rr-1',
-      id: 'rr-1',
-      taskToken: 'token-123',
-      targetPlayerIds: ['p2'],
-      type: 'initiative',
-      createdAt: '2024-01-01T00:00:00Z',
-    })
-    mockDynamoSend
-      .mockResolvedValueOnce({ Items: [rollRequestItem] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ Item: undefined })
-      .mockResolvedValue({})
+    mockStore.getActiveRollRequest
+      .mockResolvedValueOnce(
+        rollRequest({
+          targetPlayerIds: ['p2'],
+          taskToken: 'token-123',
+        })
+      )
+      .mockResolvedValueOnce(
+        rollRequest({
+          targetPlayerIds: [],
+          taskToken: 'token-123',
+        })
+      )
+    mockStore.removePlayerFromActiveRollRequest.mockResolvedValue(undefined)
+    mockStore.listRollsForRequest.mockResolvedValue([])
 
     const event = { playTableId: 'pt-1', id: 'p2' }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockDynamoSend).toHaveBeenCalledTimes(3)
     expect(mockSfnSend).toHaveBeenCalledTimes(1)
     expect(mockSfnSend).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -178,108 +159,126 @@ describe('player-left handler', () => {
   })
 
   it('parses valid PlayerLeft detail without throwing when no initiative state', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Items: [] })
-      .mockResolvedValue({ Item: undefined })
+    mockStore.getActiveRollRequest.mockResolvedValue(null)
+    mockStore.removePlayerFromActiveRollRequest.mockResolvedValue(undefined)
 
     const event = { playTableId: 'pt-1', id: 'p1' }
 
     await expect(
       handler(event, MINIMAL_CONTEXT, vi.fn())
     ).resolves.toBeUndefined()
-    expect(mockDynamoSend).toHaveBeenCalledTimes(2)
+    expect(mockStore.getActiveRollRequest).toHaveBeenCalledTimes(1)
+    expect(mockStore.removePlayerFromActiveRollRequest).toHaveBeenCalledWith(
+      'pt-1',
+      'p1'
+    )
   })
 
   it('returns early when leaving player is not in any RollRequest targetPlayerIds', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Items: [] })
-      .mockResolvedValueOnce({ Item: undefined })
+    mockStore.getActiveRollRequest
+      .mockResolvedValueOnce(rollRequest({ targetPlayerIds: ['p1', 'p2'] }))
+      .mockResolvedValueOnce(rollRequest({ targetPlayerIds: ['p1', 'p2'] }))
+    mockStore.removePlayerFromActiveRollRequest.mockResolvedValue(undefined)
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
+        id: 'r-p1',
+        playTableId: 'pt-1',
+        rollerId: 'p1',
+        rollNotation: 'd20',
+        type: 'initiative',
+        values: [18],
+        modifier: 2,
+        rollResult: 20,
+        isPrivate: false,
+        rollRequestId: 'rr-1',
+        createdAt: '2024-01-01T00:00:00Z',
+        deletedAt: null,
+      },
+      {
+        id: 'r-p2',
+        playTableId: 'pt-1',
+        rollerId: 'p2',
+        rollNotation: 'd20',
+        type: 'initiative',
+        values: [15],
+        modifier: 1,
+        rollResult: 16,
+        isPrivate: false,
+        rollRequestId: 'rr-1',
+        createdAt: '2024-01-01T00:00:00Z',
+        deletedAt: null,
+      },
+    ])
 
     const event = { playTableId: 'pt-1', id: 'p3' }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockDynamoSend).toHaveBeenCalledTimes(2)
     expect(mockSfnSend).not.toHaveBeenCalled()
+    const { publishInitiativeUpdated } =
+      await import('../shared/notify-appsync.js')
+    expect(publishInitiativeUpdated).not.toHaveBeenCalled()
   })
 
   it('sends SendTaskSuccess when targetPlayerIds becomes empty after update', async () => {
-    const rollRequestItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'ROLLREQUEST#rr-1',
-      id: 'rr-1',
-      taskToken: 'token-123',
-      targetPlayerIds: ['p1'],
-      type: 'initiative',
-      createdAt: '2024-01-01T00:00:00Z',
-    })
-    mockDynamoSend
-      .mockResolvedValueOnce({ Items: [rollRequestItem] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ Item: undefined })
-      .mockResolvedValue({})
+    mockStore.getActiveRollRequest
+      .mockResolvedValueOnce(
+        rollRequest({
+          targetPlayerIds: ['p1'],
+          taskToken: 'token-123',
+        })
+      )
+      .mockResolvedValueOnce(
+        rollRequest({
+          targetPlayerIds: [],
+          taskToken: 'token-123',
+        })
+      )
+    mockStore.removePlayerFromActiveRollRequest.mockResolvedValue(undefined)
+    mockStore.listRollsForRequest.mockResolvedValue([])
 
     const event = { playTableId: 'pt-1', id: 'p1' }
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockDynamoSend).toHaveBeenCalledTimes(3)
     expect(mockSfnSend).toHaveBeenCalledTimes(1)
   })
 
   it('returns early when player not in derived initiative order', async () => {
-    const metaItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'INITIATIVE_META',
-      currentRollRequestId: 'rr-1',
-    })
-    const rollItems = [
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p1',
+    mockStore.getActiveRollRequest
+      .mockResolvedValueOnce(rollRequest({ targetPlayerIds: ['p1', 'p2'] }))
+      .mockResolvedValueOnce(rollRequest({ targetPlayerIds: ['p1', 'p2'] }))
+    mockStore.removePlayerFromActiveRollRequest.mockResolvedValue(undefined)
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
         id: 'r-p1',
+        playTableId: 'pt-1',
         rollerId: 'p1',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 2,
         rollResult: 20,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p2',
+      },
+      {
         id: 'r-p2',
+        playTableId: 'pt-1',
         rollerId: 'p2',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [15],
         modifier: 1,
         rollResult: 16,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-    ]
-    const playerItems = ['p1', 'p2'].map((id) =>
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: `PLAYER#${id}`,
-        id,
-        characterName: id === 'p1' ? 'Alice' : 'Bob',
-      })
-    )
-    mockDynamoSend
-      .mockResolvedValueOnce({ Items: [] })
-      .mockResolvedValueOnce({ Item: metaItem })
-      .mockResolvedValueOnce({ Items: rollItems })
-      .mockResolvedValueOnce({ Item: playerItems[0] })
-      .mockResolvedValueOnce({ Item: playerItems[1] })
-      .mockResolvedValue({})
+      },
+    ])
 
     const event = { playTableId: 'pt-1', id: 'p3' }
 

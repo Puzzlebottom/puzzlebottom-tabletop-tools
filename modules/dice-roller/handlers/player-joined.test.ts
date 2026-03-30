@@ -1,129 +1,90 @@
-import { marshall } from '@aws-sdk/util-dynamodb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MINIMAL_CONTEXT } from '../../../backend/test/lambda-context.js'
+import type { RollRequest } from '../store/index.js'
 import { handler } from './player-joined.js'
 
-const { mockDynamoSend, mockFetch } = vi.hoisted(() => ({
-  mockDynamoSend: vi.fn(),
-  mockFetch: vi.fn(),
+const mockStore = vi.hoisted(() => ({
+  getActiveRollRequest: vi.fn(),
+  listRollsForRequest: vi.fn(),
+  addPlayerToRollRequest: vi.fn(),
 }))
 
-vi.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: vi.fn(function () {
-    return { send: mockDynamoSend }
-  }),
-  GetItemCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
-  PutItemCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
-  QueryCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
-  UpdateItemCommand: class {
-    input: unknown
-    constructor(i: unknown) {
-      this.input = i
-    }
-  },
+vi.mock('../store/index.js', () => ({
+  createDiceRollerStore: () => mockStore,
 }))
 
-vi.stubGlobal('fetch', mockFetch)
-
-vi.mock('../shared/notify-appsync.js', () => ({
-  publishInitiativeUpdated: vi.fn().mockResolvedValue(undefined),
-}))
+function rollRequest(overrides: Partial<RollRequest> = {}): RollRequest {
+  return {
+    id: 'rr-1',
+    playTableId: 'pt-1',
+    targetPlayerIds: ['p1', 'p2'],
+    rollNotation: 'd20',
+    type: 'initiative',
+    dc: null,
+    isPrivate: false,
+    createdAt: '2024-01-01T00:00:00Z',
+    deletedAt: null,
+    taskToken: 'task-token-123',
+    ...overrides,
+  }
+}
 
 describe('player-joined handler', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockDynamoSend.mockReset()
+    mockStore.getActiveRollRequest.mockReset()
+    mockStore.listRollsForRequest.mockReset()
+    mockStore.addPlayerToRollRequest.mockReset()
     process.env.TABLE_NAME = 'test-table'
-    process.env.PLAY_TABLE_NAME = 'test-play-table'
-    process.env.APPSYNC_GRAPHQL_URL =
-      'https://xxx.appsync-api.us-east-1.amazonaws.com/graphql'
-    mockFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('{}') })
   })
 
   it('returns early when player already in derived order (has prior roll)', async () => {
-    const metaItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'INITIATIVE_META',
-      currentRollRequestId: 'rr-1',
-    })
-    const rollItems = [
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p1',
+    mockStore.getActiveRollRequest.mockResolvedValue(rollRequest())
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
         id: 'r-p1',
+        playTableId: 'pt-1',
         rollerId: 'p1',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 2,
         rollResult: 20,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p2',
+      },
+      {
         id: 'r-p2',
+        playTableId: 'pt-1',
         rollerId: 'p2',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [15],
         modifier: 1,
         rollResult: 16,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p3',
+      },
+      {
         id: 'r-p3',
+        playTableId: 'pt-1',
         rollerId: 'p3',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [14],
         modifier: 3,
         rollResult: 17,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-    ]
-    const playerItems = ['p1', 'p2', 'p3'].map((id) =>
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: `PLAYER#${id}`,
-        id,
-        characterName: id === 'p1' ? 'Alice' : id === 'p2' ? 'Bob' : 'Charlie',
-      })
-    )
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: metaItem })
-      .mockResolvedValueOnce({ Items: rollItems })
-      .mockResolvedValueOnce({ Item: playerItems[0] })
-      .mockResolvedValueOnce({ Item: playerItems[1] })
-      .mockResolvedValueOnce({ Item: playerItems[2] })
-      .mockResolvedValue({})
+      },
+    ])
 
     const event = {
       playTableId: 'pt-1',
@@ -134,63 +95,43 @@ describe('player-joined handler', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockDynamoSend).toHaveBeenCalledTimes(2)
-    const { publishInitiativeUpdated } =
-      await import('../shared/notify-appsync.js')
-    expect(publishInitiativeUpdated).not.toHaveBeenCalled()
+    expect(mockStore.getActiveRollRequest).toHaveBeenCalledWith('pt-1')
+    expect(mockStore.listRollsForRequest).toHaveBeenCalledWith('pt-1', 'rr-1')
+    expect(mockStore.addPlayerToRollRequest).not.toHaveBeenCalled()
   })
 
   it('updates RollRequest targetPlayerIds when player joins with no prior roll', async () => {
-    const metaItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'INITIATIVE_META',
-      currentRollRequestId: 'rr-1',
-    })
-    const rollItems = [
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p1',
+    mockStore.getActiveRollRequest.mockResolvedValue(rollRequest())
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
         id: 'r-p1',
+        playTableId: 'pt-1',
         rollerId: 'p1',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 2,
         rollResult: 20,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p2',
+      },
+      {
         id: 'r-p2',
+        playTableId: 'pt-1',
         rollerId: 'p2',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [15],
         modifier: 1,
         rollResult: 16,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-    ]
-    const rollRequestItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'ROLLREQUEST#rr-1',
-      id: 'rr-1',
-      targetPlayerIds: ['p1', 'p2'],
-      type: 'initiative',
-      taskToken: 'task-token-123',
-    })
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: metaItem })
-      .mockResolvedValueOnce({ Items: rollItems })
-      .mockResolvedValueOnce({ Item: rollRequestItem })
-      .mockResolvedValueOnce({})
+      },
+    ])
 
     const event = {
       playTableId: 'pt-1',
@@ -201,21 +142,15 @@ describe('player-joined handler', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockDynamoSend).toHaveBeenCalledTimes(4)
-    const updateCall = mockDynamoSend.mock.calls[3]
-    const updateInput = (updateCall?.[0] as { input?: unknown })?.input as {
-      Key?: { PK?: { S?: string }; SK?: { S?: string } }
-      ExpressionAttributeValues?: { ':t': { L?: { S: string }[] } }
-    }
-    expect(updateInput?.Key?.SK?.S).toContain('ROLLREQUEST#')
-    const targetIds = updateInput?.ExpressionAttributeValues?.[':t']?.L?.map(
-      (x) => x.S
+    expect(mockStore.addPlayerToRollRequest).toHaveBeenCalledWith(
+      'pt-1',
+      'rr-1',
+      'p3'
     )
-    expect(targetIds).toEqual(['p1', 'p2', 'p3'])
   })
 
-  it('returns early when no initiative meta exists', async () => {
-    mockDynamoSend.mockResolvedValue({ Item: undefined })
+  it('returns early when no active roll request exists', async () => {
+    mockStore.getActiveRollRequest.mockResolvedValue(null)
 
     const event = {
       playTableId: 'pt-1',
@@ -226,12 +161,12 @@ describe('player-joined handler', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockDynamoSend).toHaveBeenCalledTimes(1)
-    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockStore.getActiveRollRequest).toHaveBeenCalledTimes(1)
+    expect(mockStore.listRollsForRequest).not.toHaveBeenCalled()
   })
 
   it('parses valid PlayerJoined detail without throwing', async () => {
-    mockDynamoSend.mockResolvedValue({ Item: undefined })
+    mockStore.getActiveRollRequest.mockResolvedValue(null)
 
     const event = {
       playTableId: 'pt-1',
@@ -246,73 +181,51 @@ describe('player-joined handler', () => {
   })
 
   it('returns early when joining player already in derived order (sorts by total)', async () => {
-    const metaItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'INITIATIVE_META',
-      currentRollRequestId: 'rr-1',
-    })
-    const rollItems = [
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p1',
+    mockStore.getActiveRollRequest.mockResolvedValue(rollRequest())
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
         id: 'r-p1',
+        playTableId: 'pt-1',
         rollerId: 'p1',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 2,
         rollResult: 20,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p2',
+      },
+      {
         id: 'r-p2',
+        playTableId: 'pt-1',
         rollerId: 'p2',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [15],
         modifier: 1,
         rollResult: 16,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p3',
+      },
+      {
         id: 'r-p3',
+        playTableId: 'pt-1',
         rollerId: 'p3',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [17],
         modifier: 2,
         rollResult: 19,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-    ]
-    const playerItems = ['p1', 'p2', 'p3'].map((id) =>
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: `PLAYER#${id}`,
-        id,
-        characterName: id === 'p1' ? 'Alice' : id === 'p2' ? 'Bob' : 'Charlie',
-      })
-    )
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: metaItem })
-      .mockResolvedValueOnce({ Items: rollItems })
-      .mockResolvedValueOnce({ Item: playerItems[0] })
-      .mockResolvedValueOnce({ Item: playerItems[1] })
-      .mockResolvedValueOnce({ Item: playerItems[2] })
-      .mockResolvedValue({})
+      },
+    ])
 
     const event = {
       playTableId: 'pt-1',
@@ -323,79 +236,55 @@ describe('player-joined handler', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    const { publishInitiativeUpdated } =
-      await import('../shared/notify-appsync.js')
-    expect(publishInitiativeUpdated).not.toHaveBeenCalled()
+    expect(mockStore.addPlayerToRollRequest).not.toHaveBeenCalled()
   })
 
   it('returns early when joining player already in derived order (sorts by modifier)', async () => {
-    const metaItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'INITIATIVE_META',
-      currentRollRequestId: 'rr-1',
-    })
-    const rollItems = [
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p1',
+    mockStore.getActiveRollRequest.mockResolvedValue(rollRequest())
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
         id: 'r-p1',
+        playTableId: 'pt-1',
         rollerId: 'p1',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 1,
         rollResult: 19,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p2',
+      },
+      {
         id: 'r-p2',
+        playTableId: 'pt-1',
         rollerId: 'p2',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 0,
         rollResult: 19,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p3',
+      },
+      {
         id: 'r-p3',
+        playTableId: 'pt-1',
         rollerId: 'p3',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 2,
         rollResult: 19,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-    ]
-    const playerItems = ['p1', 'p2', 'p3'].map((id) =>
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: `PLAYER#${id}`,
-        id,
-        characterName: id === 'p1' ? 'Alice' : id === 'p2' ? 'Bob' : 'Charlie',
-      })
-    )
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: metaItem })
-      .mockResolvedValueOnce({ Items: rollItems })
-      .mockResolvedValueOnce({ Item: playerItems[0] })
-      .mockResolvedValueOnce({ Item: playerItems[1] })
-      .mockResolvedValueOnce({ Item: playerItems[2] })
-      .mockResolvedValue({})
+      },
+    ])
 
     const event = {
       playTableId: 'pt-1',
@@ -406,63 +295,41 @@ describe('player-joined handler', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    const { publishInitiativeUpdated } =
-      await import('../shared/notify-appsync.js')
-    expect(publishInitiativeUpdated).not.toHaveBeenCalled()
+    expect(mockStore.addPlayerToRollRequest).not.toHaveBeenCalled()
   })
 
   it('returns early when player already in derived order', async () => {
-    const metaItem = marshall({
-      PK: 'PLAYTABLE#pt-1',
-      SK: 'INITIATIVE_META',
-      currentRollRequestId: 'rr-1',
-    })
-    const rollItems = [
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p1',
+    mockStore.getActiveRollRequest.mockResolvedValue(rollRequest())
+    mockStore.listRollsForRequest.mockResolvedValue([
+      {
         id: 'r-p1',
+        playTableId: 'pt-1',
         rollerId: 'p1',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [18],
         modifier: 2,
         rollResult: 20,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: 'ROLL#r-p2',
+      },
+      {
         id: 'r-p2',
+        playTableId: 'pt-1',
         rollerId: 'p2',
         rollNotation: 'd20',
+        type: 'initiative',
         values: [15],
         modifier: 1,
         rollResult: 16,
         isPrivate: false,
-        type: 'initiative',
         rollRequestId: 'rr-1',
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
-      }),
-    ]
-    const playerItems = ['p1', 'p2'].map((id) =>
-      marshall({
-        PK: 'PLAYTABLE#pt-1',
-        SK: `PLAYER#${id}`,
-        id,
-        characterName: id === 'p1' ? 'Alice' : 'Bob',
-      })
-    )
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: metaItem })
-      .mockResolvedValueOnce({ Items: rollItems })
-      .mockResolvedValueOnce({ Item: playerItems[0] })
-      .mockResolvedValueOnce({ Item: playerItems[1] })
-      .mockResolvedValue({})
+      },
+    ])
 
     const event = {
       playTableId: 'pt-1',
@@ -473,7 +340,8 @@ describe('player-joined handler', () => {
 
     await handler(event, MINIMAL_CONTEXT, vi.fn())
 
-    expect(mockDynamoSend).toHaveBeenCalledTimes(2)
-    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockStore.getActiveRollRequest).toHaveBeenCalledTimes(1)
+    expect(mockStore.listRollsForRequest).toHaveBeenCalledTimes(1)
+    expect(mockStore.addPlayerToRollRequest).not.toHaveBeenCalled()
   })
 })
