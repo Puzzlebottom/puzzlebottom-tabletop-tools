@@ -61,6 +61,25 @@ export class DatabaseStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     })
 
+    // GSI4: ACTIVE#<playTableId> + createdAt — sparse index for active Roll Requests
+    this.diceRollerTable.addGlobalSecondaryIndex({
+      indexName: 'GSI4',
+      partitionKey: { name: 'activePK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    })
+
+    // GSI5: ROLLREQUEST#<rollRequestId> + createdAt — sparse index for Rolls by Roll Request
+    this.diceRollerTable.addGlobalSecondaryIndex({
+      indexName: 'GSI5',
+      partitionKey: {
+        name: 'rollRequestPK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    })
+
     new cdk.CfnOutput(this, 'PlayTableTableName', {
       value: this.playTableTable.tableName,
       exportName: `${config.envName}-puzzlebottom-play-table-name`,

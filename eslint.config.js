@@ -44,6 +44,12 @@ module.exports = tseslint.config(
     plugins: { boundaries },
     settings: {
       'boundaries/root-path': path.join(__dirname),
+      'import/resolver': {
+        typescript: {
+          project: ['backend/tsconfig.json', 'frontend/tsconfig.json'],
+          noWarnOnMultipleProjects: true,
+        },
+      },
       'boundaries/elements': [
         { type: 'domain', pattern: 'shared/schemas/**/*.ts', mode: 'full' },
         {
@@ -71,6 +77,12 @@ module.exports = tseslint.config(
           pattern: 'modules/*/shared/**/*.ts',
           mode: 'full',
         },
+        {
+          type: 'store',
+          pattern: 'modules/(*)/store/**/*.ts',
+          capture: ['module'],
+          mode: 'full',
+        },
         { type: 'frontend', pattern: 'frontend/src/**/*.ts', mode: 'full' },
         { type: 'frontend', pattern: 'frontend/src/**/*.tsx', mode: 'full' },
         {
@@ -86,13 +98,47 @@ module.exports = tseslint.config(
         {
           default: 'disallow',
           rules: [
-            { from: 'domain', allow: ['contracts'] },
+            { from: 'domain', allow: ['domain', 'contracts'] },
             { from: 'contracts', disallow: ['*'] },
-            { from: 'steps', allow: ['domain', 'shared'] },
-            { from: 'resolvers', allow: ['domain', 'contracts'] },
-            { from: 'handlers', allow: ['domain', 'handlers', 'shared'] },
+            {
+              from: 'steps',
+              allow: ['domain', 'contracts', 'shared', 'steps', 'store'],
+            },
+            {
+              from: 'resolvers',
+              allow: ['domain', 'contracts', 'resolvers', 'store'],
+            },
+            {
+              from: 'handlers',
+              allow: ['domain', 'contracts', 'handlers', 'shared', 'store'],
+            },
+            { from: 'shared', allow: ['domain', 'contracts', 'shared'] },
+            {
+              from: [['store', { module: 'dice-roller' }]],
+              allow: [
+                'domain',
+                'contracts',
+                ['store', { module: 'play-table' }],
+              ],
+            },
+            {
+              from: [['store', { module: 'play-table' }]],
+              allow: ['domain', 'contracts'],
+            },
             { from: 'frontend', allow: ['domain', 'contracts'] },
-            { from: 'infrastructure', allow: [] },
+            { from: 'infrastructure', allow: ['infrastructure', 'domain'] },
+          ],
+        },
+      ],
+      'boundaries/entry-point': [
+        'error',
+        {
+          default: 'allow',
+          rules: [
+            {
+              target: 'store',
+              allow: ['index.ts'],
+            },
           ],
         },
       ],

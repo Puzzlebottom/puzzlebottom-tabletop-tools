@@ -51,11 +51,25 @@ describe('DatabaseStack', () => {
       ]),
     })
 
-    // DiceRoller: GSI3 (TARGET#playerId + status#createdAt)
+    // DiceRoller: GSI3 (TARGET#playerId + createdAt), GSI4 (ACTIVE#playTableId + createdAt), GSI5 (ROLLREQUEST#rollRequestId + createdAt)
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: `${mockConfig.envName}-puzzlebottom-dice-roller`,
       GlobalSecondaryIndexes: Match.arrayWith([
         Match.objectLike({ IndexName: 'GSI3' }),
+        Match.objectLike({
+          IndexName: 'GSI4',
+          KeySchema: Match.arrayWith([
+            { AttributeName: 'activePK', KeyType: 'HASH' },
+            { AttributeName: 'createdAt', KeyType: 'RANGE' },
+          ]),
+        }),
+        Match.objectLike({
+          IndexName: 'GSI5',
+          KeySchema: Match.arrayWith([
+            { AttributeName: 'rollRequestPK', KeyType: 'HASH' },
+            { AttributeName: 'createdAt', KeyType: 'RANGE' },
+          ]),
+        }),
       ]),
     })
   })
