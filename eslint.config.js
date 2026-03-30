@@ -130,7 +130,10 @@ module.exports = tseslint.config(
                 ['store', { module: 'play-table' }],
               ],
             },
-            { from: 'frontend', allow: ['domain', 'contracts'] },
+            {
+              from: 'frontend',
+              allow: ['domain', 'contracts', 'frontend'],
+            },
             { from: 'infrastructure', allow: ['infrastructure', 'domain'] },
           ],
         },

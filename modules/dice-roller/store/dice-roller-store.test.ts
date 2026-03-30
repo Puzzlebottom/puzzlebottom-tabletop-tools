@@ -280,6 +280,58 @@ describe('DiceRollerStore', () => {
     })
   })
 
+  describe('listRollsForPlayTable', () => {
+    it('returns all rolls for PK and ROLL# prefix, following pagination', async () => {
+      const page1Key = { PK: { S: 'PLAYTABLE#pt-1' }, SK: { S: 'ROLL#roll-1' } }
+      const send = vi.fn()
+      send
+        .mockResolvedValueOnce({
+          Items: [
+            marshalledRoll({
+              id: 'roll-1',
+              createdAt: '2025-01-01T00:00:00.000Z',
+            }),
+          ],
+          LastEvaluatedKey: page1Key,
+        })
+        .mockResolvedValueOnce({
+          Items: [
+            marshalledRoll({
+              id: 'roll-2',
+              createdAt: '2025-01-02T00:00:00.000Z',
+            }),
+          ],
+        })
+      const client = { send } as unknown as DynamoDBClient
+      const store = createDiceRollerStore({
+        tableName: TABLE_NAME,
+        dynamoClient: client,
+      })
+      const result = await store.listRollsForPlayTable('pt-1')
+      expect(send).toHaveBeenCalledTimes(2)
+      expect(result.map((r) => r.id)).toEqual(['roll-1', 'roll-2'])
+    })
+
+    it('queries base table with PK and begins_with ROLL#', async () => {
+      const { client, send } = makeClient({ Items: [] })
+      const store = createDiceRollerStore({
+        tableName: TABLE_NAME,
+        dynamoClient: client,
+      })
+      await store.listRollsForPlayTable('pt-1')
+      const [command] = send.mock.calls[0] as [MockCommand]
+      const eav = unmarshall(
+        command.input.ExpressionAttributeValues as Record<
+          string,
+          AttributeValue
+        >
+      )
+      expect(eav[':pk']).toBe('PLAYTABLE#pt-1')
+      expect(eav[':sk']).toBe('ROLL#')
+      expect(command.input.KeyConditionExpression).toContain('begins_with')
+    })
+  })
+
   describe('listRollsForRequest', () => {
     it('returns rolls for a request via GSI5', async () => {
       const { client } = makeClient({

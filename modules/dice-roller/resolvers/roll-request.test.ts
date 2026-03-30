@@ -1,31 +1,49 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createAppSyncEvent } from '../../../backend/test/appsync-event.js'
-import { createRollRequest, handler } from './roll-request.js'
+import {
+  __resetRollRequestResolverDepsCache,
+  createRollRequestWithDeps,
+  handler,
+  type RollRequestResolverDeps,
+} from './roll-request.js'
 
-const { mockSend } = vi.hoisted(() => {
-  const fn = vi.fn()
-  ;(
-    globalThis as { __rollRequestMockSend?: ReturnType<typeof vi.fn> }
-  ).__rollRequestMockSend = fn
-  return { mockSend: fn }
-})
+const mockPlayTableStore = vi.hoisted(() => ({
+  getPlayTable: vi.fn(),
+}))
 
-vi.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: class MockDynamoDBClient {
-    send = (globalThis as { __rollRequestMockSend?: ReturnType<typeof vi.fn> })
-      .__rollRequestMockSend!
-  },
-  GetItemCommand: class {},
+const mockDiceRollerStore = vi.hoisted(() => ({
+  getActiveRollRequest: vi.fn(),
+}))
+
+const mockSfnSend = vi.hoisted(() => vi.fn())
+
+vi.mock('../../play-table/store/index.js', () => ({
+  createPlayTableStore: () => mockPlayTableStore,
+}))
+
+vi.mock('../store/index.js', () => ({
+  createDiceRollerStore: () => mockDiceRollerStore,
 }))
 
 vi.mock('@aws-sdk/client-sfn', () => ({
   SFNClient: class MockSFNClient {
-    send = (globalThis as { __rollRequestMockSend?: ReturnType<typeof vi.fn> })
-      .__rollRequestMockSend!
+    send = mockSfnSend
   },
-  StartExecutionCommand: class {},
+  StartExecutionCommand: class {
+    constructor(public input: Record<string, unknown>) {}
+  },
 }))
+
+function createDeps(): RollRequestResolverDeps {
+  return {
+    playTableStore: mockPlayTableStore,
+    diceRollerStore: mockDiceRollerStore,
+    sfnClient: { send: mockSfnSend },
+    rollRequestStateMachineArn:
+      'arn:aws:states:us-east-1:123:stateMachine:test-roll-request',
+  } as unknown as RollRequestResolverDeps
+}
 
 function createEvent<T>(
   args: T,
@@ -40,7 +58,8 @@ function createEvent<T>(
     ...base,
     info: {
       ...base.info,
-      fieldName: options.fieldName ?? 'createRollRequest',
+      fieldName:
+        options.fieldName ?? base.info?.fieldName ?? 'createRollRequest',
       parentTypeName:
         options.parentTypeName ?? base.info?.parentTypeName ?? 'Mutation',
     },
@@ -49,23 +68,26 @@ function createEvent<T>(
 
 describe('roll-request resolvers', () => {
   beforeEach(() => {
-    mockSend.mockReset()
+    __resetRollRequestResolverDepsCache()
+    mockPlayTableStore.getPlayTable.mockReset()
+    mockDiceRollerStore.getActiveRollRequest.mockReset()
+    mockSfnSend.mockReset()
     process.env.PLAY_TABLE_NAME = 'test-play-table'
+    process.env.DICE_ROLLER_TABLE_NAME = 'test-dice-roller-table'
     process.env.ROLL_REQUEST_STATE_MACHINE_ARN =
       'arn:aws:states:us-east-1:123:stateMachine:test-roll-request'
   })
 
   describe('handler', () => {
     it('routes createRollRequest to createRollRequest resolver', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Item: {
-            PK: { S: 'PLAYTABLE#pt-1' },
-            SK: { S: 'METADATA' },
-            gmUserId: { S: 'gm-123' },
-          },
-        })
-        .mockResolvedValueOnce({})
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'gm-123',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
+      })
+      mockDiceRollerStore.getActiveRollRequest.mockResolvedValue(null)
+      mockSfnSend.mockResolvedValue({})
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -106,17 +128,16 @@ describe('roll-request resolvers', () => {
     })
   })
 
-  describe('createRollRequest', () => {
+  describe('createRollRequestWithDeps', () => {
     it('starts Roll Request Step Function when type is initiative', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Item: {
-            PK: { S: 'PLAYTABLE#pt-1' },
-            SK: { S: 'METADATA' },
-            gmUserId: { S: 'gm-123' },
-          },
-        })
-        .mockResolvedValueOnce({})
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'gm-123',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
+      })
+      mockDiceRollerStore.getActiveRollRequest.mockResolvedValue(null)
+      mockSfnSend.mockResolvedValue({})
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -132,10 +153,10 @@ describe('roll-request resolvers', () => {
           identity: { sub: 'gm-123' },
         }
       )
-      const result = (await createRollRequest(
-        event as Parameters<typeof createRollRequest>[0],
-        {} as never,
-        vi.fn()
+      const deps = createDeps()
+      const result = (await createRollRequestWithDeps(
+        event as Parameters<typeof createRollRequestWithDeps>[0],
+        deps
       )) as {
         id: string
         playTableId: string
@@ -148,7 +169,11 @@ describe('roll-request resolvers', () => {
         rollNotation: 'd20',
       })
       expect(result.id).toBeDefined()
-      expect(mockSend).toHaveBeenCalledTimes(2)
+      expect(mockPlayTableStore.getPlayTable).toHaveBeenCalledWith('pt-1')
+      expect(mockDiceRollerStore.getActiveRollRequest).toHaveBeenCalledWith(
+        'pt-1'
+      )
+      expect(mockSfnSend).toHaveBeenCalledOnce()
     })
 
     it('throws when identity is missing', async () => {
@@ -168,19 +193,18 @@ describe('roll-request resolvers', () => {
         }
       )
       await expect(
-        createRollRequest(event as never, {} as never, vi.fn())
+        createRollRequestWithDeps(event as never, createDeps())
       ).rejects.toThrow(
         'Unauthorized: createRollRequest requires Cognito authentication'
       )
     })
 
     it('throws when GM does not own play table', async () => {
-      mockSend.mockResolvedValueOnce({
-        Item: {
-          PK: { S: 'PLAYTABLE#pt-1' },
-          SK: { S: 'METADATA' },
-          gmUserId: { S: 'other-gm' },
-        },
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'other-gm',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
       })
       const event = createEvent(
         {
@@ -198,12 +222,12 @@ describe('roll-request resolvers', () => {
         }
       )
       await expect(
-        createRollRequest(event as never, {} as never, vi.fn())
+        createRollRequestWithDeps(event as never, createDeps())
       ).rejects.toThrow('Only the GM can create roll requests')
     })
 
     it('throws when play table not found', async () => {
-      mockSend.mockResolvedValueOnce({})
+      mockPlayTableStore.getPlayTable.mockResolvedValue(null)
       const event = createEvent(
         {
           playTableId: 'nonexistent',
@@ -220,18 +244,60 @@ describe('roll-request resolvers', () => {
         }
       )
       await expect(
-        createRollRequest(event as never, {} as never, vi.fn())
+        createRollRequestWithDeps(event as never, createDeps())
       ).rejects.toThrow('Play table not found')
     })
 
-    it('throws for unsupported roll request type', async () => {
-      mockSend.mockResolvedValueOnce({
-        Item: {
-          PK: { S: 'PLAYTABLE#pt-1' },
-          SK: { S: 'METADATA' },
-          gmUserId: { S: 'gm-123' },
-        },
+    it('throws when an active roll request already exists', async () => {
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'gm-123',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
       })
+      mockDiceRollerStore.getActiveRollRequest.mockResolvedValue({
+        id: 'rr-existing',
+        playTableId: 'pt-1',
+        targetPlayerIds: ['p1'],
+        rollNotation: 'd20',
+        type: 'initiative',
+        dc: null,
+        isPrivate: false,
+        createdAt: '2024-01-01T00:00:00Z',
+        deletedAt: null,
+      })
+      const event = createEvent(
+        {
+          playTableId: 'pt-1',
+          input: {
+            targetPlayerIds: ['p1'],
+            type: 'initiative',
+            diceNotation: 'd20',
+          },
+        },
+        {
+          fieldName: 'createRollRequest',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'gm-123' },
+        }
+      )
+      await expect(
+        createRollRequestWithDeps(
+          event as Parameters<typeof createRollRequestWithDeps>[0],
+          createDeps()
+        )
+      ).rejects.toThrow(/active roll request already exists/i)
+      expect(mockSfnSend).not.toHaveBeenCalled()
+    })
+
+    it('throws for unsupported roll request type', async () => {
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'gm-123',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
+      })
+      mockDiceRollerStore.getActiveRollRequest.mockResolvedValue(null)
       const event = createEvent(
         {
           playTableId: 'pt-1',
@@ -248,10 +314,9 @@ describe('roll-request resolvers', () => {
         }
       )
       await expect(
-        createRollRequest(
-          event as Parameters<typeof createRollRequest>[0],
-          {} as never,
-          vi.fn()
+        createRollRequestWithDeps(
+          event as Parameters<typeof createRollRequestWithDeps>[0],
+          createDeps()
         )
       ).rejects.toThrow('Unsupported roll request type: ad_hoc')
     })
@@ -273,10 +338,9 @@ describe('roll-request resolvers', () => {
         }
       )
       await expect(
-        createRollRequest(
-          event as Parameters<typeof createRollRequest>[0],
-          {} as never,
-          vi.fn()
+        createRollRequestWithDeps(
+          event as Parameters<typeof createRollRequestWithDeps>[0],
+          createDeps()
         )
       ).rejects.toThrow('targetPlayerIds must not be empty')
     })

@@ -1,3 +1,4 @@
+import type { AttributeValue } from '@aws-sdk/client-dynamodb'
 import {
   DynamoDBClient,
   GetItemCommand,
@@ -66,6 +67,8 @@ export interface IDiceRollerStore {
     playTableId: string,
     rollRequestId: string
   ): Promise<boolean>
+  /** All rolls for a play table (PK + SK begins_with ROLL#), across query pages. */
+  listRollsForPlayTable(playTableId: string): Promise<Roll[]>
 }
 
 export interface DiceRollerStoreConfig {
@@ -294,6 +297,46 @@ export function createDiceRollerStore(
       const rolls = await this.listRollsForRequest(playTableId, rollRequestId)
       const rollerIds = new Set(rolls.map((r) => r.rollerId))
       return rollRequest.targetPlayerIds.every((id) => rollerIds.has(id))
+    },
+
+    async listRollsForPlayTable(playTableId: string): Promise<Roll[]> {
+      const baseParams = {
+        TableName: tableName,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: marshall({
+          ':pk': `PLAYTABLE#${playTableId}`,
+          ':sk': 'ROLL#',
+        }),
+      }
+      const allItems: Roll[] = []
+      let exclusiveStartKey: Record<string, AttributeValue> | undefined
+      do {
+        const queryResult = await client.send(
+          new QueryCommand({
+            ...baseParams,
+            ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
+          })
+        )
+        for (const item of queryResult.Items ?? []) {
+          const r = unmarshall(item) as Roll
+          allItems.push({
+            id: r.id,
+            playTableId: r.playTableId,
+            rollerId: r.rollerId,
+            rollNotation: r.rollNotation,
+            type: r.type,
+            values: r.values,
+            modifier: r.modifier,
+            rollResult: r.rollResult,
+            isPrivate: r.isPrivate,
+            rollRequestId: r.rollRequestId,
+            createdAt: r.createdAt,
+            deletedAt: r.deletedAt,
+          })
+        }
+        exclusiveStartKey = queryResult.LastEvaluatedKey
+      } while (exclusiveStartKey)
+      return allItems
     },
   }
 }

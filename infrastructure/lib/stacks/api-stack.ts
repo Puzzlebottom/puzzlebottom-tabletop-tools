@@ -165,6 +165,7 @@ export class ApiStack extends cdk.Stack {
     })
 
     playTableTable.grantReadData(rollRequestFn)
+    diceRollerTable.grantReadData(rollRequestFn)
     rollRequestFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['states:StartExecution'],

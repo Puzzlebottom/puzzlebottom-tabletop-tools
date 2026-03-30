@@ -1,30 +1,56 @@
-import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 import type {
   CreateRollInput,
   Roll,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
 import type { GenerateAndStoreRollPayload } from '@puzzlebottom-tabletop-tools/schemas/steps/roll-pipeline'
-import type {
-  AppSyncResolverEvent,
-  AppSyncResolverHandler,
-  Callback,
-  Context,
-} from 'aws-lambda'
+import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
 import { randomUUID } from 'crypto'
 
-const dynamo = new DynamoDBClient({})
-const sfnClient = new SFNClient({})
-const PLAY_TABLE_NAME = process.env.PLAY_TABLE_NAME!
-const DICE_ROLLER_TABLE_NAME = process.env.DICE_ROLLER_TABLE_NAME!
-const ROLL_STATE_MACHINE_ARN = process.env.ROLL_STATE_MACHINE_ARN!
+import {
+  createPlayTableStore,
+  type IPlayTableStore,
+} from '../../play-table/store/index.js'
+import { createDiceRollerStore, type IDiceRollerStore } from '../store/index.js'
+
+export interface RollDiceResolverDeps {
+  playTableStore: IPlayTableStore
+  diceRollerStore: IDiceRollerStore
+  sfnClient: SFNClient
+  rollStateMachineArn: string
+}
+
+function buildRollDiceResolverDeps(): RollDiceResolverDeps {
+  return {
+    playTableStore: createPlayTableStore({
+      tableName: process.env.PLAY_TABLE_NAME!,
+    }),
+    diceRollerStore: createDiceRollerStore({
+      tableName: process.env.DICE_ROLLER_TABLE_NAME!,
+    }),
+    sfnClient: new SFNClient({}),
+    rollStateMachineArn: process.env.ROLL_STATE_MACHINE_ARN!,
+  }
+}
+
+let cachedRollDiceResolverDeps: RollDiceResolverDeps | undefined
+
+function getRollDiceResolverDeps(): RollDiceResolverDeps {
+  cachedRollDiceResolverDeps ??= buildRollDiceResolverDeps()
+  return cachedRollDiceResolverDeps
+}
+
+/** @internal Resets cached deps (tests only). */
+export function __resetRollDiceResolverDepsCache(): void {
+  cachedRollDiceResolverDeps = undefined
+}
 
 type RollerIdentity =
   | { type: 'gm'; rollerId: string }
   | { type: 'player'; rollerId: string }
 
 async function resolveActor(
+  playTableStore: IPlayTableStore,
   playTableId: string,
   identity: AppSyncResolverEvent<unknown>['identity'],
   playerId?: string | null
@@ -37,16 +63,8 @@ async function resolveActor(
     return { type: 'gm', rollerId: gmSub }
   }
   if (playerId) {
-    const result = await dynamo.send(
-      new GetItemCommand({
-        TableName: PLAY_TABLE_NAME,
-        Key: marshall({
-          PK: `PLAYTABLE#${playTableId}`,
-          SK: `PLAYER#${playerId}`,
-        }),
-      })
-    )
-    if (!result.Item) {
+    const player = await playTableStore.getPlayer(playTableId, playerId)
+    if (!player) {
       throw new Error('Player not found in play table')
     }
     return { type: 'player', rollerId: playerId }
@@ -57,44 +75,38 @@ async function resolveActor(
 }
 
 async function startRollExecution(
+  deps: RollDiceResolverDeps,
   params: GenerateAndStoreRollPayload
 ): Promise<void> {
-  await sfnClient.send(
+  await deps.sfnClient.send(
     new StartExecutionCommand({
-      stateMachineArn: ROLL_STATE_MACHINE_ARN,
+      stateMachineArn: deps.rollStateMachineArn,
       name: `roll-${params.rollId}`,
       input: JSON.stringify(params),
     })
   )
 }
 
-export const createRoll: AppSyncResolverHandler<
-  {
+export async function createRollWithDeps(
+  event: AppSyncResolverEvent<{
     playTableId: string
     playerId?: string | null
     input: CreateRollInput
-  },
-  Roll
-> = async (event) => {
+  }>,
+  deps: RollDiceResolverDeps
+): Promise<Roll> {
   const { playTableId, playerId, input } = event.arguments
   const identity = event.identity
 
   const roller = await resolveActor(
+    deps.playTableStore,
     playTableId,
     identity,
     playerId ?? input.playerId
   )
 
-  const playTableResult = await dynamo.send(
-    new GetItemCommand({
-      TableName: PLAY_TABLE_NAME,
-      Key: marshall({
-        PK: `PLAYTABLE#${playTableId}`,
-        SK: 'METADATA',
-      }),
-    })
-  )
-  if (!playTableResult.Item) {
+  const playTable = await deps.playTableStore.getPlayTable(playTableId)
+  if (!playTable) {
     throw new Error('Play table not found')
   }
 
@@ -105,23 +117,13 @@ export const createRoll: AppSyncResolverHandler<
     rollRequestId = input.rollRequestId
     rollRequestType = 'initiative'
 
-    const rollRequestResult = await dynamo.send(
-      new GetItemCommand({
-        TableName: DICE_ROLLER_TABLE_NAME,
-        Key: marshall({
-          PK: `PLAYTABLE#${playTableId}`,
-          SK: `ROLLREQUEST#${rollRequestId}`,
-        }),
-      })
+    const rollRequest = await deps.diceRollerStore.getRollRequest(
+      playTableId,
+      rollRequestId
     )
 
-    if (!rollRequestResult.Item) {
+    if (!rollRequest) {
       throw new Error('Roll request not found')
-    }
-
-    const rollRequest = unmarshall(rollRequestResult.Item) as {
-      targetPlayerIds: string[]
-      taskToken?: string
     }
 
     if (!rollRequest.targetPlayerIds.includes(roller.rollerId)) {
@@ -136,7 +138,7 @@ export const createRoll: AppSyncResolverHandler<
   const rollId = randomUUID()
   const createdAt = new Date().toISOString()
 
-  await startRollExecution({
+  await startRollExecution(deps, {
     rollId,
     playTableId,
     roller,
@@ -163,8 +165,16 @@ export const createRoll: AppSyncResolverHandler<
   }
 }
 
-const NOOP_CONTEXT = {} as Context
-const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
+export const createRoll: AppSyncResolverHandler<
+  {
+    playTableId: string
+    playerId?: string | null
+    input: CreateRollInput
+  },
+  Roll
+> = async (event) => {
+  return createRollWithDeps(event, getRollDiceResolverDeps())
+}
 
 export const handler: AppSyncResolverHandler<unknown, unknown> = async (
   event: AppSyncResolverEvent<unknown>
@@ -178,7 +188,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
       playerId?: string | null
       input: CreateRollInput
     }>
-    return createRoll(e, NOOP_CONTEXT, NOOP_CALLBACK)
+    return createRollWithDeps(e, getRollDiceResolverDeps())
   }
 
   throw new Error(`Unknown resolver: ${parentType}.${fieldName}`)

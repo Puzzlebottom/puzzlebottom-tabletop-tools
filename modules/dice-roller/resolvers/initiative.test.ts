@@ -2,30 +2,39 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createAppSyncEvent } from '../../../backend/test/appsync-event.js'
 import {
-  clearInitiative,
+  __resetInitiativeResolverDepsCache,
+  clearInitiativeWithDeps,
   handler,
+  type InitiativeResolverDeps,
   publishInitiativeUpdated,
   publishRollRequestCreated,
-  rollHistory,
+  rollHistoryWithDeps,
 } from './initiative.js'
 
-const { mockSend } = vi.hoisted(() => {
-  const fn = vi.fn()
-  ;(
-    globalThis as { __initiativeMockSend?: ReturnType<typeof vi.fn> }
-  ).__initiativeMockSend = fn
-  return { mockSend: fn }
-})
-
-vi.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: class MockDynamoDBClient {
-    send = (globalThis as { __initiativeMockSend?: ReturnType<typeof vi.fn> })
-      .__initiativeMockSend!
-  },
-  DeleteItemCommand: class {},
-  GetItemCommand: class {},
-  QueryCommand: class {},
+const mockPlayTableStore = vi.hoisted(() => ({
+  getPlayTable: vi.fn(),
 }))
+
+const mockDiceRollerStore = vi.hoisted(() => ({
+  getActiveRollRequest: vi.fn(),
+  clearRollRequest: vi.fn(),
+  listRollsForPlayTable: vi.fn(),
+}))
+
+vi.mock('../../play-table/store/index.js', () => ({
+  createPlayTableStore: () => mockPlayTableStore,
+}))
+
+vi.mock('../store/index.js', () => ({
+  createDiceRollerStore: () => mockDiceRollerStore,
+}))
+
+function createDeps(): InitiativeResolverDeps {
+  return {
+    playTableStore: mockPlayTableStore,
+    diceRollerStore: mockDiceRollerStore,
+  } as unknown as InitiativeResolverDeps
+}
 
 function createEvent<T>(
   args: T,
@@ -40,7 +49,7 @@ function createEvent<T>(
     ...base,
     info: {
       ...base.info,
-      fieldName: options.fieldName ?? 'clearInitiative',
+      fieldName: options.fieldName ?? base.info?.fieldName ?? 'clearInitiative',
       parentTypeName:
         options.parentTypeName ?? base.info?.parentTypeName ?? 'Mutation',
     },
@@ -49,21 +58,35 @@ function createEvent<T>(
 
 describe('initiative resolvers', () => {
   beforeEach(() => {
-    mockSend.mockReset()
+    __resetInitiativeResolverDepsCache()
+    mockPlayTableStore.getPlayTable.mockReset()
+    mockDiceRollerStore.getActiveRollRequest.mockReset()
+    mockDiceRollerStore.clearRollRequest.mockReset()
+    mockDiceRollerStore.listRollsForPlayTable.mockReset()
     process.env.PLAY_TABLE_NAME = 'test-play-table'
     process.env.DICE_ROLLER_TABLE_NAME = 'test-dice-roller-table'
   })
 
   describe('handler', () => {
     it('routes clearInitiative to clearInitiative resolver', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Item: {
-            PK: { S: 'PLAYTABLE#pt-1' },
-            SK: { S: 'METADATA' },
-          },
-        })
-        .mockResolvedValueOnce({})
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'gm-123',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
+      })
+      mockDiceRollerStore.getActiveRollRequest.mockResolvedValue({
+        id: 'rr-1',
+        playTableId: 'pt-1',
+        targetPlayerIds: ['p1'],
+        rollNotation: 'd20',
+        type: 'initiative',
+        dc: null,
+        isPrivate: false,
+        createdAt: '2024-01-01T00:00:00Z',
+        deletedAt: null,
+      })
+      mockDiceRollerStore.clearRollRequest.mockResolvedValue(undefined)
       const event = createEvent(
         { playTableId: 'pt-1' },
         {
@@ -74,10 +97,14 @@ describe('initiative resolvers', () => {
       )
       const result = await handler(event, {} as never, vi.fn())
       expect(result).toBe(true)
+      expect(mockDiceRollerStore.clearRollRequest).toHaveBeenCalledWith(
+        'pt-1',
+        'rr-1'
+      )
     })
 
     it('routes rollHistory to rollHistory resolver', async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] })
+      mockDiceRollerStore.listRollsForPlayTable.mockResolvedValue([])
       const event = createEvent(
         { playTableId: 'pt-1' },
         {
@@ -176,16 +203,26 @@ describe('initiative resolvers', () => {
     })
   })
 
-  describe('clearInitiative', () => {
-    it('deletes initiative and returns true', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Item: {
-            PK: { S: 'PLAYTABLE#pt-1' },
-            SK: { S: 'METADATA' },
-          },
-        })
-        .mockResolvedValueOnce({})
+  describe('clearInitiativeWithDeps', () => {
+    it('clears active roll request and returns true', async () => {
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'gm-123',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
+      })
+      mockDiceRollerStore.getActiveRollRequest.mockResolvedValue({
+        id: 'rr-1',
+        playTableId: 'pt-1',
+        targetPlayerIds: ['p1'],
+        rollNotation: 'd20',
+        type: 'initiative',
+        dc: null,
+        isPrivate: false,
+        createdAt: '2024-01-01T00:00:00Z',
+        deletedAt: null,
+      })
+      mockDiceRollerStore.clearRollRequest.mockResolvedValue(undefined)
       const event = createEvent(
         { playTableId: 'pt-1' },
         {
@@ -194,13 +231,39 @@ describe('initiative resolvers', () => {
           identity: { sub: 'gm-123' },
         }
       )
-      const result = await clearInitiative(
-        event as Parameters<typeof clearInitiative>[0],
-        {} as never,
-        vi.fn()
+      const result = await clearInitiativeWithDeps(
+        event as Parameters<typeof clearInitiativeWithDeps>[0],
+        createDeps()
       )
       expect(result).toBe(true)
-      expect(mockSend).toHaveBeenCalledTimes(2)
+      expect(mockDiceRollerStore.clearRollRequest).toHaveBeenCalledWith(
+        'pt-1',
+        'rr-1'
+      )
+    })
+
+    it('returns true without calling clearRollRequest when no active request', async () => {
+      mockPlayTableStore.getPlayTable.mockResolvedValue({
+        id: 'pt-1',
+        gmUserId: 'gm-123',
+        inviteCode: 'abc',
+        createdAt: '2024-01-01T00:00:00Z',
+      })
+      mockDiceRollerStore.getActiveRollRequest.mockResolvedValue(null)
+      const event = createEvent(
+        { playTableId: 'pt-1' },
+        {
+          fieldName: 'clearInitiative',
+          parentTypeName: 'Mutation',
+          identity: { sub: 'gm-123' },
+        }
+      )
+      const result = await clearInitiativeWithDeps(
+        event as Parameters<typeof clearInitiativeWithDeps>[0],
+        createDeps()
+      )
+      expect(result).toBe(true)
+      expect(mockDiceRollerStore.clearRollRequest).not.toHaveBeenCalled()
     })
 
     it('throws when identity is missing', async () => {
@@ -213,14 +276,14 @@ describe('initiative resolvers', () => {
         }
       )
       await expect(
-        clearInitiative(event as never, {} as never, vi.fn())
+        clearInitiativeWithDeps(event as never, createDeps())
       ).rejects.toThrow(
         'Unauthorized: clearInitiative requires Cognito authentication'
       )
     })
 
     it('throws when play table not found', async () => {
-      mockSend.mockResolvedValueOnce({})
+      mockPlayTableStore.getPlayTable.mockResolvedValue(null)
       const event = createEvent(
         { playTableId: 'nonexistent' },
         {
@@ -230,7 +293,7 @@ describe('initiative resolvers', () => {
         }
       )
       await expect(
-        clearInitiative(event as never, {} as never, vi.fn())
+        clearInitiativeWithDeps(event as never, createDeps())
       ).rejects.toThrow('Play table not found')
     })
   })
@@ -299,40 +362,35 @@ describe('initiative resolvers', () => {
     })
   })
 
-  describe('rollHistory', () => {
-    const rollItem = (id: string, createdAt: string) => ({
-      PK: { S: 'PLAYTABLE#pt-1' },
-      SK: { S: `ROLL#${id}` },
-      id: { S: id },
-      playTableId: { S: 'pt-1' },
-      rollerId: { S: 'player-1' },
-      rollNotation: { S: 'd20' },
-      values: { L: [{ N: '15' }] },
-      modifier: { N: '2' },
-      rollResult: { N: '17' },
-      isPrivate: { BOOL: false },
-      type: { S: 'initiative' },
-      rollRequestId: { NULL: true },
-      createdAt: { S: createdAt },
-      deletedAt: { NULL: true },
+  describe('rollHistoryWithDeps', () => {
+    const rollRow = (id: string, createdAt: string) => ({
+      id,
+      playTableId: 'pt-1',
+      rollerId: 'player-1',
+      rollNotation: 'd20',
+      values: [15] as number[],
+      modifier: 2,
+      rollResult: 17,
+      isPrivate: false,
+      type: 'initiative' as const,
+      rollRequestId: null as string | null,
+      createdAt,
+      deletedAt: null as string | null,
     })
 
     it('returns rolls sorted by createdAt descending', async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          rollItem('roll-1', '2025-01-01T00:00:00.000Z'),
-          rollItem('roll-2', '2025-01-02T00:00:00.000Z'),
-          rollItem('roll-3', '2025-01-01T12:00:00.000Z'),
-        ],
-      })
+      mockDiceRollerStore.listRollsForPlayTable.mockResolvedValue([
+        rollRow('roll-1', '2025-01-01T00:00:00.000Z'),
+        rollRow('roll-2', '2025-01-02T00:00:00.000Z'),
+        rollRow('roll-3', '2025-01-01T12:00:00.000Z'),
+      ])
       const event = createEvent(
         { playTableId: 'pt-1' },
         { fieldName: 'rollHistory', parentTypeName: 'Query' }
       )
-      const result = (await rollHistory(
-        event as Parameters<typeof rollHistory>[0],
-        {} as never,
-        vi.fn()
+      const result = (await rollHistoryWithDeps(
+        event as Parameters<typeof rollHistoryWithDeps>[0],
+        createDeps()
       )) as { items: { id: string }[]; nextToken: string | null }
       expect(result.items).toHaveLength(3)
       expect(result.items[0].id).toBe('roll-2')
@@ -342,21 +400,18 @@ describe('initiative resolvers', () => {
     })
 
     it('respects limit and returns nextToken when more items exist', async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          rollItem('roll-1', '2025-01-01T00:00:00.000Z'),
-          rollItem('roll-2', '2025-01-02T00:00:00.000Z'),
-          rollItem('roll-3', '2025-01-03T00:00:00.000Z'),
-        ],
-      })
+      mockDiceRollerStore.listRollsForPlayTable.mockResolvedValue([
+        rollRow('roll-1', '2025-01-01T00:00:00.000Z'),
+        rollRow('roll-2', '2025-01-02T00:00:00.000Z'),
+        rollRow('roll-3', '2025-01-03T00:00:00.000Z'),
+      ])
       const event = createEvent(
         { playTableId: 'pt-1', limit: 2 },
         { fieldName: 'rollHistory', parentTypeName: 'Query' }
       )
-      const result = (await rollHistory(
-        event as Parameters<typeof rollHistory>[0],
-        {} as never,
-        vi.fn()
+      const result = (await rollHistoryWithDeps(
+        event as Parameters<typeof rollHistoryWithDeps>[0],
+        createDeps()
       )) as { items: { id: string }[]; nextToken: string | null }
       expect(result.items).toHaveLength(2)
       expect(result.items[0].id).toBe('roll-3')
@@ -365,13 +420,11 @@ describe('initiative resolvers', () => {
     })
 
     it('uses nextToken to return subsequent pages', async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          rollItem('roll-1', '2025-01-01T00:00:00.000Z'),
-          rollItem('roll-2', '2025-01-02T00:00:00.000Z'),
-          rollItem('roll-3', '2025-01-03T00:00:00.000Z'),
-        ],
-      })
+      mockDiceRollerStore.listRollsForPlayTable.mockResolvedValue([
+        rollRow('roll-1', '2025-01-01T00:00:00.000Z'),
+        rollRow('roll-2', '2025-01-02T00:00:00.000Z'),
+        rollRow('roll-3', '2025-01-03T00:00:00.000Z'),
+      ])
       const nextToken = Buffer.from(JSON.stringify({ offset: 2 })).toString(
         'base64'
       )
@@ -379,10 +432,9 @@ describe('initiative resolvers', () => {
         { playTableId: 'pt-1', limit: 2, nextToken },
         { fieldName: 'rollHistory', parentTypeName: 'Query' }
       )
-      const result = (await rollHistory(
-        event as Parameters<typeof rollHistory>[0],
-        {} as never,
-        vi.fn()
+      const result = (await rollHistoryWithDeps(
+        event as Parameters<typeof rollHistoryWithDeps>[0],
+        createDeps()
       )) as { items: { id: string }[]; nextToken: string | null }
       expect(result.items).toHaveLength(1)
       expect(result.items[0].id).toBe('roll-1')
@@ -390,15 +442,14 @@ describe('initiative resolvers', () => {
     })
 
     it('returns empty items when no rolls exist', async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] })
+      mockDiceRollerStore.listRollsForPlayTable.mockResolvedValue([])
       const event = createEvent(
         { playTableId: 'pt-1' },
         { fieldName: 'rollHistory', parentTypeName: 'Query' }
       )
-      const result = (await rollHistory(
-        event as Parameters<typeof rollHistory>[0],
-        {} as never,
-        vi.fn()
+      const result = (await rollHistoryWithDeps(
+        event as Parameters<typeof rollHistoryWithDeps>[0],
+        createDeps()
       )) as { items: unknown[]; nextToken: string | null }
       expect(result.items).toHaveLength(0)
       expect(result.nextToken).toBeNull()

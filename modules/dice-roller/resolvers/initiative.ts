@@ -1,10 +1,3 @@
-import {
-  DeleteItemCommand,
-  DynamoDBClient,
-  GetItemCommand,
-  QueryCommand,
-} from '@aws-sdk/client-dynamodb'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 import type {
   PaginatedRolls,
   PublishInitiativeUpdatedInput,
@@ -19,14 +12,44 @@ import type {
   Context,
 } from 'aws-lambda'
 
-const dynamo = new DynamoDBClient({})
-const PLAY_TABLE_NAME = process.env.PLAY_TABLE_NAME!
-const DICE_ROLLER_TABLE_NAME = process.env.DICE_ROLLER_TABLE_NAME!
+import {
+  createPlayTableStore,
+  type IPlayTableStore,
+} from '../../play-table/store/index.js'
+import { createDiceRollerStore, type IDiceRollerStore } from '../store/index.js'
 
-export const clearInitiative: AppSyncResolverHandler<
-  { playTableId: string },
-  boolean
-> = async (event) => {
+export interface InitiativeResolverDeps {
+  playTableStore: IPlayTableStore
+  diceRollerStore: IDiceRollerStore
+}
+
+function buildInitiativeResolverDeps(): InitiativeResolverDeps {
+  return {
+    playTableStore: createPlayTableStore({
+      tableName: process.env.PLAY_TABLE_NAME!,
+    }),
+    diceRollerStore: createDiceRollerStore({
+      tableName: process.env.DICE_ROLLER_TABLE_NAME!,
+    }),
+  }
+}
+
+let cachedInitiativeResolverDeps: InitiativeResolverDeps | undefined
+
+function getInitiativeResolverDeps(): InitiativeResolverDeps {
+  cachedInitiativeResolverDeps ??= buildInitiativeResolverDeps()
+  return cachedInitiativeResolverDeps
+}
+
+/** @internal Resets cached deps (tests only). */
+export function __resetInitiativeResolverDepsCache(): void {
+  cachedInitiativeResolverDeps = undefined
+}
+
+export async function clearInitiativeWithDeps(
+  event: AppSyncResolverEvent<{ playTableId: string }>,
+  deps: InitiativeResolverDeps
+): Promise<boolean> {
   const gmUserId =
     event.identity && 'sub' in event.identity
       ? (event.identity as { sub: string }).sub
@@ -39,30 +62,25 @@ export const clearInitiative: AppSyncResolverHandler<
 
   const { playTableId } = event.arguments
 
-  const playTableResult = await dynamo.send(
-    new GetItemCommand({
-      TableName: PLAY_TABLE_NAME,
-      Key: marshall({
-        PK: `PLAYTABLE#${playTableId}`,
-        SK: 'METADATA',
-      }),
-    })
-  )
-  if (!playTableResult.Item) {
+  const playTable = await deps.playTableStore.getPlayTable(playTableId)
+  if (!playTable) {
     throw new Error('Play table not found')
   }
 
-  await dynamo.send(
-    new DeleteItemCommand({
-      TableName: DICE_ROLLER_TABLE_NAME,
-      Key: marshall({
-        PK: `PLAYTABLE#${playTableId}`,
-        SK: 'INITIATIVE_META',
-      }),
-    })
-  )
+  const active = await deps.diceRollerStore.getActiveRollRequest(playTableId)
+  if (!active) {
+    return true
+  }
 
+  await deps.diceRollerStore.clearRollRequest(playTableId, active.id)
   return true
+}
+
+export const clearInitiative: AppSyncResolverHandler<
+  { playTableId: string },
+  boolean
+> = async (event) => {
+  return clearInitiativeWithDeps(event, getInitiativeResolverDeps())
 }
 
 export const publishRollRequestCreated: AppSyncResolverHandler<
@@ -89,41 +107,20 @@ export const publishRollCompleted: AppSyncResolverHandler<
   return Promise.resolve(event.arguments.input)
 }
 
-export const rollHistory: AppSyncResolverHandler<
-  { playTableId: string; limit?: number | null; nextToken?: string | null },
-  PaginatedRolls
-> = async (event) => {
+export async function rollHistoryWithDeps(
+  event: AppSyncResolverEvent<{
+    playTableId: string
+    limit?: number | null
+    nextToken?: string | null
+  }>,
+  deps: InitiativeResolverDeps
+): Promise<PaginatedRolls> {
   const { playTableId, limit, nextToken } = event.arguments
   const pageSize = Math.min(Math.max(limit ?? 20, 1), 100)
 
-  const baseParams = {
-    TableName: DICE_ROLLER_TABLE_NAME,
-    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-    ExpressionAttributeValues: marshall({
-      ':pk': `PLAYTABLE#${playTableId}`,
-      ':sk': 'ROLL#',
-    }),
-  }
+  const allItems = await deps.diceRollerStore.listRollsForPlayTable(playTableId)
 
-  const allItems: Record<string, unknown>[] = []
-  let exclusiveStartKey: Record<string, { S: string }> | undefined
-
-  do {
-    const queryResult = await dynamo.send(
-      new QueryCommand({
-        ...baseParams,
-        ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
-      })
-    )
-    allItems.push(...(queryResult.Items ?? []).map((i) => unmarshall(i)))
-    exclusiveStartKey = queryResult.LastEvaluatedKey as
-      | Record<string, { S: string }>
-      | undefined
-  } while (exclusiveStartKey)
-
-  allItems.sort((a, b) =>
-    (b.createdAt as string).localeCompare(a.createdAt as string)
-  )
+  allItems.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   let startIndex = 0
   if (nextToken) {
@@ -137,18 +134,18 @@ export const rollHistory: AppSyncResolverHandler<
   const hasMore = startIndex + pageSize < allItems.length
 
   const items: Roll[] = pageItems.map((r) => ({
-    id: r.id as string,
-    playTableId: r.playTableId as string,
-    rollerId: r.rollerId as string,
-    rollNotation: r.rollNotation as string,
+    id: r.id,
+    playTableId: r.playTableId,
+    rollerId: r.rollerId,
+    rollNotation: r.rollNotation,
     type: (r.type as Roll['type']) ?? null,
-    values: r.values as number[],
-    modifier: r.modifier as number,
-    rollResult: r.rollResult as number,
-    isPrivate: r.isPrivate as boolean,
-    rollRequestId: (r.rollRequestId as string) ?? null,
-    createdAt: r.createdAt as string,
-    deletedAt: (r.deletedAt as string) ?? null,
+    values: r.values,
+    modifier: r.modifier,
+    rollResult: r.rollResult,
+    isPrivate: r.isPrivate,
+    rollRequestId: r.rollRequestId ?? null,
+    createdAt: r.createdAt,
+    deletedAt: r.deletedAt ?? null,
   }))
 
   return {
@@ -159,6 +156,13 @@ export const rollHistory: AppSyncResolverHandler<
         )
       : null,
   }
+}
+
+export const rollHistory: AppSyncResolverHandler<
+  { playTableId: string; limit?: number | null; nextToken?: string | null },
+  PaginatedRolls
+> = async (event) => {
+  return rollHistoryWithDeps(event, getInitiativeResolverDeps())
 }
 
 /** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
@@ -178,14 +182,14 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
         limit?: number | null
         nextToken?: string | null
       }>
-      return rollHistory(e, NOOP_CONTEXT, NOOP_CALLBACK)
+      return rollHistoryWithDeps(e, getInitiativeResolverDeps())
     }
   }
 
   if (parentType === 'Mutation') {
     if (fieldName === 'clearInitiative') {
       const e = event as AppSyncResolverEvent<{ playTableId: string }>
-      return clearInitiative(e, NOOP_CONTEXT, NOOP_CALLBACK)
+      return clearInitiativeWithDeps(e, getInitiativeResolverDeps())
     }
     if (fieldName === 'publishRollCompleted') {
       const e = event as AppSyncResolverEvent<{ input: PublishRollInput }>

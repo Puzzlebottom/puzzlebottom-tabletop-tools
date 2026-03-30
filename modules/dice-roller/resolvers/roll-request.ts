@@ -1,34 +1,58 @@
-import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
-import type {
-  AppSyncResolverEvent,
-  AppSyncResolverHandler,
-  Callback,
-  Context,
-} from 'aws-lambda'
-import { randomUUID } from 'crypto'
-
-const dynamo = new DynamoDBClient({})
-const sfn = new SFNClient({})
-const PLAY_TABLE_NAME = process.env.PLAY_TABLE_NAME!
-const ROLL_REQUEST_STATE_MACHINE_ARN =
-  process.env.ROLL_REQUEST_STATE_MACHINE_ARN!
-
 import type {
   CreateRollRequestInput,
   RollRequest,
   RollType,
 } from '@puzzlebottom-tabletop-tools/graphql-types'
 import type { RollRequestStepPayload } from '@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline'
+import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
+import { randomUUID } from 'crypto'
 
-export const createRollRequest: AppSyncResolverHandler<
-  {
+import {
+  createPlayTableStore,
+  type IPlayTableStore,
+} from '../../play-table/store/index.js'
+import { createDiceRollerStore, type IDiceRollerStore } from '../store/index.js'
+
+export interface RollRequestResolverDeps {
+  playTableStore: IPlayTableStore
+  diceRollerStore: IDiceRollerStore
+  sfnClient: SFNClient
+  rollRequestStateMachineArn: string
+}
+
+function buildRollRequestResolverDeps(): RollRequestResolverDeps {
+  return {
+    playTableStore: createPlayTableStore({
+      tableName: process.env.PLAY_TABLE_NAME!,
+    }),
+    diceRollerStore: createDiceRollerStore({
+      tableName: process.env.DICE_ROLLER_TABLE_NAME!,
+    }),
+    sfnClient: new SFNClient({}),
+    rollRequestStateMachineArn: process.env.ROLL_REQUEST_STATE_MACHINE_ARN!,
+  }
+}
+
+let cachedRollRequestResolverDeps: RollRequestResolverDeps | undefined
+
+function getRollRequestResolverDeps(): RollRequestResolverDeps {
+  cachedRollRequestResolverDeps ??= buildRollRequestResolverDeps()
+  return cachedRollRequestResolverDeps
+}
+
+/** @internal Resets cached deps (tests only). */
+export function __resetRollRequestResolverDepsCache(): void {
+  cachedRollRequestResolverDeps = undefined
+}
+
+export async function createRollRequestWithDeps(
+  event: AppSyncResolverEvent<{
     playTableId: string
     input: CreateRollRequestInput
-  },
-  RollRequest
-> = async (event) => {
+  }>,
+  deps: RollRequestResolverDeps
+): Promise<RollRequest> {
   const gmUserId =
     event.identity && 'sub' in event.identity
       ? (event.identity as { sub: string }).sub
@@ -46,30 +70,28 @@ export const createRollRequest: AppSyncResolverHandler<
     throw new Error('targetPlayerIds must not be empty')
   }
 
-  const playTableResult = await dynamo.send(
-    new GetItemCommand({
-      TableName: PLAY_TABLE_NAME,
-      Key: marshall({
-        PK: `PLAYTABLE#${playTableId}`,
-        SK: 'METADATA',
-      }),
-    })
-  )
-  if (!playTableResult.Item) {
+  const playTable = await deps.playTableStore.getPlayTable(playTableId)
+  if (!playTable) {
     throw new Error('Play table not found')
   }
 
-  const playTable = unmarshall(playTableResult.Item) as { gmUserId: string }
   if (playTable.gmUserId !== gmUserId) {
     throw new Error('Only the GM can create roll requests')
   }
 
-  const rollRequestId = randomUUID()
-  const createdAt = new Date().toISOString()
+  const active = await deps.diceRollerStore.getActiveRollRequest(playTableId)
+  if (active) {
+    throw new Error(
+      'An active roll request already exists for this play table. Clear initiative or wait for the current request to finish before starting a new one.'
+    )
+  }
 
   if (type !== 'initiative') {
     throw new Error(`Unsupported roll request type: ${String(type)}`)
   }
+
+  const rollRequestId = randomUUID()
+  const createdAt = new Date().toISOString()
 
   const executionInput: RollRequestStepPayload = {
     playTableId,
@@ -82,9 +104,9 @@ export const createRollRequest: AppSyncResolverHandler<
     createdAt,
   }
 
-  await sfn.send(
+  await deps.sfnClient.send(
     new StartExecutionCommand({
-      stateMachineArn: ROLL_REQUEST_STATE_MACHINE_ARN,
+      stateMachineArn: deps.rollRequestStateMachineArn,
       name: rollRequestId,
       input: JSON.stringify(executionInput),
     })
@@ -104,9 +126,15 @@ export const createRollRequest: AppSyncResolverHandler<
   }
 }
 
-/** Dummy values for sub-resolver calls; sub-resolvers are async and don't use them. */
-const NOOP_CONTEXT = {} as Context
-const NOOP_CALLBACK = undefined as unknown as Callback<unknown>
+export const createRollRequest: AppSyncResolverHandler<
+  {
+    playTableId: string
+    input: CreateRollRequestInput
+  },
+  RollRequest
+> = async (event) => {
+  return createRollRequestWithDeps(event, getRollRequestResolverDeps())
+}
 
 /**
  * Main handler for createRollRequest. Uses async/await (no callback param) for Node.js 24+ compatibility.
@@ -122,7 +150,7 @@ export const handler: AppSyncResolverHandler<unknown, unknown> = async (
       playTableId: string
       input: CreateRollRequestInput
     }>
-    return createRollRequest(e, NOOP_CONTEXT, NOOP_CALLBACK)
+    return createRollRequestWithDeps(e, getRollRequestResolverDeps())
   }
 
   throw new Error(`Unknown resolver: ${parentType}.${fieldName}`)
