@@ -1,61 +1,33 @@
 import {
-  DynamoDBClient,
-  PutItemCommand,
-  UpdateItemCommand,
-} from '@aws-sdk/client-dynamodb'
-import { marshall } from '@aws-sdk/util-dynamodb'
-import {
   type RollRequestStepPayload as Payload,
   RollRequestStepPayload,
 } from '@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline'
 import type { Handler } from 'aws-lambda'
 
-const dynamo = new DynamoDBClient({})
-const TABLE_NAME = process.env.TABLE_NAME!
+import { createDiceRollerStore, type IDiceRollerStore } from '../store/index.js'
 
-export const handler: Handler<Payload, Payload> = async (event) => {
-  const payload = RollRequestStepPayload.parse(event)
+export function createPersistRollRequestHandler(
+  store: IDiceRollerStore
+): Handler<Payload, Payload> {
+  return async (event) => {
+    const payload = RollRequestStepPayload.parse(event)
 
-  const { playTableId, rollRequestId, targetPlayerIds, type } = payload
-
-  const item: Record<string, unknown> = {
-    PK: `PLAYTABLE#${playTableId}`,
-    SK: `ROLLREQUEST#${rollRequestId}`,
-    GSI3PK:
-      targetPlayerIds.length > 0 ? `TARGET#${targetPlayerIds[0]}` : undefined,
-    GSI3SK: `createdAt#${payload.createdAt}`,
-    id: rollRequestId,
-    playTableId,
-    targetPlayerIds,
-    rollNotation: payload.rollNotation,
-    type,
-    dc: payload.dc ?? null,
-    isPrivate: payload.isPrivate,
-    createdAt: payload.createdAt,
-    deletedAt: null,
-    rolls: [],
-  }
-
-  await dynamo.send(
-    new PutItemCommand({
-      TableName: TABLE_NAME,
-      Item: marshall(item, { removeUndefinedValues: true }),
+    await store.putRollRequest({
+      id: payload.rollRequestId,
+      playTableId: payload.playTableId,
+      targetPlayerIds: payload.targetPlayerIds,
+      rollNotation: payload.rollNotation,
+      type: payload.type,
+      dc: payload.dc ?? null,
+      isPrivate: payload.isPrivate,
+      createdAt: payload.createdAt,
+      deletedAt: null,
     })
-  )
 
-  if (type === 'initiative') {
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: TABLE_NAME,
-        Key: marshall({
-          PK: `PLAYTABLE#${playTableId}`,
-          SK: 'INITIATIVE_META',
-        }),
-        UpdateExpression: 'SET currentRollRequestId = :r',
-        ExpressionAttributeValues: marshall({ ':r': rollRequestId }),
-      })
-    )
+    return payload
   }
-
-  return payload
 }
+
+export const handler = createPersistRollRequestHandler(
+  createDiceRollerStore({ tableName: process.env.TABLE_NAME! })
+)

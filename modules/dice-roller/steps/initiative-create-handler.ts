@@ -1,13 +1,4 @@
-import {
-  DynamoDBClient,
-  GetItemCommand,
-  UpdateItemCommand,
-} from '@aws-sdk/client-dynamodb'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
-import type {
-  PublishRollRequestInput,
-  RollType,
-} from '@puzzlebottom-tabletop-tools/graphql-types'
+import type { RollType } from '@puzzlebottom-tabletop-tools/graphql-types'
 import {
   InitiativeCreateHandlerPayload,
   type InitiativeCreateHandlerPayload as Payload,
@@ -15,51 +6,43 @@ import {
 import type { Handler } from 'aws-lambda'
 
 import { publishRollRequestCreated } from '../shared/notify-appsync.js'
+import { createDiceRollerStore, type IDiceRollerStore } from '../store/index.js'
 
-const dynamo = new DynamoDBClient({})
-const TABLE_NAME = process.env.TABLE_NAME!
-const APPSYNC_GRAPHQL_URL = process.env.APPSYNC_GRAPHQL_URL!
+export interface InitiativeCreateHandlerOptions {
+  graphqlUrl: string
+}
 
-export const handler: Handler<Payload, void> = async (event) => {
-  const payload = InitiativeCreateHandlerPayload.parse(event)
+export function createInitiativeCreateHandler(
+  store: IDiceRollerStore,
+  options: InitiativeCreateHandlerOptions
+): Handler<Payload, void> {
+  return async (event) => {
+    const payload = InitiativeCreateHandlerPayload.parse(event)
 
-  const { playTableId, rollRequestId, taskToken } = payload
+    const { playTableId, rollRequestId, taskToken } = payload
 
-  await dynamo.send(
-    new UpdateItemCommand({
-      TableName: TABLE_NAME,
-      Key: marshall({
-        PK: `PLAYTABLE#${playTableId}`,
-        SK: `ROLLREQUEST#${rollRequestId}`,
-      }),
-      UpdateExpression: 'SET taskToken = :t',
-      ExpressionAttributeValues: marshall({ ':t': taskToken }),
-    })
-  )
+    await store.setRollRequestTaskToken(playTableId, rollRequestId, taskToken)
 
-  const rollRequestResult = await dynamo.send(
-    new GetItemCommand({
-      TableName: TABLE_NAME,
-      Key: marshall({
-        PK: `PLAYTABLE#${playTableId}`,
-        SK: `ROLLREQUEST#${rollRequestId}`,
-      }),
-    })
-  )
+    const rr = await store.getRollRequest(playTableId, rollRequestId)
 
-  if (rollRequestResult.Item) {
-    const rr = unmarshall(rollRequestResult.Item) as PublishRollRequestInput
-    await publishRollRequestCreated(APPSYNC_GRAPHQL_URL, {
-      id: rr.id,
-      playTableId: rr.playTableId,
-      targetPlayerIds: rr.targetPlayerIds,
-      rolls: rr.rolls ?? [],
-      rollNotation: rr.rollNotation,
-      type: rr.type as RollType,
-      dc: rr.dc ?? null,
-      isPrivate: rr.isPrivate,
-      createdAt: rr.createdAt,
-      deletedAt: rr.deletedAt ?? null,
-    })
+    if (rr) {
+      await publishRollRequestCreated(options.graphqlUrl, {
+        id: rr.id,
+        playTableId: rr.playTableId,
+        targetPlayerIds: rr.targetPlayerIds,
+        rolls: [],
+        rollNotation: rr.rollNotation,
+        type: rr.type as RollType,
+        dc: rr.dc ?? null,
+        isPrivate: rr.isPrivate,
+        createdAt: rr.createdAt,
+        deletedAt: rr.deletedAt ?? null,
+      })
+    }
   }
 }
+
+export const handler = createInitiativeCreateHandler(
+  createDiceRollerStore({ tableName: process.env.TABLE_NAME! }),
+  { graphqlUrl: process.env.APPSYNC_GRAPHQL_URL! }
+)
