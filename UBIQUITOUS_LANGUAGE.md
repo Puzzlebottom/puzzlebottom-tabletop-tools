@@ -62,6 +62,18 @@
 | **Step Contract**         | The shared Zod schema defining the input and output types for a step in a pipeline       | Step payload, step interface, step schema |
 | **Task Token**            | A Step Functions handle used to pause a pipeline and resume it from an external caller   | Wait token, callback token                |
 
+## Architecture layers
+
+| Term                  | Definition                                                                                                 | Aliases to avoid                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| **Resolver**          | The thin AppSync routing layer that extracts identity, delegates to the Application layer, and maps errors | Handler, controller                           |
+| **Application layer** | The use-case orchestration layer that composes Store reads/writes and outbound ports                       | Service layer, use-case layer, business logic |
+| **Store layer**       | The DynamoDB-only access layer that owns all key and query patterns for a module                           | Repository, data layer, DAO                   |
+| **Event port**        | An injectable interface that abstracts EventBridge publication behind typed domain-event methods           | Event publisher, event bus client             |
+| **Workflow port**     | An injectable interface that abstracts Step Functions execution behind typed pipeline-start methods        | SFN client, state machine port                |
+| **Composition root**  | The module-level lazy-init function that wires stores, ports, and application instances together           | Bootstrap, dependency wiring, factory root    |
+| **Play Table View**   | The composite read model returned by the Application layer combining a Play Table and its Players          | Play table with players, enriched play table  |
+
 ## Schemas and types
 
 | Term                 | Definition                                                                                 | Aliases to avoid                  |
@@ -102,6 +114,20 @@
 
 > **Domain expert:** "That fires the moment the last required **Roll** comes in and the request tips into **fulfilled** — it signals the **Roll Request Pipeline** to continue. But the initiative itself stays **active** until the GM decides to clear it."
 
+## Example dialogue (architecture)
+
+> **Dev:** "Where does invite-code normalization live — the Resolver, Application layer, or Store?"
+
+> **Domain expert:** "The **Store layer**. The **Store layer** owns all key patterns, and `INVITECODE#` is a GSI key. Normalization belongs next to the key construction, not scattered across callers."
+
+> **Dev:** "So the **Application layer** just passes the raw user-supplied code?"
+
+> **Domain expert:** "Exactly. The **Application layer** calls `store.getPlayTableByInviteCode(rawCode)` and trusts the **Store** to normalize. No `.toUpperCase()` in the **Application layer**."
+
+> **Dev:** "What if I need to publish a **Player Joined** event — does that go through the **Event port**?"
+
+> **Domain expert:** "Yes. The **Application layer** calls `events.publishPlayerJoined(detail)` on the **Event port**. The **Resolver** never touches EventBridge directly, and neither does the **Store**."
+
 ## Flagged ambiguities
 
 - **"Completed"** is critically ambiguous: used in the codebase to mean both **Fulfilled** (all Target Players have rolled) and **Cleared** (GM has ended the initiative). These are distinct lifecycle states. Use **fulfilled** for the derived rolling state and **cleared** for the GM-terminated state. The existing event name `RollRequestCompleted` should be understood as **Roll Request Fulfilled**.
@@ -112,3 +138,6 @@
 - **"Module"** is overloaded: used for both npm workspace packages (`shared/schemas`) and game domain modules (`dice-roller`, `play-table`). Prefer **package** for npm workspaces and **module** only for domain boundaries.
 - **"Payload"** is used for both Step Contract inputs and Domain Event details. Prefer **Step Contract** for step function I/O and **Event Detail** for EventBridge payloads.
 - **"Type"** is heavily overloaded (TypeScript type, GraphQL type, Roll Type, Event Detail Type). Always qualify: **Roll Type**, **Event Detail Type**, **TypeScript type**, **GraphQL type**.
+- **"Session"** is used colloquially for both a game session (a **Play Table**) and a player's network connection session. Prefer **Play Table** for the domain entity; "session" should only appear in authentication or connection contexts.
+- **"Service"** is used in some ecosystems for the **Application layer**. Avoid it here — it's overloaded between AWS services, npm packages, and business logic. Use **Application layer** for the orchestration tier.
+- **"Ad hoc"** appears in the codebase as a `rollRequestType` value (`'ad_hoc'`) but the domain term is **Free Roll**. In domain discussion use **Free Roll**; `'ad_hoc'` is a schema implementation detail.

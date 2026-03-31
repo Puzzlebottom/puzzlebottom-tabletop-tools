@@ -12,14 +12,16 @@ export interface PlayTable {
   gmUserId: string
   inviteCode: string
   createdAt: string
+  deletedAt: string | null
 }
 
 export interface Player {
   id: string
+  playTableId: string
   characterName: string
   initiativeModifier: number
   createdAt?: string
-  deletedAt?: string
+  deletedAt: string | null
 }
 
 export interface IPlayTableStore {
@@ -58,6 +60,7 @@ export function createPlayTableStore(
         gmUserId: item.gmUserId,
         inviteCode: item.inviteCode,
         createdAt: item.createdAt,
+        deletedAt: null,
       }
     },
 
@@ -78,10 +81,11 @@ export function createPlayTableStore(
       const item = unmarshall(result.Item) as Player
       return {
         id: item.id,
+        playTableId: playTableId,
         characterName: item.characterName,
         initiativeModifier: item.initiativeModifier,
         ...(item.createdAt !== undefined && { createdAt: item.createdAt }),
-        ...(item.deletedAt !== undefined && { deletedAt: item.deletedAt }),
+        deletedAt: null,
       }
     },
 
@@ -100,10 +104,11 @@ export function createPlayTableStore(
         const p = unmarshall(i) as Player
         return {
           id: p.id,
+          playTableId: playTableId,
           characterName: p.characterName,
           initiativeModifier: p.initiativeModifier,
           ...(p.createdAt !== undefined && { createdAt: p.createdAt }),
-          ...(p.deletedAt !== undefined && { deletedAt: p.deletedAt }),
+          deletedAt: null,
         }
       })
     },
@@ -117,7 +122,7 @@ export function createPlayTableStore(
           IndexName: 'GSI2',
           KeyConditionExpression: 'GSI2PK = :pk AND GSI2SK = :sk',
           ExpressionAttributeValues: marshall({
-            ':pk': `INVITECODE#${inviteCode}`,
+            ':pk': `INVITECODE#${inviteCode.toUpperCase()}`,
             ':sk': 'PLAYTABLE',
           }),
           Limit: 1,
@@ -131,6 +136,7 @@ export function createPlayTableStore(
         gmUserId: item.gmUserId,
         inviteCode: item.inviteCode,
         createdAt: item.createdAt,
+        deletedAt: null,
       }
     },
 
@@ -144,7 +150,7 @@ export function createPlayTableStore(
               SK: 'METADATA',
               GSI1PK: `GM#${playTable.gmUserId}`,
               GSI1SK: playTable.createdAt,
-              GSI2PK: `INVITECODE#${playTable.inviteCode}`,
+              GSI2PK: `INVITECODE#${playTable.inviteCode.toUpperCase()}`,
               GSI2SK: 'PLAYTABLE',
               ...playTable,
             },

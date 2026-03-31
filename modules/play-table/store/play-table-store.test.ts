@@ -36,6 +36,7 @@ describe('PlayTableStore', () => {
         gmUserId: 'gm-1',
         inviteCode: 'ABC123',
         createdAt: '2025-01-01T00:00:00.000Z',
+        deletedAt: null,
       })
     })
 
@@ -70,6 +71,7 @@ describe('PlayTableStore', () => {
         gmUserId: 'gm-1',
         inviteCode: 'ABC123',
         createdAt: '2025-01-01T00:00:00.000Z',
+        deletedAt: null,
       })
     })
 
@@ -80,6 +82,18 @@ describe('PlayTableStore', () => {
         dynamoClient: client,
       })
       expect(await store.getPlayTableByInviteCode('XXXXXX')).toBeNull()
+    })
+
+    it('normalises lowercase input to uppercase before querying', async () => {
+      const { client, send } = makeClient({ Items: [] })
+      const store = createPlayTableStore({
+        tableName: TABLE_NAME,
+        dynamoClient: client,
+      })
+      await store.getPlayTableByInviteCode('abc123')
+      const [command] = send.mock.calls[0] as [MockCommand]
+      const values = unmarshall(command.input.ExpressionAttributeValues)
+      expect(values[':pk']).toBe('INVITECODE#ABC123')
     })
   })
 
@@ -109,11 +123,15 @@ describe('PlayTableStore', () => {
         id: 'p-1',
         characterName: 'Frodo',
         initiativeModifier: 2,
+        playTableId: 'pt-1',
+        deletedAt: null,
       })
       expect(result[1]).toMatchObject({
         id: 'p-2',
         characterName: 'Gandalf',
         initiativeModifier: 5,
+        playTableId: 'pt-1',
+        deletedAt: null,
       })
     })
 
@@ -146,6 +164,8 @@ describe('PlayTableStore', () => {
         characterName: 'Frodo',
         initiativeModifier: 2,
         createdAt: '2025-01-01T00:00:00.000Z',
+        playTableId: 'pt-1',
+        deletedAt: null,
       })
     })
 
@@ -183,9 +203,11 @@ describe('PlayTableStore', () => {
       })
       await store.putPlayer('pt-1', {
         id: 'p-1',
+        playTableId: 'pt-1',
         characterName: 'Frodo',
         initiativeModifier: 2,
         createdAt: '2025-01-01T00:00:00.000Z',
+        deletedAt: null,
       })
       const [command] = send.mock.calls[0] as [MockCommand]
       const item = unmarshall(command.input.Item)
@@ -193,6 +215,7 @@ describe('PlayTableStore', () => {
       expect(item.SK).toBe('PLAYER#p-1')
       expect(item.characterName).toBe('Frodo')
       expect(item.initiativeModifier).toBe(2)
+      expect(item.playTableId).toBe('pt-1')
     })
   })
 
@@ -208,6 +231,7 @@ describe('PlayTableStore', () => {
         gmUserId: 'gm-1',
         inviteCode: 'ABC123',
         createdAt: '2025-01-01T00:00:00.000Z',
+        deletedAt: null,
       })
       const [command] = send.mock.calls[0] as [MockCommand]
       const item = unmarshall(command.input.Item)
@@ -215,6 +239,24 @@ describe('PlayTableStore', () => {
       expect(item.SK).toBe('METADATA')
       expect(item.GSI1PK).toBe('GM#gm-1')
       expect(item.GSI1SK).toBe('2025-01-01T00:00:00.000Z')
+      expect(item.GSI2PK).toBe('INVITECODE#ABC123')
+    })
+
+    it('normalises inviteCode to uppercase in GSI2PK', async () => {
+      const { client, send } = makeClient({})
+      const store = createPlayTableStore({
+        tableName: TABLE_NAME,
+        dynamoClient: client,
+      })
+      await store.putPlayTable({
+        id: 'pt-1',
+        gmUserId: 'gm-1',
+        inviteCode: 'abc123',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        deletedAt: null,
+      })
+      const [command] = send.mock.calls[0] as [MockCommand]
+      const item = unmarshall(command.input.Item)
       expect(item.GSI2PK).toBe('INVITECODE#ABC123')
       expect(item.GSI2SK).toBe('PLAYTABLE')
       expect(item.id).toBe('pt-1')
