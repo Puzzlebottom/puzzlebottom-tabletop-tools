@@ -1,69 +1,18 @@
-import {
-  EventBridgeClient,
-  PutEventsCommand,
-} from '@aws-sdk/client-eventbridge'
-import {
-  DETAIL_TYPE_PLAYER_JOINED,
-  DETAIL_TYPE_PLAYER_LEFT,
-  EVENT_SOURCE,
-  type PlayerJoinedDetail,
-  PlayerJoinedDetailSchema,
-  type PlayerLeftDetail,
-  PlayerLeftDetailSchema,
-} from '@puzzlebottom-tabletop-tools/schemas'
 import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
 
-import {
-  createPlayTableApplication,
-  type IPlayTableEventPort,
-} from '../application/index.js'
+import { createPlayTableApplication } from '../application/index.js'
 import { createPlayTableStore } from '../store/index.js'
+import { createEventPort } from './event-port.js'
 
 const TABLE_NAME = process.env.TABLE_NAME!
 const EVENT_BUS_NAME = process.env.EVENT_BUS_NAME!
-
-function createEventPort(): IPlayTableEventPort {
-  const eb = new EventBridgeClient({})
-  return {
-    async publishPlayerJoined(detail: PlayerJoinedDetail): Promise<void> {
-      const parsed = PlayerJoinedDetailSchema.parse(detail)
-      await eb.send(
-        new PutEventsCommand({
-          Entries: [
-            {
-              Source: EVENT_SOURCE,
-              DetailType: DETAIL_TYPE_PLAYER_JOINED,
-              Detail: JSON.stringify(parsed),
-              EventBusName: EVENT_BUS_NAME,
-            },
-          ],
-        })
-      )
-    },
-    async publishPlayerLeft(detail: PlayerLeftDetail): Promise<void> {
-      const parsed = PlayerLeftDetailSchema.parse(detail)
-      await eb.send(
-        new PutEventsCommand({
-          Entries: [
-            {
-              Source: EVENT_SOURCE,
-              DetailType: DETAIL_TYPE_PLAYER_LEFT,
-              Detail: JSON.stringify(parsed),
-              EventBusName: EVENT_BUS_NAME,
-            },
-          ],
-        })
-      )
-    },
-  }
-}
 
 let app: ReturnType<typeof createPlayTableApplication> | undefined
 
 function getApp() {
   app ??= createPlayTableApplication({
     store: createPlayTableStore({ tableName: TABLE_NAME }),
-    events: createEventPort(),
+    events: createEventPort(EVENT_BUS_NAME),
   })
   return app
 }

@@ -19,9 +19,8 @@ vi.mock('../store/index.js', () => ({
   createPlayTableStore: vi.fn(),
 }))
 
-vi.mock('@aws-sdk/client-eventbridge', () => ({
-  EventBridgeClient: class {},
-  PutEventsCommand: class {},
+vi.mock('./event-port.js', () => ({
+  createEventPort: vi.fn().mockReturnValue({}),
 }))
 
 function makeEvent<T>(
