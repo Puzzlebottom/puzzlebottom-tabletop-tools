@@ -1,27 +1,19 @@
 import { randomUUID } from 'crypto'
 import { describe, expect, it, vi } from 'vitest'
 
-import type {
-  IPlayTableStore,
-  PlayTable,
-} from '../../play-table/store/index.js'
 import type { IDiceRollerStore, Roll, RollRequest } from '../store/index.js'
+import type { IDiceRollerAuthorizationPort } from './authorization-port.js'
 import {
   createDiceRollerApplication,
   type IDiceRollerWorkflowPort,
 } from './index.js'
 
-function makePlayTableStore(
-  overrides: Partial<IPlayTableStore> = {}
-): IPlayTableStore {
+function makeAuthorizationPort(
+  overrides: Partial<IDiceRollerAuthorizationPort> = {}
+): IDiceRollerAuthorizationPort {
   return {
-    getPlayTable: vi.fn().mockResolvedValue(null),
-    getPlayer: vi.fn().mockResolvedValue(null),
-    listPlayers: vi.fn().mockResolvedValue([]),
-    getPlayTableByInviteCode: vi.fn().mockResolvedValue(null),
-    putPlayTable: vi.fn().mockResolvedValue(undefined),
-    putPlayer: vi.fn().mockResolvedValue(undefined),
-    deletePlayer: vi.fn().mockResolvedValue(undefined),
+    getTableGmUserId: vi.fn().mockResolvedValue('gm-1'),
+    verifyPlayerMembership: vi.fn().mockResolvedValue({ playerId: 'p-1' }),
     ...overrides,
   }
 }
@@ -51,17 +43,6 @@ function makeWorkflowPort(
   return {
     startRollRequestPipeline: vi.fn().mockResolvedValue(undefined),
     startRollPipeline: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
-  }
-}
-
-function makePlayTable(overrides: Partial<PlayTable> = {}): PlayTable {
-  return {
-    id: randomUUID(),
-    gmUserId: 'gm-1',
-    inviteCode: 'ABC123',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    deletedAt: null,
     ...overrides,
   }
 }
@@ -103,14 +84,10 @@ function makeRoll(overrides: Partial<Roll> = {}): Roll {
 describe('createDiceRollerApplication', () => {
   describe('createRollRequest', () => {
     it('starts roll-request pipeline and returns RollRequest', async () => {
-      const table = makePlayTable({ id: 'pt-1', gmUserId: 'gm-1' })
-      const playTableStore = makePlayTableStore({
-        getPlayTable: vi.fn().mockResolvedValue(table),
-      })
       const diceRollerStore = makeDiceRollerStore()
       const startRollRequestPipeline = vi.fn().mockResolvedValue(undefined)
       const app = createDiceRollerApplication({
-        playTableStore,
+        authorization: makeAuthorizationPort(),
         diceRollerStore,
         workflows: makeWorkflowPort({ startRollRequestPipeline }),
       })
@@ -143,10 +120,9 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('throws when GM does not own play table', async () => {
-      const table = makePlayTable({ id: 'pt-1', gmUserId: 'other-gm' })
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
+        authorization: makeAuthorizationPort({
+          getTableGmUserId: vi.fn().mockResolvedValue('other-gm'),
         }),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
@@ -165,7 +141,9 @@ describe('createDiceRollerApplication', () => {
 
     it('throws when play table not found', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort({
+          getTableGmUserId: vi.fn().mockResolvedValue(null),
+        }),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
       })
@@ -182,13 +160,10 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('throws when active roll request already exists', async () => {
-      const table = makePlayTable({ id: 'pt-1', gmUserId: 'gm-1' })
       const active = makeRollRequest({ playTableId: 'pt-1' })
       const startRollRequestPipeline = vi.fn().mockResolvedValue(undefined)
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           getActiveRollRequest: vi.fn().mockResolvedValue(active),
         }),
@@ -208,11 +183,8 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('throws for unsupported roll request type', async () => {
-      const table = makePlayTable({ id: 'pt-1', gmUserId: 'gm-1' })
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
       })
@@ -230,7 +202,7 @@ describe('createDiceRollerApplication', () => {
 
     it('throws when targetPlayerIds is empty', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
       })
@@ -251,12 +223,9 @@ describe('createDiceRollerApplication', () => {
     const baseInput = { diceNotation: 'd20', modifier: 0, isPrivate: false }
 
     it('GM rolls ad-hoc and returns Roll with UUID id and correct rollerId', async () => {
-      const table = makePlayTable({ id: 'pt-1' })
       const startRollPipeline = vi.fn().mockResolvedValue(undefined)
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort({ startRollPipeline }),
       })
@@ -275,14 +244,9 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('player rolls with playerId and returns Roll with correct rollerId', async () => {
-      const table = makePlayTable({ id: 'pt-1' })
-      const player = { id: 'p-1', characterName: 'Hero', initiativeModifier: 0 }
       const startRollPipeline = vi.fn().mockResolvedValue(undefined)
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-          getPlayer: vi.fn().mockResolvedValue(player),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort({ startRollPipeline }),
       })
@@ -299,7 +263,7 @@ describe('createDiceRollerApplication', () => {
 
     it('throws when neither sub nor playerId provided', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
       })
@@ -311,8 +275,8 @@ describe('createDiceRollerApplication', () => {
 
     it('throws when player not found in play table', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayer: vi.fn().mockResolvedValue(null),
+        authorization: makeAuthorizationPort({
+          verifyPlayerMembership: vi.fn().mockResolvedValue(null),
         }),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
@@ -325,7 +289,9 @@ describe('createDiceRollerApplication', () => {
 
     it('throws when play table not found', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort({
+          getTableGmUserId: vi.fn().mockResolvedValue(null),
+        }),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
       })
@@ -336,13 +302,8 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('throws when roll request not found', async () => {
-      const table = makePlayTable({ id: 'pt-1' })
-      const player = { id: 'p-1', characterName: 'Hero', initiativeModifier: 0 }
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-          getPlayer: vi.fn().mockResolvedValue(player),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           getRollRequest: vi.fn().mockResolvedValue(null),
         }),
@@ -358,17 +319,12 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('throws when player is not a target of the roll request', async () => {
-      const table = makePlayTable({ id: 'pt-1' })
-      const player = { id: 'p-1', characterName: 'Hero', initiativeModifier: 0 }
       const rollRequest = makeRollRequest({
         targetPlayerIds: ['p-2'],
         taskToken: 'tok',
       })
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-          getPlayer: vi.fn().mockResolvedValue(player),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           getRollRequest: vi.fn().mockResolvedValue(rollRequest),
         }),
@@ -384,17 +340,12 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('throws when roll request has no taskToken', async () => {
-      const table = makePlayTable({ id: 'pt-1' })
-      const player = { id: 'p-1', characterName: 'Hero', initiativeModifier: 0 }
       const rollRequest = makeRollRequest({
         targetPlayerIds: ['p-1'],
         taskToken: undefined,
       })
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-          getPlayer: vi.fn().mockResolvedValue(player),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           getRollRequest: vi.fn().mockResolvedValue(rollRequest),
         }),
@@ -412,13 +363,10 @@ describe('createDiceRollerApplication', () => {
 
   describe('clearInitiative', () => {
     it('clears active roll request and returns true', async () => {
-      const table = makePlayTable({ id: 'pt-1', gmUserId: 'gm-1' })
       const active = makeRollRequest({ id: 'rr-1', playTableId: 'pt-1' })
       const clearRollRequest = vi.fn().mockResolvedValue(undefined)
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           getActiveRollRequest: vi.fn().mockResolvedValue(active),
           clearRollRequest,
@@ -433,12 +381,9 @@ describe('createDiceRollerApplication', () => {
     })
 
     it('returns true without clearing when no active request', async () => {
-      const table = makePlayTable({ id: 'pt-1' })
       const clearRollRequest = vi.fn()
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore({
-          getPlayTable: vi.fn().mockResolvedValue(table),
-        }),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({ clearRollRequest }),
         workflows: makeWorkflowPort(),
       })
@@ -451,7 +396,9 @@ describe('createDiceRollerApplication', () => {
 
     it('throws when play table not found', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort({
+          getTableGmUserId: vi.fn().mockResolvedValue(null),
+        }),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
       })
@@ -468,7 +415,7 @@ describe('createDiceRollerApplication', () => {
 
     it('returns rolls sorted by createdAt descending', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           listRollsForPlayTable: vi
             .fn()
@@ -493,7 +440,7 @@ describe('createDiceRollerApplication', () => {
 
     it('respects limit and returns nextToken when more items exist', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           listRollsForPlayTable: vi
             .fn()
@@ -518,7 +465,7 @@ describe('createDiceRollerApplication', () => {
         'base64'
       )
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore({
           listRollsForPlayTable: vi
             .fn()
@@ -540,7 +487,7 @@ describe('createDiceRollerApplication', () => {
 
     it('returns empty items when no rolls exist', async () => {
       const app = createDiceRollerApplication({
-        playTableStore: makePlayTableStore(),
+        authorization: makeAuthorizationPort(),
         diceRollerStore: makeDiceRollerStore(),
         workflows: makeWorkflowPort(),
       })

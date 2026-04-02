@@ -44,17 +44,16 @@ module.exports = tseslint.config(
     plugins: { boundaries },
     settings: {
       'boundaries/root-path': path.join(__dirname),
-      'import/resolver': {
-        typescript: {
-          project: ['backend/tsconfig.json', 'frontend/tsconfig.json'],
-          noWarnOnMultipleProjects: true,
-        },
-      },
       'boundaries/elements': [
         { type: 'domain', pattern: 'shared/schemas/**/*.ts', mode: 'full' },
         {
           type: 'contracts',
           pattern: 'shared/graphql-types/**/*.ts',
+          mode: 'full',
+        },
+        {
+          type: 'application',
+          pattern: 'modules/*/application/**/*.ts',
           mode: 'full',
         },
         {
@@ -101,12 +100,22 @@ module.exports = tseslint.config(
             { from: 'domain', allow: ['domain', 'contracts'] },
             { from: 'contracts', disallow: ['*'] },
             {
+              from: 'application',
+              allow: ['domain', 'contracts', 'application', 'store'],
+            },
+            {
               from: 'steps',
               allow: ['domain', 'contracts', 'shared', 'steps', 'store'],
             },
             {
               from: 'resolvers',
-              allow: ['domain', 'contracts', 'resolvers', 'store'],
+              allow: [
+                'domain',
+                'contracts',
+                'resolvers',
+                'store',
+                'application',
+              ],
             },
             {
               from: 'handlers',

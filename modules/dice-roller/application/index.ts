@@ -9,8 +9,8 @@ import type { GenerateAndStoreRollPayload } from '@puzzlebottom-tabletop-tools/s
 import type { RollRequestStepPayload } from '@puzzlebottom-tabletop-tools/schemas/steps/roll-request-pipeline'
 import { randomUUID } from 'crypto'
 
-import type { IPlayTableStore } from '../../play-table/store/index.js'
 import type { IDiceRollerStore } from '../store/index.js'
+import type { IDiceRollerAuthorizationPort } from './authorization-port.js'
 
 export interface IDiceRollerWorkflowPort {
   startRollRequestPipeline(payload: RollRequestStepPayload): Promise<void>
@@ -36,11 +36,11 @@ export interface IDiceRollerApplication {
 }
 
 export function createDiceRollerApplication(config: {
-  playTableStore: IPlayTableStore
+  authorization: IDiceRollerAuthorizationPort
   diceRollerStore: IDiceRollerStore
   workflows: IDiceRollerWorkflowPort
 }): IDiceRollerApplication {
-  const { playTableStore, diceRollerStore, workflows } = config
+  const { authorization, diceRollerStore, workflows } = config
 
   return {
     async createRollRequest(
@@ -60,10 +60,10 @@ export function createDiceRollerApplication(config: {
         throw new Error('targetPlayerIds must not be empty')
       }
 
-      const playTable = await playTableStore.getPlayTable(playTableId)
-      if (!playTable) throw new Error('Play table not found')
+      const tableGmUserId = await authorization.getTableGmUserId(playTableId)
+      if (!tableGmUserId) throw new Error('Play table not found')
 
-      if (playTable.gmUserId !== gmUserId) {
+      if (tableGmUserId !== gmUserId) {
         throw new Error('Only the GM can create roll requests')
       }
 
@@ -120,22 +120,21 @@ export function createDiceRollerApplication(config: {
 
       let roller: RollerIdentity
       if (sub) {
+        const gmUserId = await authorization.getTableGmUserId(playTableId)
+        if (!gmUserId) throw new Error('Play table not found')
         roller = { type: 'gm', rollerId: sub }
       } else if (resolvedPlayerId) {
-        const player = await playTableStore.getPlayer(
+        const membership = await authorization.verifyPlayerMembership(
           playTableId,
           resolvedPlayerId
         )
-        if (!player) throw new Error('Player not found in play table')
+        if (!membership) throw new Error('Player not found in play table')
         roller = { type: 'player', rollerId: resolvedPlayerId }
       } else {
         throw new Error(
           'Unauthorized: createRoll requires Cognito (GM) or playerId in input (player)'
         )
       }
-
-      const playTable = await playTableStore.getPlayTable(playTableId)
-      if (!playTable) throw new Error('Play table not found')
 
       let rollRequestId: string | null = null
       let rollRequestType: 'ad_hoc' | 'initiative' = 'ad_hoc'
@@ -193,8 +192,8 @@ export function createDiceRollerApplication(config: {
       _gmUserId: string,
       playTableId: string
     ): Promise<boolean> {
-      const playTable = await playTableStore.getPlayTable(playTableId)
-      if (!playTable) throw new Error('Play table not found')
+      const tableGmUserId = await authorization.getTableGmUserId(playTableId)
+      if (!tableGmUserId) throw new Error('Play table not found')
 
       const active = await diceRollerStore.getActiveRollRequest(playTableId)
       if (!active) return true

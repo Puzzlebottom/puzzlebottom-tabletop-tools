@@ -4,6 +4,7 @@ import type { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda'
 import { createPlayTableStore } from '../../play-table/store/index.js'
 import { createDiceRollerApplication } from '../application/index.js'
 import { createDiceRollerStore } from '../store/index.js'
+import { createAuthorizationAdapter } from './authorization-adapter.js'
 import { createWorkflowPort } from './workflow-port.js'
 
 const PLAY_TABLE_NAME = process.env.PLAY_TABLE_NAME!
@@ -16,7 +17,9 @@ let app: ReturnType<typeof createDiceRollerApplication> | undefined
 
 function getApp() {
   app ??= createDiceRollerApplication({
-    playTableStore: createPlayTableStore({ tableName: PLAY_TABLE_NAME }),
+    authorization: createAuthorizationAdapter(
+      createPlayTableStore({ tableName: PLAY_TABLE_NAME })
+    ),
     diceRollerStore: createDiceRollerStore({
       tableName: DICE_ROLLER_TABLE_NAME,
     }),
